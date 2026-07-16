@@ -38,7 +38,7 @@ export interface UserProfileData {
 
 export class UserRepository {
   static async getProfile(uid: string): Promise<UserProfileData | null> {
-    const docRef = doc(db, 'profiles', uid);
+    const docRef = doc(db, 'users', uid);
     const docSnap = await getDoc(docRef);
     if (docSnap.exists()) {
       return docSnap.data() as UserProfileData;
@@ -47,12 +47,17 @@ export class UserRepository {
   }
 
   static async saveProfile(uid: string, profile: Partial<UserProfileData>): Promise<void> {
-    const docRef = doc(db, 'profiles', uid);
-    const docSnap = await getDoc(docRef);
-    if (docSnap.exists()) {
-      await updateDoc(docRef, profile);
-    } else {
-      await setDoc(docRef, { aiCredits: 500, ...profile, userId: uid }, { merge: true });
+    try {
+      const docRef = doc(db, 'users', uid);
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        await updateDoc(docRef, profile);
+      } else {
+        await setDoc(docRef, { aiCredits: 500, ...profile, userId: uid }, { merge: true });
+      }
+    } catch (e: any) {
+      console.error("[UserRepository] saveProfile failed:", e);
+      throw e;
     }
   }
 }

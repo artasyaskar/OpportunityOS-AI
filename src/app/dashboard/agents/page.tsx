@@ -22,7 +22,7 @@ const AGENTS = [
 ];
 
 export default function AgentsDashboard() {
-  const { user } = useAuth();
+  const { user, getIdToken } = useAuth();
   const { profile, openUpgradeModal } = useProfile() as any;
   
   const [documents, setDocuments] = useState<EvidenceDocument[]>([]);
@@ -77,9 +77,10 @@ export default function AgentsDashboard() {
         payload.instructions = "Focus on my leadership experience.";
       }
 
+      const token = await getIdToken();
       const res = await fetch(agent.endpoint, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify(payload)
       });
       

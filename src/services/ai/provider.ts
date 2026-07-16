@@ -3,6 +3,10 @@ export interface AIRequestOptions {
   temperature?: number;
   maxTokens?: number;
   responseFormat?: 'text' | 'json';
+  image?: {
+    data: string;
+    mimeType: string;
+  };
 }
 
 export interface AIResponseMetadata {

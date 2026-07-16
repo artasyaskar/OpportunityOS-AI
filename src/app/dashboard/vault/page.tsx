@@ -264,6 +264,7 @@ export default function EvidenceVaultPage() {
         ref={uploadInputRef} 
         style={{ display: 'none' }} 
         onChange={(e) => e.target.files && handleFileUpload(e.target.files[0])} 
+        accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
       />
 
       {/* Hidden File Input for Replace */}
@@ -272,6 +273,7 @@ export default function EvidenceVaultPage() {
         ref={fileInputRef} 
         style={{ display: 'none' }} 
         onChange={handleFileReplace} 
+        accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
       />
 
       {/* Summary Stats */}

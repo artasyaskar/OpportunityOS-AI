@@ -70,6 +70,16 @@ export class CloudflareR2Provider implements StorageProvider {
     return await getSignedUrl(this.s3, command, { expiresIn: 3600 });
   }
 
+  async getSignedUploadUrl(key: string, contentType: string): Promise<string> {
+    const command = new PutObjectCommand({
+      Bucket: this.bucket,
+      Key: key,
+      ContentType: contentType,
+    });
+    // Upload URL expires in 15 minutes
+    return await getSignedUrl(this.s3, command, { expiresIn: 900 });
+  }
+
   async delete(key: string): Promise<void> {
     await this.s3.send(new DeleteObjectCommand({
       Bucket: this.bucket,

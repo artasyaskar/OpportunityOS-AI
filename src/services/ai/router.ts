@@ -1,7 +1,7 @@
 import { AIProvider, AIResponse, AIRequestOptions, AIResponseMetadata } from './provider';
 import { GroqProvider } from './groq';
 import { GeminiProvider } from './gemini';
-import { logAgentExecution } from '@/lib/firestore';
+import { adminDb } from '@/lib/firebase-admin';
 import { CreditManager, InsufficientCreditsError } from '@/lib/services/CreditManager';
 
 type TaskType = 'complex_reasoning' | 'fast_chat' | 'document_generation' | 'general';
@@ -26,7 +26,7 @@ class AIRouter {
   async runWithRetry<T>(
     agentName: string,
     operation: (provider: AIProvider) => Promise<AIResponse<T>>,
-    options?: { format?: 'text' | 'json'; taskType?: TaskType; cacheKey?: string; forcePremium?: boolean; userId?: string }
+    options?: { format?: 'text' | 'json'; taskType?: TaskType; cacheKey?: string; forcePremium?: boolean; userId?: string; image?: { data: string; mimeType: string } }
   ): Promise<AIResponse<T>> {
     // 1. Check Cache
     if (options?.cacheKey) {
@@ -49,9 +49,11 @@ class AIRouter {
       }
     }
 
-    // 2. Fallback Sequence (Gemini Flash -> Groq)
-    const primary = 'gemini';
-    const fallback = 'groq';
+    let providerSequence: string[] = ['groq', 'gemini'];
+
+    if (options?.forcePremium) {
+      providerSequence = ['gemini'];
+    }
 
     const groqKey = process.env.GROQ_API_KEY;
     const geminiKey = process.env.GEMINI_API_KEY;
@@ -60,7 +62,7 @@ class AIRouter {
       throw new Error(`The AI is temporarily unavailable. Please try again in a few moments.`);
     }
 
-    const providerSequence = [primary, fallback];
+    // Ensure the system doesn't crash if keys are missing; the sequence loop will skip providers without keys
     let lastError: Error | null = null;
 
     for (const providerName of providerSequence) {
@@ -73,58 +75,80 @@ class AIRouter {
       } catch {
         continue;
       }
-      // ONLY 1 ATTEMPT PER PROVIDER
-      const start = Date.now();
-      try {
-        const responsePromise = operation(provider);
-        const timeoutPromise = new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('AI Request Timeout (15s)')), 15000)
-        );
+      const overallStart = Date.now();
+      // EXPONENTIAL BACKOFF RETRY LOGIC (Max 3 attempts)
+      let attempt = 0;
+      const maxAttempts = 3;
+      let lastAttemptError: any = null;
+      let result: AIResponse<T> | null = null;
 
-        const result = await Promise.race([responsePromise, timeoutPromise]);
+      while (attempt < maxAttempts) {
+        attempt++;
+        const start = Date.now();
+        try {
+          const responsePromise = operation(provider);
+          const timeoutMs = options?.image ? 60000 : 15000;
+          const timeoutPromise = new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error(`AI Request Timeout (${timeoutMs / 1000}s)`)), timeoutMs)
+          );
 
-        // Cache the successful result
-        if (options?.cacheKey) {
-          this.cache.set(options.cacheKey, { result: result.content, timestamp: Date.now() });
-        }
+          result = await Promise.race([responsePromise, timeoutPromise]);
+          break; // Success, break retry loop
+        } catch (error: any) {
+          lastAttemptError = error;
+          console.error(`[AI Router] Provider ${providerName} attempt ${attempt} failed: ${error.message}`);
 
-        // Deduct credits on successful generation (not cache hit)
-        if (options?.userId) {
-          try {
-            await CreditManager.deductCredits(options.userId, options.taskType);
-          } catch (err) {
-            console.error('Failed to deduct credits:', err);
+          // Fast-Fail for known unrecoverable API errors or Timeouts
+          if (error.message.includes('API Error') || error.message.includes('Status 400') || error.message.includes('unexpected data format') || error.message.includes('Timeout')) {
+            console.log(`[AI Router] Fast-failing over to next provider due to fatal API error or Timeout.`);
+            break;
+          }
+
+          if (attempt < maxAttempts) {
+            const delay = Math.pow(2, attempt) * 1000; // 2s, 4s
+            console.log(`[AI Router] Waiting ${delay}ms before retrying...`);
+            await new Promise(resolve => setTimeout(resolve, delay));
           }
         }
-
-        logAgentExecution(
-          agentName,
-          result.metadata.provider,
-          result.metadata.model,
-          typeof result.content === 'string' ? result.content : JSON.stringify(result.content),
-          result.metadata.totalTokens,
-          Date.now() - start
-        ).catch(console.error);
-
-        return result;
-      } catch (error: any) {
-        lastError = error;
-        console.error(`[AI Router] Provider ${providerName} failed: ${error.message}`);
-        
-        // Log error telemetry
-        logAgentExecution(
-          `${agentName}-error`,
-          'anonymous-telemetry',
-          `Provider: ${providerName}`,
-          `Error: ${error.message}`,
-          0,
-          Date.now() - start
-        ).catch(() => {});
-        
-        // Continue to the next provider
       }
+
+      if (!result) {
+        lastError = lastAttemptError;
+        continue; // Both attempts failed, fallback to next provider
+      }
+
+      // Cache the successful result
+      if (options?.cacheKey) {
+        this.cache.set(options.cacheKey, { result: result.content, timestamp: Date.now() });
+      }
+
+      // Deduct credits on successful generation (not cache hit)
+      if (options?.userId) {
+        try {
+          await CreditManager.deductCredits(options.userId, options.taskType);
+        } catch (err) {
+          console.error('Failed to deduct credits:', err);
+        }
+      }
+
+      if (options?.userId) {
+        adminDb.collection('agent_logs').add({
+          agentName,
+          userId: options.userId,
+          provider: result.metadata.provider,
+          model: result.metadata.model,
+          input: 'System Prompt & Input', // omitted raw input for privacy
+          output: typeof result.content === 'string' ? result.content.slice(0, 500) : JSON.stringify(result.content).slice(0, 500),
+          tokensUsed: result.metadata.totalTokens,
+          duration: Date.now() - overallStart,
+          timestamp: new Date()
+        }).catch(console.error);
+      }
+
+      return result;
+      // Let loop continue to fallback provider
     }
-    
+
     // 3. Graceful Error Fallback
     console.error(`[AI Router] All providers failed for agent "${agentName}". Last error: ${lastError?.message}`);
     throw new Error(`The AI is temporarily unavailable. Please try again in a few moments.`);

@@ -38,7 +38,7 @@ export default function OnboardingPage() {
   const router = useRouter();
 
   const { updateProfile } = useProfile();
-  const { user } = useAuth();
+  const { user, getIdToken } = useAuth();
 
   // Document Upload States
   const [uploadedResume, setUploadedResume] = useState<UploadedFile | null>(null);
@@ -167,43 +167,55 @@ export default function OnboardingPage() {
         
         setSimulatedProgress(Math.floor((i / files.length) * 100));
 
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('type', activeUploadModal || 'other');
-        formData.append('userId', user?.uid || '');
+        // 1. Client-Side Hashing for Deduplication
+        const hashBuffer = await crypto.subtle.digest('SHA-256', await file.arrayBuffer());
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 
-        const res = await fetch('/api/documents/upload', {
+        const token = await getIdToken();
+        
+        // 2. Request Presigned URL
+        const presignRes = await fetch('/api/documents/presign', {
           method: 'POST',
-          body: formData,
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            filename: file.name,
+            contentType: file.type,
+            size: file.size,
+            hash: hashHex,
+            type: activeUploadModal || 'other'
+          })
         });
 
-        let data: any = {};
-        try {
-          data = await res.json();
-        } catch (e) {
-          console.error('Failed to parse upload response', e);
+        const presignData = await presignRes.json();
+        if (!presignRes.ok) {
+          throw new Error(presignData.error || 'Failed to get upload URL');
         }
 
-        if (!res.ok) {
-          throw new Error('Upload failed: ' + (data.error || res.statusText));
+        // 3. Stream Proxy Upload (Bypasses Next.js FormData bottlenecks & R2 CORS)
+        if (presignData.uploadUrl) {
+           const uploadRes = await fetch(presignData.uploadUrl, {
+             method: 'PUT',
+             headers: {
+               'Content-Type': file.type,
+               'Authorization': `Bearer ${token}`
+             },
+             body: file
+           });
+           
+           if (!uploadRes.ok) {
+             throw new Error('Direct upload failed. Please try again.');
+           }
         }
 
-        const docId = await import('@/lib/repositories/EvidenceRepository').then(m => 
-          m.EvidenceRepository.addDocument(user?.uid || '', {
-            type: (activeUploadModal || 'other') as any,
-            status: 'QUEUED' as any,
-            fileName: file.name,
-            fileUrl: data.fileUrl,
-            fileHash: data.hash,
-            size: file.size,
-            mimeType: file.type
-          })
-        );
-        
+        // 4. Trigger Server Parsing
         fetch('/api/documents/parse', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ documentId: docId, userId: user?.uid }),
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ documentId: presignData.documentId, userId: user?.uid }),
         }).catch(err => console.error('Parse API trigger failed', err));
 
         const sizeStr = (file.size / (1024 * 1024)).toFixed(2) + ' MB';

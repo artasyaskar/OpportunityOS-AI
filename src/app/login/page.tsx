@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/auth/AuthProvider';
+import { useProfile } from '@/components/auth/ProfileContext';
 import AuthModal from '@/components/auth/AuthModal';
 import Toast, { ToastType } from '@/components/auth/Toast';
 
@@ -22,15 +23,18 @@ export default function LoginPage() {
 
   const router = useRouter();
   const { loginWithEmail, loginWithGoogle, isAuthenticated, authMode } = useAuth();
+  const { profileStatus } = useProfile();
 
-  // If already authenticated, redirect to dashboard
+  // If already authenticated, redirect to appropriate page
   useEffect(() => {
-    if (isAuthenticated) {
+    if (profileStatus === 'no_profile') {
+      router.replace('/onboarding');
+    } else if (profileStatus === 'has_profile') {
       const redirect = sessionStorage.getItem('oos_redirect_after_login') || '/dashboard';
       sessionStorage.removeItem('oos_redirect_after_login');
       router.replace(redirect);
     }
-  }, [isAuthenticated, router]);
+  }, [profileStatus, router]);
 
   useEffect(() => {
     if (resetCooldown > 0) {

@@ -27,7 +27,7 @@ const STATUS_STYLES: Record<string, { color: string; label: string; bg: string }
 export default function PortfolioPage() {
   const [activeTab, setActiveTab] = useState<'dna' | 'portfolio'>('dna');
   
-  const { user } = useAuth();
+  const { user, getIdToken } = useAuth();
   const { profile: userProfile } = useProfile();
   const { pipeline: apps } = usePipeline();
   const { subscription } = useSubscription();
@@ -55,9 +55,10 @@ export default function PortfolioPage() {
         return;
       }
       try {
+        const token = await getIdToken();
         const res = await fetch('/api/agents/portfolio', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
           body: JSON.stringify({
             profile: profile,
             applications: apps
@@ -208,9 +209,10 @@ export default function PortfolioPage() {
     }
     const fetchPortfolioAnalysis = async () => {
       try {
+        const token = await getIdToken();
         const res = await fetch('/api/agents/portfolio', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
           body: JSON.stringify({
             userId: profile.userId,
             applications: apps,
@@ -450,7 +452,7 @@ export default function PortfolioPage() {
                 ref={fileInputRef} 
                 style={{ display: 'none' }} 
                 onChange={handleUploadNewResume} 
-                accept=".pdf,.doc,.docx"
+                accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
               />
               <button 
                 onClick={() => fileInputRef.current?.click()}

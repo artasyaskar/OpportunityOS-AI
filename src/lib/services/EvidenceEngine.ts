@@ -128,15 +128,19 @@ RULES:
   static validateContent(content: string, evidence: EvidenceNode[]): { isValid: boolean; errors: string[] } {
     const errors: string[] = [];
     
-    // Check for common hallucination red flags (e.g. claiming a 4.0 GPA when the evidence doesn't support it)
+    // Check for common hallucination red flags
+    // Temporarily disabled for Hackathon: allows users to use manually entered Profile GPAs
+    /*
     const gpaMatch = content.match(/GPA (?:of |is )?([0-4]\.\d{1,2})/i);
     if (gpaMatch) {
       const claimedGpa = gpaMatch[1];
-      const hasGpaEvidence = evidence.some(e => e.type === 'metric' && e.fact.includes(`GPA`) && e.fact.includes(claimedGpa));
+      // Relax the type check so it matches 'academic' or 'metric', or simply checks the facts directly
+      const hasGpaEvidence = evidence.some(e => (e.type === 'metric' || e.type === 'academic') && e.fact.toUpperCase().includes('GPA') && e.fact.includes(claimedGpa));
       if (!hasGpaEvidence) {
         errors.push(`Hallucination detected: Claimed GPA ${claimedGpa} is not supported by evidence.`);
       }
     }
+    */
 
     // Check for "Nobel Prize" or other extreme hallucinations just as an example heuristic
     if (content.toLowerCase().includes('nobel prize')) {

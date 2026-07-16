@@ -78,7 +78,7 @@ export default function DashboardPage() {
   }, [user]);
 
   useEffect(() => {
-    if (isLoading || opportunities.length === 0) return;
+    if (isLoading) return;
 
     let name = 'User';
     let gpa = 3.5;
@@ -172,6 +172,15 @@ export default function DashboardPage() {
           probability: compResult.score
         };
       });
+      // Add a fallback placeholder if absolutely empty
+      if (deadlinesToUse.length === 0) {
+        deadlinesToUse = [{
+          name: 'AI Identifying Matches...',
+          deadline: 'TBD',
+          daysLeft: 30,
+          probability: compResult.score
+        }];
+      }
     }
     
     deadlinesToUse.sort((a, b) => a.daysLeft - b.daysLeft);
@@ -469,13 +478,15 @@ export default function DashboardPage() {
             <h2 style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '18px', fontWeight: 700, color: 'white' }}>
               🎯 Verified Opportunities For You
             </h2>
-            <Link href="/dashboard/opportunities" style={{ fontSize: '13px', color: '#818cf8', textDecoration: 'none' }}>
-              View all {opportunities.length} →
-            </Link>
+            {opportunities.length > 0 && (
+              <Link href="/dashboard/opportunities" style={{ fontSize: '13px', color: '#818cf8', textDecoration: 'none' }}>
+                View all {opportunities.length} →
+              </Link>
+            )}
           </div>
 
           <div style={{ display: 'grid', gap: '12px' }}>
-            {topOpportunities.map(opp => {
+            {topOpportunities.length > 0 ? topOpportunities.map(opp => {
               const probColor = '#10b981';
               const typeColors: Record<string, string> = {
                 scholarship: '#6366f1', fellowship: '#8b5cf6', grant: '#06b6d4',
@@ -547,7 +558,13 @@ export default function DashboardPage() {
                   </div>
                 </Link>
               );
-            })}
+            }) : (
+              <div className="card" style={{ padding: '32px', textAlign: 'center' }}>
+                 <div style={{ fontSize: '32px', marginBottom: '12px' }}>🔍</div>
+                 <h3 style={{ color: 'white', fontSize: '15px', fontWeight: 600, marginBottom: '6px' }}>Scanning Global Databases</h3>
+                 <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '13px' }}>Your AI Chief Officer is analyzing your DNA to find matching opportunities. Check back shortly.</p>
+              </div>
+            )}
           </div>
         </div>
 

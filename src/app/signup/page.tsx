@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/auth/AuthProvider';
+import { useProfile } from '@/components/auth/ProfileContext';
 import AuthModal from '@/components/auth/AuthModal';
 import Toast, { ToastType } from '@/components/auth/Toast';
 
@@ -11,6 +12,7 @@ export default function SignupPage() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -21,13 +23,20 @@ export default function SignupPage() {
 
   const router = useRouter();
   const { signupWithEmail, loginWithGoogle, isAuthenticated, authMode } = useAuth();
+  const { profile, isLoading: isProfileLoading } = useProfile();
 
   // If already authenticated, redirect
   useEffect(() => {
-    if (isAuthenticated) {
-      router.replace('/onboarding');
+    if (isAuthenticated && !isProfileLoading) {
+      if (!profile) {
+        router.replace('/onboarding');
+      } else {
+        const redirect = sessionStorage.getItem('oos_redirect_after_login') || '/dashboard';
+        sessionStorage.removeItem('oos_redirect_after_login');
+        router.replace(redirect);
+      }
     }
-  }, [isAuthenticated, router]);
+  }, [isAuthenticated, isProfileLoading, profile, router]);
 
   const showToast = (msg: string, type: ToastType) => {
     setToastMsg(msg);
@@ -36,8 +45,23 @@ export default function SignupPage() {
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
     setError('');
+
+    if (password !== confirmPassword) {
+      setError('Passwords do not match');
+      return;
+    }
+    
+    // Check strength
+    const hasUpper = /[A-Z]/.test(password);
+    const hasNum = /[0-9]/.test(password);
+    const hasSym = /[!@#$%^&*(),.?":{}|<>]/.test(password);
+    if (password.length < 8 || !hasUpper || !hasNum || !hasSym) {
+      setError('Password must be at least 8 characters and include uppercase, number, and symbol.');
+      return;
+    }
+
+    setLoading(true);
     try {
       await signupWithEmail(email, password, name);
       // Redirect happens via the useEffect above when isAuthenticated becomes true
@@ -132,6 +156,34 @@ export default function SignupPage() {
               placeholder="••••••••"
               value={password}
               onChange={e => setPassword(e.target.value)}
+              required
+            />
+
+            {/* Password Strength Indicator */}
+            {password.length > 0 && (
+              <div style={{ marginTop: '8px', marginBottom: '16px', display: 'flex', gap: '4px' }}>
+                <div style={{ height: '4px', flex: 1, borderRadius: '2px', background: password.length >= 8 ? '#10b981' : '#f43f5e' }} />
+                <div style={{ height: '4px', flex: 1, borderRadius: '2px', background: /[A-Z]/.test(password) ? '#10b981' : 'rgba(255,255,255,0.1)' }} />
+                <div style={{ height: '4px', flex: 1, borderRadius: '2px', background: /[0-9]/.test(password) ? '#10b981' : 'rgba(255,255,255,0.1)' }} />
+                <div style={{ height: '4px', flex: 1, borderRadius: '2px', background: /[!@#$%^&*(),.?":{}|<>]/.test(password) ? '#10b981' : 'rgba(255,255,255,0.1)' }} />
+              </div>
+            )}
+            {password.length > 0 && (
+              <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', marginTop: '-8px', marginBottom: '16px', display: 'flex', justifyContent: 'space-between' }}>
+                <span>Length (8+)</span>
+                <span>Uppercase</span>
+                <span>Number</span>
+                <span>Symbol</span>
+              </div>
+            )}
+
+            <label>Confirm Password</label>
+            <input
+              type="password"
+              className="milled-input"
+              placeholder="••••••••"
+              value={confirmPassword}
+              onChange={e => setConfirmPassword(e.target.value)}
               required
             />
 

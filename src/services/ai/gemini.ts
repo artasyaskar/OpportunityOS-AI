@@ -3,8 +3,8 @@ import { AIProvider, AIResponse, AIRequestOptions, AIResponseMetadata } from './
 export class GeminiProvider extends AIProvider {
   name = 'gemini';
   private apiKey: string;
-  private defaultModel = 'gemini-1.5-flash';
-  private defaultReasoningModel = 'gemini-1.5-flash';
+  private defaultModel = 'gemini-3.5-flash';
+  private defaultReasoningModel = 'gemini-3.5-flash';
 
   constructor() {
     super();
@@ -41,7 +41,15 @@ export class GeminiProvider extends AIProvider {
       contents: [
         {
           role: 'user',
-          parts: [{ text: prompt }]
+          parts: [
+            { text: prompt },
+            ...(options?.image ? [{
+              inlineData: {
+                data: options.image.data,
+                mimeType: options.image.mimeType
+              }
+            }] : [])
+          ]
         }
       ],
       generationConfig: {

@@ -1,5 +1,5 @@
-import { db } from '../firebase';
-import { doc, getDoc, updateDoc, increment } from 'firebase/firestore';
+import { adminDb } from '../firebase-admin';
+import { FieldValue } from 'firebase-admin/firestore';
 
 export class InsufficientCreditsError extends Error {
   constructor(message: string = "Insufficient AI Credits") {
@@ -21,14 +21,14 @@ export class CreditManager {
    * Retrieves the user's current AI credits balance.
    */
   static async getBalance(uid: string): Promise<number> {
-    const docRef = doc(db, 'profiles', uid);
-    const snap = await getDoc(docRef);
-    if (!snap.exists()) return 0;
+    const docRef = adminDb.collection('profiles').doc(uid);
+    const snap = await docRef.get();
+    if (!snap.exists) return 0;
     
     const data = snap.data();
     // If field doesn't exist yet for older profiles, assume 500.
-    if (data.aiCredits === undefined) {
-      await updateDoc(docRef, { aiCredits: 500 });
+    if (data?.aiCredits === undefined) {
+      await docRef.update({ aiCredits: 500 });
       return 500;
     }
     
@@ -42,14 +42,14 @@ export class CreditManager {
   static async deductCredits(uid: string, taskType: keyof typeof CreditManager.COSTS = 'general'): Promise<void> {
     const cost = this.COSTS[taskType] || this.COSTS.general;
     
-    const docRef = doc(db, 'profiles', uid);
-    const snap = await getDoc(docRef);
+    const docRef = adminDb.collection('profiles').doc(uid);
+    const snap = await docRef.get();
     
-    if (!snap.exists()) {
+    if (!snap.exists) {
       throw new Error("Profile not found");
     }
 
-    let currentCredits = snap.data().aiCredits;
+    let currentCredits = snap.data()?.aiCredits;
     if (currentCredits === undefined) {
       currentCredits = 500; // Initialize old accounts
     }
@@ -58,8 +58,8 @@ export class CreditManager {
       throw new InsufficientCreditsError();
     }
 
-    await updateDoc(docRef, {
-      aiCredits: increment(-cost)
+    await docRef.update({
+      aiCredits: FieldValue.increment(-cost)
     });
   }
 }

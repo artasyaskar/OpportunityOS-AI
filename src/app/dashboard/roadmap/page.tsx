@@ -20,7 +20,7 @@ const PRIORITY_COLORS: Record<string, string> = {
 
 export default function RoadmapPage() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, getIdToken } = useAuth();
   const { profile: userProfile } = useProfile();
   const { pipeline: apps } = usePipeline();
   const { subscription } = useSubscription();
@@ -49,9 +49,10 @@ export default function RoadmapPage() {
         const topApp = apps.length > 0 ? apps[0] : null;
         const opportunity = topApp ? SEED_OPPORTUNITIES.find(o => o.id === topApp.id) : SEED_OPPORTUNITIES[0];
         
+        const token = await getIdToken();
         const res = await fetch('/api/agents/gap-analysis', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
           body: JSON.stringify({
             userId: user.uid,
             profile,

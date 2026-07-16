@@ -2,15 +2,63 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // Strict tenant isolation for user profiles
+    // Check if the user is the executive admin
+    function isAdmin() {
+      return request.auth != null && request.auth.token.email == 'artasyaskar@gmail.com';
+    }
+    
+    // Strict tenant isolation for user profiles/data
     match /users/{userId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    match /profiles/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    match /pipelines/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Subscriptions can be read/written by the user OR the admin (for approvals)
+    match /subscriptions/{userId} {
+      allow read, write: if request.auth != null && (request.auth.uid == userId || isAdmin());
     }
 
     // Strict tenant isolation for evidence vault
     match /evidence/{documentId} {
       allow read, write: if request.auth != null && request.auth.uid == resource.data.userId;
       allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
+    }
+    
+    // Tenant isolation for applications
+    match /applications/{applicationId} {
+      allow read, write: if request.auth != null && request.auth.uid == resource.data.userId;
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
+    }
+    
+    // Tenant isolation for essays
+    match /essays/{essayId} {
+      allow read, write: if request.auth != null && request.auth.uid == resource.data.userId;
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
+    }
+    
+    // Tenant isolation for agent logs
+    match /agent_logs/{logId} {
+      allow read, write: if request.auth != null && request.auth.uid == resource.data.userId;
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
+    }
+
+    // Public read-only collections (Opportunities data)
+    match /opportunities/{opportunityId} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+    
+    // App Config (e.g. Payment Merchants) - Read by anyone logged in, written by admin
+    match /app_config/{configId} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
     }
 
     // Health check endpoint requires no auth but limits queries

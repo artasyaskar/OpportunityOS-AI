@@ -56,7 +56,7 @@ export default function BuilderPage() {
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const { pipeline: applications } = usePipeline();
   const { profile, openUpgradeModal } = useProfile() as any;
-  const { user } = useAuth();
+  const { user, getIdToken } = useAuth();
 
   useEffect(() => {
     OpportunityRepository.getAllOpportunities().then(data => {
@@ -176,9 +176,10 @@ export default function BuilderPage() {
     };
 
     try {
+      const token = await getIdToken();
       const res = await fetch('/api/agents/builder', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({
           type: docType,
           opportunity,

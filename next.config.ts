@@ -16,6 +16,7 @@ const nextConfig: NextConfig = {
       allowedOrigins: ['localhost:3000', '10.65.42.8:3000', '10.65.42.8', '192.168.0.103'],
     },
   },
+  serverExternalPackages: ['tesseract.js'],
 };
 
 export default nextConfig;
