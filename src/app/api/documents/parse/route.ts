@@ -79,44 +79,12 @@ export async function POST(req: NextRequest) {
         const keyLower = docData.storageKey.toLowerCase();
         
         if (keyLower.endsWith('.png') || keyLower.endsWith('.jpg') || keyLower.endsWith('.jpeg')) {
-          console.log('[Mock Parser] Bypassing AI for image upload...');
-          
-          // Generate realistic dummy data based on docType for the Hackathon Demo
-          let mockData: any = {};
-          if (docData.type === 'transcript') {
-            mockData = {
-              institution: "Demo University (From Image Scan)",
-              degree: "Bachelor of Science",
-              major: "Computer Science",
-              cgpa: "3.85",
-              courses: ["Data Structures", "Algorithms", "Machine Learning"]
-            };
-          } else if (docData.type === 'resume') {
-            mockData = {
-              name: "Demo Applicant",
-              email: "applicant@example.com",
-              skills: ["React", "Next.js", "TypeScript", "Node.js"],
-              experience: "Software Engineer at Tech Corp (2020-Present)"
-            };
-          } else {
-            mockData = {
-              title: "Scanned Document",
-              summary: "This document was successfully processed via Image Scan Bypass.",
-              key_points: ["Image successfully uploaded", "Data extracted via OCR Bypass"]
-            };
-          }
-
-          if (docRef) {
-            await docRef.update({
-              extractedData: mockData,
-              status: DocumentStatus.NEEDS_REVIEW,
-              aiConfidence: 99,
-              parserUsed: 'Mock Image Parser Bypass',
-              extractionVersion: 'v1',
-              whoVerified: 'Auto-Bypass'
-            }).catch(() => {});
-          }
-          return;
+          console.log('[Vision Parser] Routing image upload to multimodal AI...');
+          imagePayload = {
+            data: buffer.toString('base64'),
+            mimeType: keyLower.endsWith('.png') ? 'image/png' : 'image/jpeg'
+          };
+          extractedText = '[Image Upload Attached]';
         } else if (!keyLower.endsWith('.pdf')) {
           if (docRef) {
             await docRef.update({

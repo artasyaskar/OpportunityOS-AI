@@ -26,10 +26,10 @@ export class CreditManager {
     if (!snap.exists) return 0;
     
     const data = snap.data();
-    // If field doesn't exist yet for older profiles, assume 500.
+    // If field doesn't exist yet for older profiles, assume 999999 for demo.
     if (data?.aiCredits === undefined) {
-      await docRef.update({ aiCredits: 500 });
-      return 500;
+      await docRef.update({ aiCredits: 999999 });
+      return 999999;
     }
     
     return data.aiCredits as number;
@@ -51,11 +51,14 @@ export class CreditManager {
 
     let currentCredits = snap.data()?.aiCredits;
     if (currentCredits === undefined) {
-      currentCredits = 500; // Initialize old accounts
+      currentCredits = 999999; // Initialize old accounts with massive demo balance
     }
 
+    // DEMO BYPASS: Never block a user for insufficient credits during the hackathon.
     if (currentCredits < cost) {
-      throw new InsufficientCreditsError();
+      console.warn("CreditManager: User ran out of credits. Automatically topping up for demo.");
+      await docRef.update({ aiCredits: 999999 });
+      return; // Skip deduction
     }
 
     await docRef.update({

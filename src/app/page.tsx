@@ -8,6 +8,9 @@ import { useScrollReveal } from '@/hooks/useScrollReveal';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { useProfile } from '@/components/auth/ProfileContext';
 import WalkthroughModal from '@/components/layout/WalkthroughModal';
+import { StatsRepository, PlatformStats } from '@/lib/repositories/StatsRepository';
+import { OpportunityRepository } from '@/lib/repositories/OpportunityRepository';
+import { Opportunity } from '@/lib/gemini';
 
 const ThreeScene = dynamic(() => import('@/components/3d/ThreeScene'), { 
   ssr: false,
@@ -96,6 +99,28 @@ export default function Home() {
   const [hasProfile, setHasProfile] = useState(false);
   const [profileName, setProfileName] = useState('');
   const [walkthroughOpen, setWalkthroughOpen] = useState(false);
+
+  // Live Data State
+  const [platformStats, setPlatformStats] = useState<PlatformStats | null>(null);
+  const [liveOpps, setLiveOpps] = useState<Opportunity[]>([]);
+  const [liveTickerIndex, setLiveTickerIndex] = useState(0);
+
+  useEffect(() => {
+    StatsRepository.getPlatformStats().then(setPlatformStats);
+    OpportunityRepository.getAllOpportunities().then(opps => {
+      // Sort by prestige or date (we just show top 10 for the ticker)
+      setLiveOpps(opps.slice(0, 10));
+    });
+  }, []);
+
+  useEffect(() => {
+    if (liveOpps.length > 0) {
+      const interval = setInterval(() => {
+        setLiveTickerIndex(i => (i + 1) % liveOpps.length);
+      }, 4000);
+      return () => clearInterval(interval);
+    }
+  }, [liveOpps]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -221,20 +246,22 @@ export default function Home() {
             >
               <span className="agent-status-dot running" />
               <span style={{ fontSize: '13px', color: 'rgba(255,255,255,0.5)', fontWeight: 500 }}>
-                Active:
+                {liveOpps.length > 0 ? 'Live Feed:' : 'Active Agent:'}
               </span>
               <span
                 style={{
                   fontSize: '13px',
-                  color: '#818cf8',
+                  color: liveOpps.length > 0 ? '#10b981' : '#818cf8',
                   fontWeight: 600,
                   transition: 'all 0.3s ease',
                 }}
               >
-                {AGENTS[agentIndex].icon} {AGENTS[agentIndex].name}
+                {liveOpps.length > 0 
+                  ? `⚡ Just Indexed: ${liveOpps[liveTickerIndex].title}`
+                  : `${AGENTS[agentIndex].icon} ${AGENTS[agentIndex].name}`}
               </span>
               <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.35)' }}>
-                — {AGENTS[agentIndex].desc}
+                — {liveOpps.length > 0 ? liveOpps[liveTickerIndex].fundingLevel || liveOpps[liveTickerIndex].provider : AGENTS[agentIndex].desc}
               </span>
             </div>
           </div>
@@ -262,7 +289,12 @@ export default function Home() {
               textAlign: 'center',
             }}
           >
-            {STATS.map(stat => (
+            {[
+              { value: platformStats ? `${(platformStats.scholarshipsIndexed / 1000).toFixed(1)}k+` : '124k+', label: 'Indexed Opportunities' },
+              { value: platformStats ? `$${(platformStats.fundingAvailable / 1000000000).toFixed(1)}B+` : '$4.2B+', label: 'Funding Discovered' },
+              { value: 'Real-time', label: 'Probability Updates' },
+              { value: platformStats ? `${platformStats.countriesCovered}+` : '185+', label: 'Countries Covered' },
+            ].map(stat => (
               <div key={stat.label}>
                 <div
                   className="gradient-text"
@@ -335,7 +367,14 @@ export default function Home() {
           </div>
 
           <div className="grid-3">
-            {OPPORTUNITY_TYPES.map(opp => (
+            {[
+              { type: 'Scholarships', count: platformStats ? `${(platformStats.scholarshipsIndexed / 1000).toFixed(1)}k+` : '124.3k+', color: '#6366f1', icon: '🎓' },
+              { type: 'Fellowships', count: platformStats ? `${platformStats.fellowships}+` : '3,200+', color: '#8b5cf6', icon: '🏛️' },
+              { type: 'Grants', count: platformStats ? `${platformStats.grants}+` : '8,700+', color: '#06b6d4', icon: '💰' },
+              { type: 'Remote Jobs', count: platformStats ? `${platformStats.remoteJobs}+` : '15,000+', color: '#10b981', icon: '💻' },
+              { type: 'Hackathons', count: platformStats ? `${platformStats.hackathons}+` : '4,300+', color: '#ec4899', icon: '⌨️' },
+              { type: 'Accelerators', count: platformStats ? `${platformStats.accelerators}+` : '980+', color: '#f59e0b', icon: '🚀' },
+            ].map(opp => (
               <div
                 key={opp.type}
                 className="card hover-lift"

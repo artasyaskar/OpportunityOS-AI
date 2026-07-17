@@ -61,14 +61,15 @@ export default function RoadmapPage() {
           })
         });
         const data = await res.json();
-        setAiAnalysis(data.content);
-        if (data.content?.gaps) {
-          const c = data.content.gaps.filter((g: any) => g.priority === 'critical').length;
-          const h = data.content.gaps.filter((g: any) => g.priority === 'high').length;
-          const m = data.content.gaps.filter((g: any) => g.priority === 'medium').length;
+        const content = data.content || data;
+        setAiAnalysis(content);
+        if (content?.gaps) {
+          const c = content.gaps.filter((g: any) => g.priority === 'critical').length;
+          const h = content.gaps.filter((g: any) => g.priority === 'high').length;
+          const m = content.gaps.filter((g: any) => g.priority === 'medium').length;
           setStats({ critical: c, high: h, medium: m, complete: 5 }); // Mock complete
         }
-        setOverallReadiness(data.content?.readinessPercentage || 40);
+        setOverallReadiness(content?.readinessPercentage || 40);
       } catch (err) {
         console.error(err);
       } finally {

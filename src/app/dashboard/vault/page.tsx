@@ -366,11 +366,11 @@ export default function EvidenceVaultPage() {
                       <div className="glass-sm" style={{ padding: '16px', borderRadius: '12px' }}>
                         <div style={{ fontSize: '11px', fontWeight: 700, color: '#10b981', letterSpacing: '1px', marginBottom: '12px' }}>USAGE & HISTORY</div>
                         <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)', marginBottom: '8px' }}>
-                          Used In: <strong style={{ color: 'white' }}>{doc.usedInApplications.length} applications</strong>
+                          Used In: <strong style={{ color: 'white' }}>{doc.usedInApplications?.length || 0} applications</strong>
                         </div>
-                        {doc.usedInApplications.length > 0 && (
+                        {(doc.usedInApplications?.length || 0) > 0 && (
                           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                            {doc.usedInApplications.map(appId => (
+                            {doc.usedInApplications?.map(appId => (
                               <span key={appId} className="badge badge-indigo" style={{ fontSize: '9px' }}>{appId}</span>
                             ))}
                           </div>

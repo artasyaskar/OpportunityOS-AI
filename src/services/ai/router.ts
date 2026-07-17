@@ -51,6 +51,13 @@ class AIRouter {
 
     let providerSequence: string[] = ['groq', 'gemini'];
 
+    // Intelligent Routing Engine
+    if (options?.taskType === 'document_generation' || options?.image) {
+      providerSequence = ['gemini', 'groq']; // High-complexity generative or multimodal tasks
+    } else if (options?.taskType === 'complex_reasoning' || options?.taskType === 'fast_chat') {
+      providerSequence = ['groq', 'gemini']; // Fast analytical / reasoning tasks
+    }
+
     if (options?.forcePremium) {
       providerSequence = ['gemini'];
     }
@@ -98,9 +105,9 @@ class AIRouter {
           lastAttemptError = error;
           console.error(`[AI Router] Provider ${providerName} attempt ${attempt} failed: ${error.message}`);
 
-          // Fast-Fail for known unrecoverable API errors or Timeouts
-          if (error.message.includes('API Error') || error.message.includes('Status 400') || error.message.includes('unexpected data format') || error.message.includes('Timeout')) {
-            console.log(`[AI Router] Fast-failing over to next provider due to fatal API error or Timeout.`);
+          // Fast-Fail for known unrecoverable API errors, Timeouts, or persistent JSON hallucinations
+          if (error.message.includes('API Error') || error.message.includes('Status 400') || error.message.includes('unexpected data format') || error.message.includes('Timeout') || error.message.includes('JSON Parse Failure')) {
+            console.log(`[AI Router] Fast-failing over to next provider due to fatal API error, Timeout, or Hallucination.`);
             break;
           }
 

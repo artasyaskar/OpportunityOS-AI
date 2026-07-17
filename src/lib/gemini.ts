@@ -463,6 +463,8 @@ export type OpportunityCategory =
   | 'Internships'
   | 'Exchange Programs'
   | 'Competitions'
+  | 'Hackathons'
+  | 'Remote Jobs'
   | 'Grants'
   | 'Conferences'
   | 'Bootcamps'
