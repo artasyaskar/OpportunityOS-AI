@@ -40,14 +40,8 @@ class AIRouter {
       }
     }
 
-    // 1.5. Check Credits (if userId provided)
-    if (options?.userId) {
-      const balance = await CreditManager.getBalance(options.userId);
-      const cost = CreditManager.COSTS[options.taskType || 'general'];
-      if (balance < cost) {
-        throw new InsufficientCreditsError();
-      }
-    }
+
+    // Credits are checked and deducted after successful generation via CreditManager.deductCredits
 
     let providerSequence: string[] = ['groq', 'gemini'];
 

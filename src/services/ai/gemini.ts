@@ -1,5 +1,27 @@
 import { AIProvider, AIResponse, AIRequestOptions, AIResponseMetadata } from './provider';
 
+function cleanAndParseJSON(text: string): any {
+  const trimmed = text.trim();
+  try { return JSON.parse(trimmed); } catch (e) {}
+  const jsonBlockRegex = /```json\s*([\s\S]*?)\s*```/;
+  const match = trimmed.match(jsonBlockRegex);
+  if (match && match[1]) { try { return JSON.parse(match[1].trim()); } catch (e) {} }
+  const genericBlockRegex = /```\s*([\s\S]*?)\s*```/;
+  const genericMatch = trimmed.match(genericBlockRegex);
+  if (genericMatch && genericMatch[1]) { try { return JSON.parse(genericMatch[1].trim()); } catch (e) {} }
+  const start = trimmed.indexOf('{');
+  const end = trimmed.lastIndexOf('}');
+  if (start !== -1 && end !== -1 && end > start) {
+    try { return JSON.parse(trimmed.slice(start, end + 1)); } catch (e) {}
+  }
+  const startArr = trimmed.indexOf('[');
+  const endArr = trimmed.lastIndexOf(']');
+  if (startArr !== -1 && endArr !== -1 && endArr > startArr) {
+    try { return JSON.parse(trimmed.slice(startArr, endArr + 1)); } catch (e) {}
+  }
+  throw new Error("No parseable JSON structure found");
+}
+
 export class GeminiProvider extends AIProvider {
   name = 'gemini';
   private apiKey: string;
@@ -112,7 +134,7 @@ export class GeminiProvider extends AIProvider {
     };
     const response = await this.generateText(prompt, systemPrompt, adjustedOptions);
     try {
-      const parsed = JSON.parse(response.content) as T;
+      const parsed = cleanAndParseJSON(response.content) as T;
       return {
         content: parsed,
         metadata: response.metadata,
