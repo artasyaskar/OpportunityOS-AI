@@ -38,26 +38,38 @@ export interface UserProfileData {
 
 export class UserRepository {
   static async getProfile(uid: string): Promise<UserProfileData | null> {
-    const docRef = doc(db, 'users', uid);
-    const docSnap = await getDoc(docRef);
-    if (docSnap.exists()) {
-      return docSnap.data() as UserProfileData;
+    try {
+      const docRef = doc(db, 'users', uid);
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        return docSnap.data() as UserProfileData;
+      }
+      return null;
+    } catch (e: any) {
+      console.error("[UserRepository] getProfile failed:", e);
+      if (e.code === 'unavailable' || e.message?.includes('offline')) {
+        console.warn("[UserRepository] Client is offline. Returning null profile temporarily.");
+        return null;
+      }
+      throw e;
     }
-    return null;
   }
 
   static async saveProfile(uid: string, profile: Partial<UserProfileData>): Promise<void> {
     try {
       const docRef = doc(db, 'users', uid);
-      const docSnap = await getDoc(docRef);
-      if (docSnap.exists()) {
-        await updateDoc(docRef, profile);
-      } else {
-        await setDoc(docRef, { aiCredits: 500, ...profile, userId: uid }, { merge: true });
-      }
+      // We use setDoc with merge: true for an idempotent, offline-capable write.
+      // This avoids the 'getDoc' offline connection issues that were crashing the UI.
+      await setDoc(docRef, { ...profile, userId: uid }, { merge: true });
     } catch (e: any) {
       console.error("[UserRepository] saveProfile failed:", e);
-      throw e;
+      // Graceful error handling for the offline scenario instead of throwing and crashing context
+      if (e.code === 'unavailable' || e.message?.includes('offline')) {
+        console.warn("[UserRepository] Client is offline. Changes will sync when reconnected.");
+        // We do not throw here, allowing optimistic UI to persist.
+      } else {
+        throw e;
+      }
     }
   }
 }

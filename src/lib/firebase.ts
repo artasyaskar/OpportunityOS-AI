@@ -1,8 +1,13 @@
 // Firebase configuration and initialization
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { getFirestore, setLogLevel } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
+
+// Enable debug logs temporarily for hackathon troubleshooting
+if (typeof window !== 'undefined') {
+  setLogLevel('debug');
+}
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || 'demo-api-key',

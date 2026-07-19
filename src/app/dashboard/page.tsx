@@ -229,11 +229,41 @@ export default function DashboardPage() {
 
   if (isLoading) {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', minHeight: '60vh', color: 'white' }}>
-        <div style={{ fontSize: '32px', animation: 'rotate-slow 2s linear infinite', marginBottom: '24px' }}>📡</div>
-        <h2 style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '24px', fontWeight: 700, marginBottom: '8px' }}>
-          Loading your data...
-        </h2>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+        {/* Header Skeleton */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+          <div>
+            <div className="skeleton" style={{ width: '300px', height: '36px', marginBottom: '8px' }} />
+            <div className="skeleton" style={{ width: '200px', height: '16px' }} />
+          </div>
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <div className="skeleton" style={{ width: '140px', height: '36px', borderRadius: '8px' }} />
+            <div className="skeleton" style={{ width: '120px', height: '36px', borderRadius: '8px' }} />
+          </div>
+        </div>
+
+        {/* Briefing Card Skeleton */}
+        <div className="skeleton" style={{ width: '100%', height: '80px', borderRadius: '16px' }} />
+
+        {/* Metrics Grid Skeleton */}
+        <div className="metrics-grid" style={{ gap: '16px', display: 'flex' }}>
+          {[1, 2, 3, 4].map(i => (
+            <div key={i} className="skeleton" style={{ flex: 1, height: '110px', borderRadius: '12px' }} />
+          ))}
+        </div>
+
+        <div className="dashboard-layout-grid" style={{ gap: '24px', display: 'grid', gridTemplateColumns: '1.8fr 1fr' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div className="skeleton" style={{ width: '100%', height: '120px', borderRadius: '12px', marginBottom: '12px' }} />
+            {[1, 2, 3, 4].map(i => (
+              <div key={i} className="skeleton" style={{ width: '100%', height: '80px', borderRadius: '12px' }} />
+            ))}
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            <div className="skeleton" style={{ width: '100%', height: '400px', borderRadius: '16px' }} />
+            <div className="skeleton" style={{ width: '100%', height: '250px', borderRadius: '16px' }} />
+          </div>
+        </div>
       </div>
     );
   }
@@ -476,7 +506,7 @@ export default function DashboardPage() {
 
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
             <h2 style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '18px', fontWeight: 700, color: 'white' }}>
-              🎯 Verified Opportunities For You
+              {apps.length === 0 ? '✨ Top AI Recommendations For You' : '🎯 Verified Opportunities For You'}
             </h2>
             {opportunities.length > 0 && (
               <Link href="/dashboard/opportunities" style={{ fontSize: '13px', color: '#818cf8', textDecoration: 'none' }}>
@@ -486,6 +516,13 @@ export default function DashboardPage() {
           </div>
 
           <div style={{ display: 'grid', gap: '12px' }}>
+            {apps.length === 0 && (
+              <div style={{ padding: '16px', background: 'rgba(99,102,241,0.05)', borderRadius: '12px', border: '1px dashed rgba(99,102,241,0.3)' }}>
+                <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '13px', margin: 0 }}>
+                  <strong>Your pipeline is empty!</strong> Your AI agents have found these top matching opportunities based on your profile. Click any of them to explore and add them to your pipeline.
+                </p>
+              </div>
+            )}
             {topOpportunities.length > 0 ? topOpportunities.map(opp => {
               const probColor = '#10b981';
               const typeColors: Record<string, string> = {
@@ -699,8 +736,8 @@ export default function DashboardPage() {
                     missions.push({
                       day: 'Today',
                       title: `Upload Missing ${missing[0].name}`,
-                      desc: 'Action required to unlock verified opportunities',
-                      time: '5m',
+                      desc: 'Crucial for passing basic eligibility filters',
+                      roi: '+15% Readiness',
                       color: '#f43f5e'
                     });
                   }
@@ -709,26 +746,26 @@ export default function DashboardPage() {
                   if (drafts.length > 0) {
                     missions.push({
                       day: 'Today',
-                      title: `Draft SOP for ${opportunities.find(o => o.id === drafts[0].id)?.title.substring(0, 15) || 'Application'}`,
-                      desc: 'AI is ready to assist in the Builder',
-                      time: '22m',
+                      title: `Finalize SOP for ${opportunities.find(o => o.id === drafts[0].id)?.title.substring(0, 15) || 'Application'}`,
+                      desc: 'High-leverage action to move pipeline to submission',
+                      roi: '+22% Win Prob.',
                       color: '#10b981'
                     });
                   } else {
                     missions.push({
                       day: 'Today',
-                      title: 'Explore 3 New Opportunities',
-                      desc: 'Your personalized AI matches are ready',
-                      time: '10m',
+                      title: 'Analyze 3 Qualified Matches',
+                      desc: 'Identify and save top ROI opportunities',
+                      roi: '+$85k Potential',
                       color: '#6366f1'
                     });
                   }
                   
                   missions.push({
                     day: 'Tomorrow',
-                    title: 'Schedule IELTS Exam',
-                    desc: 'Required for top UK programs on your wishlist',
-                    time: '15m',
+                    title: 'Expand Leadership Narrative',
+                    desc: 'Bolster your DNA matrix to match elite expectations',
+                    roi: '+12% Profile Score',
                     color: '#f59e0b'
                   });
 
@@ -740,10 +777,10 @@ export default function DashboardPage() {
                       <div className="glass-sm" style={{ padding: '12px', borderRadius: '8px', flex: 1, border: `1px solid ${mission.color}30`, background: `${mission.color}05` }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                           <span style={{ fontSize: '10px', color: mission.color, fontWeight: 800, textTransform: 'uppercase' }}>{mission.day}</span>
-                          <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)', fontWeight: 600 }}>⏱️ {mission.time}</span>
+                          <span style={{ fontSize: '10px', color: '#10b981', fontWeight: 700, background: 'rgba(16,185,129,0.1)', padding: '2px 6px', borderRadius: '4px' }}>📈 {mission.roi}</span>
                         </div>
-                        <p style={{ fontSize: '12px', color: 'white', marginTop: '4px', fontWeight: 600 }}>{mission.title}</p>
-                        <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.5)', display: 'block', marginTop: '2px' }}>{mission.desc}</span>
+                        <p style={{ fontSize: '12px', color: 'white', marginTop: '6px', fontWeight: 600 }}>{mission.title}</p>
+                        <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.5)', display: 'block', marginTop: '3px' }}>{mission.desc}</span>
                       </div>
                     </div>
                   ));

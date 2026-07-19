@@ -8,9 +8,11 @@ import { useScrollReveal } from '@/hooks/useScrollReveal';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { useProfile } from '@/components/auth/ProfileContext';
 import WalkthroughModal from '@/components/layout/WalkthroughModal';
-import { StatsRepository, PlatformStats } from '@/lib/repositories/StatsRepository';
 import { OpportunityRepository } from '@/lib/repositories/OpportunityRepository';
 import { Opportunity } from '@/lib/gemini';
+import { GLOBAL_OPPORTUNITIES, getCategoryCounts } from '@/lib/opportunities-data';
+import AnimatedCounter from '@/components/ui/AnimatedCounter';
+import LiveAgentFeed from '@/components/ui/LiveAgentFeed';
 
 const ThreeScene = dynamic(() => import('@/components/3d/ThreeScene'), { 
   ssr: false,
@@ -51,13 +53,13 @@ const STATS = [
   { value: '1', label: 'Unified AI Executive' },
 ];
 
-const OPPORTUNITY_TYPES = [
-  { type: 'Scholarships', count: '12,400+', color: '#6366f1', icon: '🎓' },
-  { type: 'Fellowships', count: '3,200+', color: '#8b5cf6', icon: '🏛️' },
-  { type: 'Grants', count: '8,700+', color: '#06b6d4', icon: '💰' },
-  { type: 'Remote Jobs', count: '15,000+', color: '#10b981', icon: '💻' },
-  { type: 'Accelerators', count: '980+', color: '#f59e0b', icon: '🚀' },
-  { type: 'Competitions', count: '4,300+', color: '#f43f5e', icon: '🏆' },
+const OPPORTUNITY_TYPES_METADATA = [
+  { type: 'Scholarships', id: 'scholarship', color: '#6366f1', icon: '🎓' },
+  { type: 'Fellowships', id: 'fellowship', color: '#8b5cf6', icon: '🏛️' },
+  { type: 'Grants', id: 'grant', color: '#06b6d4', icon: '💰' },
+  { type: 'Jobs & Internships', id: 'job', color: '#10b981', icon: '💻' },
+  { type: 'Hackathons', id: 'hackathon', color: '#ec4899', icon: '⌨️' },
+  { type: 'Accelerators', id: 'accelerator', color: '#f59e0b', icon: '🚀' },
 ];
 
 const PRICING_PLANS = [
@@ -101,16 +103,37 @@ export default function Home() {
   const [walkthroughOpen, setWalkthroughOpen] = useState(false);
 
   // Live Data State
-  const [platformStats, setPlatformStats] = useState<PlatformStats | null>(null);
+  const [totalOpportunities, setTotalOpportunities] = useState(0);
+  const [totalFunding, setTotalFunding] = useState(0);
+  const [countriesCovered, setCountriesCovered] = useState(0);
+  const [categoryCounts, setCategoryCounts] = useState<Record<string, number>>({});
   const [liveOpps, setLiveOpps] = useState<Opportunity[]>([]);
   const [liveTickerIndex, setLiveTickerIndex] = useState(0);
 
   useEffect(() => {
-    StatsRepository.getPlatformStats().then(setPlatformStats);
-    OpportunityRepository.getAllOpportunities().then(opps => {
-      // Sort by prestige or date (we just show top 10 for the ticker)
-      setLiveOpps(opps.slice(0, 10));
+    // For the landing page wow factor, we pull the rich local dataset to ensure 
+    // lightning-fast load times and accurate counts without hitting the DB.
+    const opps = GLOBAL_OPPORTUNITIES;
+    
+    setTotalOpportunities(opps.length);
+    
+    // Calculate real funding
+    let funding = 0;
+    const countries = new Set<string>();
+    
+    opps.forEach(opp => {
+      if (opp.fundingAmount) funding += opp.fundingAmount;
+      if (opp.country) countries.add(opp.country);
     });
+    
+    setTotalFunding(funding);
+    setCountriesCovered(countries.size);
+    
+    // Get category counts
+    setCategoryCounts(getCategoryCounts());
+
+    // Sort by prestige or date (we just show top 10 for the ticker)
+    setLiveOpps(opps.slice(0, 10));
   }, []);
 
   useEffect(() => {
@@ -229,40 +252,13 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Live Agent Ticker */}
+          {/* Live Agent Terminal Feed */}
           <div
             className="animate-slide-up delay-400"
-            style={{ marginTop: '48px' }}
+            style={{ marginTop: '48px', display: 'flex', justifyContent: 'center' }}
           >
-            <div
-              className="glass"
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '12px',
-                padding: '12px 24px',
-                borderRadius: '999px',
-              }}
-            >
-              <span className="agent-status-dot running" />
-              <span style={{ fontSize: '13px', color: 'rgba(255,255,255,0.5)', fontWeight: 500 }}>
-                {liveOpps.length > 0 ? 'Live Feed:' : 'Active Agent:'}
-              </span>
-              <span
-                style={{
-                  fontSize: '13px',
-                  color: liveOpps.length > 0 ? '#10b981' : '#818cf8',
-                  fontWeight: 600,
-                  transition: 'all 0.3s ease',
-                }}
-              >
-                {liveOpps.length > 0 
-                  ? `⚡ Just Indexed: ${liveOpps[liveTickerIndex].title}`
-                  : `${AGENTS[agentIndex].icon} ${AGENTS[agentIndex].name}`}
-              </span>
-              <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.35)' }}>
-                — {liveOpps.length > 0 ? liveOpps[liveTickerIndex].fundingLevel || liveOpps[liveTickerIndex].provider : AGENTS[agentIndex].desc}
-              </span>
+            <div style={{ maxWidth: '600px', width: '100%', textAlign: 'left' }}>
+              <LiveAgentFeed />
             </div>
           </div>
         </div>
@@ -290,17 +286,17 @@ export default function Home() {
             }}
           >
             {[
-              { value: platformStats ? `${(platformStats.scholarshipsIndexed / 1000).toFixed(1)}k+` : '124k+', label: 'Indexed Opportunities' },
-              { value: platformStats ? `$${(platformStats.fundingAvailable / 1000000000).toFixed(1)}B+` : '$4.2B+', label: 'Funding Discovered' },
-              { value: 'Real-time', label: 'Probability Updates' },
-              { value: platformStats ? `${platformStats.countriesCovered}+` : '185+', label: 'Countries Covered' },
+              { component: <AnimatedCounter value={totalOpportunities} />, label: 'Curated Opportunities' },
+              { component: <AnimatedCounter value={totalFunding / 1000000} prefix="$" suffix="M+" decimals={1} />, label: 'Real Funding Tracked' },
+              { component: 'Real-time', label: 'Probability Updates' },
+              { component: <AnimatedCounter value={countriesCovered} />, label: 'Countries Covered' },
             ].map(stat => (
               <div key={stat.label}>
                 <div
                   className="gradient-text"
                   style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '36px', fontWeight: 800 }}
                 >
-                  {stat.value}
+                  {stat.component}
                 </div>
                 <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: '13px', marginTop: '4px', fontWeight: 500 }}>
                   {stat.label}
@@ -367,14 +363,7 @@ export default function Home() {
           </div>
 
           <div className="grid-3">
-            {[
-              { type: 'Scholarships', count: platformStats ? `${(platformStats.scholarshipsIndexed / 1000).toFixed(1)}k+` : '124.3k+', color: '#6366f1', icon: '🎓' },
-              { type: 'Fellowships', count: platformStats ? `${platformStats.fellowships}+` : '3,200+', color: '#8b5cf6', icon: '🏛️' },
-              { type: 'Grants', count: platformStats ? `${platformStats.grants}+` : '8,700+', color: '#06b6d4', icon: '💰' },
-              { type: 'Remote Jobs', count: platformStats ? `${platformStats.remoteJobs}+` : '15,000+', color: '#10b981', icon: '💻' },
-              { type: 'Hackathons', count: platformStats ? `${platformStats.hackathons}+` : '4,300+', color: '#ec4899', icon: '⌨️' },
-              { type: 'Accelerators', count: platformStats ? `${platformStats.accelerators}+` : '980+', color: '#f59e0b', icon: '🚀' },
-            ].map(opp => (
+            {OPPORTUNITY_TYPES_METADATA.map(opp => (
               <div
                 key={opp.type}
                 className="card hover-lift"
@@ -397,10 +386,10 @@ export default function Home() {
                   {opp.type}
                 </div>
                 <div style={{ fontSize: '28px', fontWeight: 800, color: opp.color, fontFamily: 'Space Grotesk, sans-serif' }}>
-                  {opp.count}
+                  <AnimatedCounter value={categoryCounts[opp.type] || 0} />
                 </div>
                 <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.4)', marginTop: '4px' }}>
-                  opportunities indexed
+                  curated opportunities
                 </div>
               </div>
             ))}

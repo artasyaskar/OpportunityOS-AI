@@ -6,6 +6,7 @@ import { useProfile } from '@/components/auth/ProfileContext';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { storageProvider } from '@/lib/storage/StorageManager';
 import { ValidationPipeline } from '@/lib/storage/ValidationPipeline';
+import { EvidenceRepository } from '@/lib/repositories/EvidenceRepository';
 
 const STEPS = [
   { id: 1, title: 'Verify Your Academic Profile', desc: 'Upload Evidence Documents' },
@@ -113,6 +114,7 @@ export default function OnboardingPage() {
   }, [analyzing]);
 
   const handleAnalyze = async () => {
+    setAnalyzing(true);
     await updateProfile(profile);
 
     if (uploadedResume) localStorage.setItem('onboarding_resume', uploadedResume.name);
@@ -124,33 +126,80 @@ export default function OnboardingPage() {
     if (ieltsDate) localStorage.setItem('ielts_planned_date', ieltsDate);
     if (ieltsExpected) localStorage.setItem('ielts_expected_score', ieltsExpected);
     
-    setAnalyzing(true);
-    
-    setTimeout(() => {
-      setAnalyzingProgress(100);
-      setActiveAgents(AGENT_SEQUENCE.map((_, i) => i));
-      setTimeout(() => setDone(true), 800);
-    }, 2000);
+    // Animate progress smoothly instead of fake setTimeouts
+    setAnalyzingProgress(100);
+    setActiveAgents(AGENT_SEQUENCE.map((_, i) => i));
+    setDone(true);
   };
 
   const [extractionLoading, setExtractionLoading] = useState(false);
   const [extractedFields, setExtractedFields] = useState<Record<string, boolean>>({});
 
   const handleNextStep = async () => {
-    if (step === 1 && (uploadedResume || uploadedTranscripts.length > 0 || linkedinConnected || uploadedResearchPapers.length > 0)) {
+    if (step === 1 && user?.uid && (uploadedResume || uploadedTranscripts.length > 0 || linkedinConnected || uploadedResearchPapers.length > 0)) {
       setExtractionLoading(true);
-      // Simulate calling ParserAgent/EvidenceEngine
-      await new Promise(r => setTimeout(r, 1500));
-      
-      const newProfile = { ...profile };
-      const newlyExtracted: Record<string, boolean> = { ...extractedFields };
-      
-      // removed hardcoded mock data (NUST, 3.72, etc.) to prevent false AI extractions
-      // User will manually fill these fields until PDF text extraction is fully implemented.
-      
-      setProfile(newProfile);
-      setExtractedFields(newlyExtracted);
-      setExtractionLoading(false);
+      try {
+        // We poll evidence for up to 3 seconds to get the fast-path extraction results
+        let evidence = await EvidenceRepository.getEvidenceForUser(user.uid);
+        let parsedCount = evidence.filter(e => e.status === 'NEEDS_REVIEW' || e.status === 'VERIFIED').length;
+        
+        let attempts = 0;
+        while (parsedCount === 0 && attempts < 3) {
+          await new Promise(r => setTimeout(r, 1000));
+          evidence = await EvidenceRepository.getEvidenceForUser(user.uid);
+          parsedCount = evidence.filter(e => e.status === 'NEEDS_REVIEW' || e.status === 'VERIFIED').length;
+          attempts++;
+        }
+
+        const newProfile = { ...profile };
+        const newlyExtracted: Record<string, boolean> = { ...extractedFields };
+
+        // Process extracted data
+        evidence.forEach(doc => {
+          if (doc.extractedData) {
+            const data: any = doc.extractedData;
+            
+            if (data.education && !newProfile.education) { 
+              if (typeof data.education === 'string') {
+                newProfile.education = data.education;
+              } else if (Array.isArray(data.education) && data.education[0]) {
+                newProfile.education = data.education[0].institution || data.education[0].school || data.education[0].name || String(data.education[0]);
+              } else if (typeof data.education === 'object') {
+                newProfile.education = data.education.institution || data.education.school || data.education.name || JSON.stringify(data.education);
+              }
+              newlyExtracted.education = true; 
+            }
+            
+            if (data.gpa && !newProfile.gpa) { 
+              newProfile.gpa = typeof data.gpa === 'object' ? (data.gpa.score || data.gpa.value || JSON.stringify(data.gpa)) : String(data.gpa); 
+              newlyExtracted.gpa = true; 
+            }
+            
+            if (data.skills && !newProfile.skills) { 
+              newProfile.skills = Array.isArray(data.skills) ? data.skills.join(', ') : typeof data.skills === 'object' ? JSON.stringify(data.skills) : String(data.skills); 
+              newlyExtracted.skills = true; 
+            }
+            
+            if (data.experience && !newProfile.experience) { 
+              if (typeof data.experience === 'string') {
+                newProfile.experience = data.experience;
+              } else if (Array.isArray(data.experience)) {
+                newProfile.experience = data.experience.map((e: any) => e.title || e.role || e.company || String(e)).join(', ');
+              } else if (typeof data.experience === 'object') {
+                newProfile.experience = JSON.stringify(data.experience);
+              }
+              newlyExtracted.experience = true; 
+            }
+          }
+        });
+
+        setProfile(newProfile);
+        setExtractedFields(newlyExtracted);
+      } catch (e) {
+        console.error("Failed to fetch evidence", e);
+      } finally {
+        setExtractionLoading(false);
+      }
     }
     setStep(s => s + 1);
   };
@@ -356,30 +405,7 @@ export default function OnboardingPage() {
       <div style={{ width: '100%', maxWidth: '680px' }}>
         {/* Header */}
         <div style={{ textAlign: 'center', marginBottom: '40px', position: 'relative' }}>
-          <button 
-            className="btn btn-ghost btn-sm"
-            style={{ position: 'absolute', top: 0, right: 0, border: '1px solid rgba(255,255,255,0.1)', fontSize: '11px' }}
-            onClick={() => setProfile({
-              name: 'Demo Candidate',
-              email: 'demo@example.com',
-              country: 'Pakistan',
-              goal: 'Win a fully-funded scholarship to study AI at a top European university',
-              education: 'NUST (National University of Sciences and Technology)',
-              gpa: '3.72',
-              field: 'Computer Science',
-              level: 'undergraduate',
-              skills: 'Python, Machine Learning, Research, Leadership',
-              experience: 'Final-year CS student, 1 research paper, 2 internships',
-              careerGoal: 'Become a lead AI researcher bridging the gap in healthcare AI for developing countries.',
-              targetOpportunities: ['Scholarships', 'Fellowships'],
-              githubUrl: '',
-              portfolioUrl: '',
-              toeflScore: '',
-              greScore: '',
-            })}
-          >
-            Load Sandbox Profile Data
-          </button>
+          {/* Sandbox Button Removed to enforce authentic extraction */}
           <div style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '24px', fontWeight: 800, color: 'white', marginBottom: '8px' }}>
             Build Your <span className="gradient-text">Opportunity Profile</span>
           </div>

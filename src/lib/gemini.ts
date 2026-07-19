@@ -1,39 +1,66 @@
 // Gemini AI client and prompt templates
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import Groq from 'groq-sdk';
 
 const apiKey = process.env.GEMINI_API_KEY || '';
+const groqApiKey = process.env.GROQ_API_KEY || '';
 const isDemoMode = !apiKey || process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
 
 let genAI: GoogleGenerativeAI | null = null;
+let groqClient: Groq | null = null;
 
 if (apiKey) {
   genAI = new GoogleGenerativeAI(apiKey);
 }
+if (groqApiKey) {
+  groqClient = new Groq({ apiKey: groqApiKey });
+}
 
-export const getGeminiModel = (modelName: 'gemini-1.5-flash' | 'gemini-1.5-pro' = 'gemini-1.5-flash') => {
+export const getGeminiModel = (modelName: 'gemini-1.5-flash-latest' | 'gemini-1.5-pro' = 'gemini-1.5-flash-latest') => {
   if (!genAI) return null;
   return genAI.getGenerativeModel({ model: modelName });
 };
 
 export const generateContent = async (
   prompt: string,
-  modelName: 'gemini-1.5-flash' | 'gemini-1.5-pro' = 'gemini-1.5-flash'
+  modelName: 'gemini-1.5-flash-latest' | 'gemini-1.5-pro' = 'gemini-1.5-flash-latest'
 ): Promise<string> => {
-  if (isDemoMode || !genAI) {
-    // Return realistic demo data after a simulated delay
+  if (isDemoMode) {
     await new Promise(r => setTimeout(r, 1200));
     return DEMO_RESPONSES[Math.floor(Math.random() * DEMO_RESPONSES.length)];
   }
   
-  const model = genAI.getGenerativeModel({ model: modelName });
-  const result = await model.generateContent(prompt);
-  return result.response.text();
+  if (genAI) {
+    try {
+      const model = genAI.getGenerativeModel({ model: modelName });
+      const result = await model.generateContent(prompt);
+      return result.response.text();
+    } catch (error) {
+      console.warn('Gemini failed, attempting Groq fallback...', error);
+      // Fall through to Groq
+    }
+  }
+
+  if (groqClient) {
+    try {
+      const completion = await groqClient.chat.completions.create({
+        messages: [{ role: 'user', content: prompt }],
+        model: 'llama-3.1-8b-instant',
+      });
+      return completion.choices[0]?.message?.content || '';
+    } catch (groqError) {
+      console.error('Groq fallback failed:', groqError);
+      throw new Error('Both Gemini and Groq AI engines failed to respond.');
+    }
+  }
+  
+  throw new Error('No AI providers configured.');
 };
 
-export const generateJSON = async <T>(prompt: string, modelName: 'gemini-1.5-flash' | 'gemini-1.5-pro' = 'gemini-1.5-flash'): Promise<T> => {
-  const text = await generateContent(`${prompt}\n\nRespond ONLY with valid JSON, no markdown, no explanation.`, modelName);
+export const generateJSON = async <T>(prompt: string, modelName: 'gemini-1.5-flash-latest' | 'gemini-1.5-pro' = 'gemini-1.5-flash-latest'): Promise<T> => {
+  const text = await generateContent(`${prompt}\n\nRespond ONLY with valid JSON, no markdown formatting (no \`\`\`json or \`\`\`), no explanation. Start the response with { or [ and end with } or ].`, modelName);
   try {
-    const cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    const cleaned = text.replace(/```json\n?/gi, '').replace(/```\n?/g, '').trim();
     return JSON.parse(cleaned) as T;
   } catch {
     throw new Error(`Failed to parse JSON response: ${text.slice(0, 100)}`);
@@ -107,6 +134,38 @@ Opportunity: ${JSON.stringify(opportunity)}`,
   "weaknesses": ["gap 1", "gap 2"],
   "missingRequirements": ["item 1", "item 2"],
   "summary": "One paragraph explanation"
+}`
+  ),
+
+  INTELLIGENCE_FIT: (profile: UserProfile, opportunity: Opportunity) => securePrompt(
+    'You are the Strategic Intelligence Agent. Analyze the exact fit between the candidate and the opportunity.',
+    `User Profile: ${JSON.stringify(profile)}
+Opportunity: ${JSON.stringify(opportunity)}`,
+    `Analyze the strategic timing, evidence-backed fit, and competitive positioning for this specific opportunity and user.
+Do not use generic placeholders or assumptions. Use exact GPAs, timelines, or factors present in the profile.
+
+Return strictly valid JSON in this format:
+{
+  "whyThis": [
+    "Specific fit reason matching profile evidence to opportunity requirements",
+    "Another strong fit reason"
+  ],
+  "whyNow": [
+    "Timing/priority reason (e.g., leveraging their current GPA, graduation timeline, or deadline proximity)",
+    "Another timing reason"
+  ],
+  "whyNotOthers": [
+    "Comparative reason highlighting why this opportunity is better than typical alternatives (e.g., waives GRE, values their specific leadership experience)"
+  ],
+  "competitorBenchmarks": {
+    "avgGpa": "e.g. 3.82 / 4.0",
+    "gpaGap": "e.g. Gap: -0.10 GPA or Exceeds benchmark",
+    "avgTest": "e.g. 7.5 / 9.0 IELTS",
+    "testGap": "e.g. Gap: Met target",
+    "avgResearch": "e.g. 1.2 papers",
+    "researchGap": "e.g. Gap: Need 1 paper",
+    "diagnostic": "Short sentence summarizing competitive edge or primary gap"
+  }
 }`
   ),
 
@@ -471,7 +530,15 @@ export type OpportunityCategory =
   | 'Jobs'
   | 'Volunteer Programs'
   | 'Accelerators'
-  | 'Incubators';
+  | 'Incubators'
+  | 'Graduate Programs'
+  | 'AI Challenges'
+  | 'Climate Programs'
+  | 'Innovation Programs'
+  | 'Entrepreneurship Programs'
+  | 'Government Funding'
+  | 'NGO Opportunities'
+  | 'University Programs';
 
 export interface Opportunity {
   id: string;
@@ -488,7 +555,24 @@ export interface Opportunity {
   officialSource?: string;
   officialApplicationUrl?: string;
   
-  // Structured requirement fields
+  // Extended schema fields (Global Intelligence Engine)
+  region?: string;                    // e.g. "Europe", "Asia", "Global"
+  category?: OpportunityCategory;     // Canonical category
+  subcategory?: string;               // e.g. "STEM Scholarship", "Social Impact Grant"
+  fundingAmount?: number;             // Numeric funding value
+  currency?: string;                  // e.g. "USD", "EUR", "GBP"
+  educationLevel?: string[];          // e.g. ["undergraduate", "masters", "phd"]
+  requiredSkills?: string[];          // e.g. ["Python", "Machine Learning"]
+  experienceLevel?: string;           // e.g. "entry", "mid", "senior"
+  gpaRequirement?: string;            // e.g. "3.5/4.0"
+  englishRequirement?: string;        // e.g. "IELTS 6.5" or "TOEFL 90"
+  remote?: boolean;                   // true if remote-friendly
+  applicationLink?: string;           // Direct application URL
+  website?: string;                   // Organization website
+  aiGeneratedSummary?: string;        // AI-generated one-line summary
+  verified?: boolean;                 // Admin-verified entry
+
+  // Structured requirement fields (legacy compat)
   requiredGPA?: string;
   requiredTests?: string[];
   requiredExperience?: string;

@@ -77,9 +77,9 @@ class AIRouter {
         continue;
       }
       const overallStart = Date.now();
-      // EXPONENTIAL BACKOFF RETRY LOGIC (Max 3 attempts)
       let attempt = 0;
-      const maxAttempts = 3;
+      // Implement specific retry counts requested for hackathon stability
+      const maxAttempts = providerName === 'gemini' ? 3 : 1;
       let lastAttemptError: any = null;
       let result: AIResponse<T> | null = null;
 
@@ -88,7 +88,7 @@ class AIRouter {
         const start = Date.now();
         try {
           const responsePromise = operation(provider);
-          const timeoutMs = options?.image ? 60000 : 15000;
+          const timeoutMs = options?.image ? 60000 : 30000;
           const timeoutPromise = new Promise<never>((_, reject) =>
             setTimeout(() => reject(new Error(`AI Request Timeout (${timeoutMs / 1000}s)`)), timeoutMs)
           );
@@ -100,14 +100,16 @@ class AIRouter {
           console.error(`[AI Router] Provider ${providerName} attempt ${attempt} failed: ${error.message}`);
 
           // Fast-Fail for known unrecoverable API errors, Timeouts, or persistent JSON hallucinations
-          if (error.message.includes('API Error') || error.message.includes('Status 400') || error.message.includes('unexpected data format') || error.message.includes('Timeout') || error.message.includes('JSON Parse Failure')) {
-            console.log(`[AI Router] Fast-failing over to next provider due to fatal API error, Timeout, or Hallucination.`);
-            break;
+          if (error.message.includes('API Error') || error.message.includes('Status 400') || error.message.includes('unexpected data format') || error.message.includes('JSON Parse Failure')) {
+             if (attempt >= maxAttempts) {
+               console.log(`[AI Router] Failing over to next provider.`);
+               break;
+             }
           }
 
           if (attempt < maxAttempts) {
             const delay = Math.pow(2, attempt) * 1000; // 2s, 4s
-            console.log(`[AI Router] Waiting ${delay}ms before retrying...`);
+            console.log(`[AI Router] Waiting ${delay}ms before retrying ${providerName}...`);
             await new Promise(resolve => setTimeout(resolve, delay));
           }
         }

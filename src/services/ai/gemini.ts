@@ -25,8 +25,8 @@ function cleanAndParseJSON(text: string): any {
 export class GeminiProvider extends AIProvider {
   name = 'gemini';
   private apiKey: string;
-  private defaultModel = 'gemini-3.5-flash';
-  private defaultReasoningModel = 'gemini-3.5-flash';
+  private defaultModel = 'gemini-1.5-flash-latest';
+  private defaultReasoningModel = 'gemini-1.5-pro';
 
   constructor() {
     super();

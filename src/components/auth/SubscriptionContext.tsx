@@ -4,6 +4,8 @@ import { createContext, useContext, useState, useEffect, ReactNode } from 'react
 import { useAuth } from '@/components/auth/AuthProvider';
 import { SubscriptionService } from '@/lib/services/SubscriptionService';
 import { SubscriptionRecord } from '@/lib/repositories/SubscriptionRepository';
+import { db } from '@/lib/firebase';
+import { doc, onSnapshot } from 'firebase/firestore';
 
 interface SubscriptionContextType {
   subscription: SubscriptionRecord | null;
@@ -21,7 +23,7 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const loadSubscription = async () => {
+  useEffect(() => {
     if (authLoading) return;
     if (!isAuthenticated || !user?.uid) {
       setSubscription(null);
@@ -31,19 +33,26 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
 
     setIsLoading(true);
     setError(null);
-    try {
-      const data = await SubscriptionService.getSubscription(user.uid);
-      setSubscription(data);
-    } catch (err: any) {
-      console.error('Failed to load subscription:', err);
-      setError('Failed to load subscription.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
-  useEffect(() => {
-    loadSubscription();
+    const unsub = onSnapshot(
+      doc(db, 'subscriptions', user.uid),
+      (docSnap) => {
+        if (docSnap.exists()) {
+          setSubscription(docSnap.data() as SubscriptionRecord);
+        } else {
+          // No subscription doc yet, could default to null or free
+          setSubscription(null);
+        }
+        setIsLoading(false);
+      },
+      (err) => {
+        console.error('Failed to listen to subscription:', err);
+        setError('Failed to load subscription.');
+        setIsLoading(false);
+      }
+    );
+
+    return () => unsub();
   }, [user, isAuthenticated, authLoading]);
 
   const updateSubscription = async (updates: Partial<SubscriptionRecord>) => {
@@ -61,7 +70,7 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <SubscriptionContext.Provider value={{ subscription, isLoading: isLoading || authLoading, error, updateSubscription, reloadSubscription: loadSubscription }}>
+    <SubscriptionContext.Provider value={{ subscription, isLoading: isLoading || authLoading, error, updateSubscription, reloadSubscription: async () => {} }}>
       {children}
     </SubscriptionContext.Provider>
   );

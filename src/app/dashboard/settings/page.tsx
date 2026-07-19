@@ -12,6 +12,9 @@ import { getMerchantConfigs, PaymentMerchantConfig } from '@/lib/paymentAdapter'
 import { fetchPaymentMerchants, uploadPaymentReceipt } from '@/lib/db';
 import { validatePromo, applyReferral } from '@/lib/growth';
 import { getQuotaState, QuotaState } from '@/lib/costLimiter';
+import { PaymentRequestRepository, PaymentRequest, PaymentProvider, PaymentStatus } from '@/lib/repositories/PaymentRequestRepository';
+import { NotificationRepository } from '@/lib/repositories/NotificationRepository';
+import { compressImage, validateReceiptUpload } from '@/lib/imageUtils';
 
 export default function SettingsPage() {
   const { user } = useAuth();
@@ -38,6 +41,12 @@ export default function SettingsPage() {
     portfolioUrl: string;
     toeflScore: string;
     greScore: string;
+    // Multi-dimensional DNA Matrix
+    leadershipRoles: string;
+    communityImpact: string;
+    projects: string;
+    researchPublications: string;
+    interviewNarrative: string;
     notifications: boolean;
     weeklyDigest: boolean;
     shareData: boolean;
@@ -58,6 +67,11 @@ export default function SettingsPage() {
     portfolioUrl: '',
     toeflScore: '',
     greScore: '',
+    leadershipRoles: '',
+    communityImpact: '',
+    projects: '',
+    researchPublications: '',
+    interviewNarrative: '',
     notifications: true,
     weeklyDigest: true,
     shareData: false,
@@ -90,6 +104,7 @@ export default function SettingsPage() {
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   
   const [merchants, setMerchants] = useState<PaymentMerchantConfig[]>([]);
+  const [paymentRequests, setPaymentRequests] = useState<PaymentRequest[]>([]);
 
   useEffect(() => {
     // Populate from remote/local profile when loaded
@@ -113,6 +128,8 @@ export default function SettingsPage() {
         email: user.email || prev.email,
         name: prev.name || user.displayName || '',
       }));
+      // Fetch payment history
+      PaymentRequestRepository.getUserRequests(user.uid).then(reqs => setPaymentRequests(reqs));
     }
   }, [user]);
 
@@ -242,14 +259,30 @@ export default function SettingsPage() {
       alert('Please enter your transaction ID or Reference Number.');
       return;
     }
+    
+    // Prevent duplicate upload if already pending
+    const hasPending = paymentRequests.some(req => req.status === PaymentStatus.PENDING);
+    if (hasPending) {
+      alert('You already have a payment waiting for review.');
+      return;
+    }
+
     setVerificationStatus('uploading');
     
     let proofUrl = 'screenshot_pending';
     
-    // If real file selected, upload it to storage
+    // If real file selected, compress and upload it
     if (receiptFile && user?.uid) {
+      const validation = validateReceiptUpload(receiptFile);
+      if (!validation.valid) {
+        alert(validation.error);
+        setVerificationStatus('fallback_proof');
+        return;
+      }
+
       try {
-        proofUrl = await uploadPaymentReceipt(user.uid, receiptFile);
+        const compressedFile = await compressImage(receiptFile, 0.4, 800);
+        proofUrl = await uploadPaymentReceipt(user.uid, compressedFile);
       } catch (err) {
         console.error('Failed to upload receipt:', err);
         alert('Failed to upload receipt. Please try again.');
@@ -262,14 +295,46 @@ export default function SettingsPage() {
       return;
     }
 
-    await updateSubscription({
-      status: 'UNDER_REVIEW',
+    // Create payment request
+    await PaymentRequestRepository.createRequest({
+      uid: user!.uid,
+      userEmail: user!.email || '',
+      userName: profile.name || user!.displayName || 'Unknown',
       planId: selectedPlan,
-      paymentProvider: selectedProvider,
+      provider: selectedProvider,
       paymentReference: trxIdInput,
       paymentProofUrl: proofUrl,
-      startedAt: new Date().toISOString(),
+      promoCode: promoCode || undefined,
     });
+    
+    // Notify admin via Firestore
+    await NotificationRepository.createNotification({
+      userId: 'admin',
+      title: 'New Payment Receipt',
+      message: `${profile.name || user!.email} submitted a payment receipt for ${selectedPlan}.`,
+      type: 'PAYMENT_SUBMITTED',
+      link: '/dashboard/admin',
+    });
+
+    // Notify admin via Email API
+    fetch('/api/admin/notify-receipt', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        userId: user!.uid,
+        userEmail: user!.email,
+        userName: profile.name || user!.displayName,
+        planId: selectedPlan,
+        provider: selectedProvider,
+        referenceId: trxIdInput,
+        receiptUrl: proofUrl,
+      }),
+    }).catch(err => console.error('Failed to trigger email API:', err));
+
+    // Reload history
+    const reqs = await PaymentRequestRepository.getUserRequests(user!.uid);
+    setPaymentRequests(reqs);
+
     setCheckoutStep(1);
     setVerificationStatus('idle');
   };
@@ -375,13 +440,16 @@ export default function SettingsPage() {
                   You can edit your baseline data used by the AI engine.
                 </p>
               </div>
-              <button 
-                className="btn btn-primary" 
-                onClick={handleSaveProfile} 
-                disabled={saving}
-              >
-                {saving ? 'Saving...' : 'Save Profile'}
-              </button>
+              <div style={{ display: 'flex', gap: '8px' }}>
+
+                <button 
+                  className="btn btn-primary" 
+                  onClick={handleSaveProfile} 
+                  disabled={saving}
+                >
+                  {saving ? 'Saving...' : 'Save Profile'}
+                </button>
+              </div>
             </div>
             
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
@@ -405,7 +473,7 @@ export default function SettingsPage() {
               </div>
             </div>
 
-            <h3 style={{ fontSize: '14px', fontWeight: 600, color: 'white', marginTop: '24px', marginBottom: '12px' }}>Academics</h3>
+            <h3 style={{ fontSize: '14px', fontWeight: 600, color: 'white', marginTop: '24px', marginBottom: '12px' }}>Academic Profile</h3>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
               <div>
                 <label style={{ display: 'block', fontSize: '11px', color: 'rgba(255,255,255,0.5)', marginBottom: '6px' }}>Institution</label>
@@ -432,18 +500,6 @@ export default function SettingsPage() {
                 <input className="input" value={profile.field} onChange={e => updateProfileField('field', e.target.value)} />
               </div>
             </div>
-
-            <h3 style={{ fontSize: '14px', fontWeight: 600, color: 'white', marginTop: '24px', marginBottom: '12px' }}>Skills & Experience</h3>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '16px', marginBottom: '16px' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '11px', color: 'rgba(255,255,255,0.5)', marginBottom: '6px' }}>Skills (comma-separated)</label>
-                <textarea className="input" style={{ minHeight: '60px', resize: 'vertical' }} value={profile.skills} onChange={e => updateProfileField('skills', e.target.value)} />
-              </div>
-              <div>
-                <label style={{ display: 'block', fontSize: '11px', color: 'rgba(255,255,255,0.5)', marginBottom: '6px' }}>Work / Research Experience</label>
-                <textarea className="input" style={{ minHeight: '80px', resize: 'vertical' }} value={profile.experience} onChange={e => updateProfileField('experience', e.target.value)} />
-              </div>
-            </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
               <div>
                 <label style={{ display: 'block', fontSize: '11px', color: 'rgba(255,255,255,0.5)', marginBottom: '6px' }}>TOEFL / IELTS Score</label>
@@ -452,6 +508,46 @@ export default function SettingsPage() {
               <div>
                 <label style={{ display: 'block', fontSize: '11px', color: 'rgba(255,255,255,0.5)', marginBottom: '6px' }}>GRE / GMAT Score</label>
                 <input className="input" value={profile.greScore} onChange={e => updateProfileField('greScore', e.target.value)} />
+              </div>
+            </div>
+
+            <h3 style={{ fontSize: '14px', fontWeight: 600, color: 'white', marginTop: '24px', marginBottom: '12px' }}>Leadership & Impact</h3>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '11px', color: 'rgba(255,255,255,0.5)', marginBottom: '6px' }}>Key Leadership Roles</label>
+                <textarea className="input" style={{ minHeight: '60px', resize: 'vertical' }} value={profile.leadershipRoles} onChange={e => updateProfileField('leadershipRoles', e.target.value)} placeholder="President of Tech Club..." />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '11px', color: 'rgba(255,255,255,0.5)', marginBottom: '6px' }}>Community Impact</label>
+                <textarea className="input" style={{ minHeight: '60px', resize: 'vertical' }} value={profile.communityImpact} onChange={e => updateProfileField('communityImpact', e.target.value)} placeholder="Organized a hackathon for 500 students..." />
+              </div>
+            </div>
+
+            <h3 style={{ fontSize: '14px', fontWeight: 600, color: 'white', marginTop: '24px', marginBottom: '12px' }}>Projects & Portfolio</h3>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+              <div style={{ gridColumn: 'span 2' }}>
+                <label style={{ display: 'block', fontSize: '11px', color: 'rgba(255,255,255,0.5)', marginBottom: '6px' }}>Notable Projects & Ventures</label>
+                <textarea className="input" style={{ minHeight: '60px', resize: 'vertical' }} value={profile.projects} onChange={e => updateProfileField('projects', e.target.value)} placeholder="Built an AI app that..." />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '11px', color: 'rgba(255,255,255,0.5)', marginBottom: '6px' }}>GitHub URL</label>
+                <input className="input" value={profile.githubUrl} onChange={e => updateProfileField('githubUrl', e.target.value)} />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '11px', color: 'rgba(255,255,255,0.5)', marginBottom: '6px' }}>Portfolio / Website URL</label>
+                <input className="input" value={profile.portfolioUrl} onChange={e => updateProfileField('portfolioUrl', e.target.value)} />
+              </div>
+            </div>
+
+            <h3 style={{ fontSize: '14px', fontWeight: 600, color: 'white', marginTop: '24px', marginBottom: '12px' }}>Research & Narrative</h3>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '11px', color: 'rgba(255,255,255,0.5)', marginBottom: '6px' }}>Research & Publications</label>
+                <textarea className="input" style={{ minHeight: '60px', resize: 'vertical' }} value={profile.researchPublications} onChange={e => updateProfileField('researchPublications', e.target.value)} placeholder="Published paper on..." />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '11px', color: 'rgba(255,255,255,0.5)', marginBottom: '6px' }}>Personal Interview Narrative</label>
+                <textarea className="input" style={{ minHeight: '60px', resize: 'vertical' }} value={profile.interviewNarrative} onChange={e => updateProfileField('interviewNarrative', e.target.value)} placeholder="My core story is overcoming..." />
               </div>
             </div>
           </div>
@@ -546,6 +642,58 @@ export default function SettingsPage() {
               </div>
             )}
           </div>
+
+          {/* PAYMENT TIMELINE / HISTORY */}
+          {paymentRequests.length > 0 && (
+            <div className="card" style={{ padding: '24px' }}>
+              <h3 style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '16px', fontWeight: 700, color: 'white', marginBottom: '20px' }}>
+                Payment History & Verification Timeline
+              </h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                {paymentRequests.map((req) => {
+                  let badgeColor = 'rgba(255,255,255,0.1)';
+                  let textColor = 'rgba(255,255,255,0.5)';
+                  if (req.status === PaymentStatus.PENDING) { badgeColor = 'rgba(245,158,11,0.2)'; textColor = '#fcd34d'; }
+                  if (req.status === PaymentStatus.APPROVED) { badgeColor = 'rgba(16,185,129,0.2)'; textColor = '#34d399'; }
+                  if (req.status === PaymentStatus.REJECTED) { badgeColor = 'rgba(244,63,94,0.2)'; textColor = '#fb7185'; }
+                  
+                  return (
+                    <div key={req.id} style={{ display: 'flex', gap: '16px', alignItems: 'flex-start', padding: '16px', background: 'rgba(255,255,255,0.02)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                      <div style={{ 
+                        width: '40px', height: '40px', borderRadius: '50%', background: badgeColor, color: textColor,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', flexShrink: 0 
+                      }}>
+                        {req.status === PaymentStatus.PENDING && '⏳'}
+                        {req.status === PaymentStatus.APPROVED && '✓'}
+                        {req.status === PaymentStatus.REJECTED && '✕'}
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div style={{ fontSize: '14px', fontWeight: 700, color: 'white' }}>{req.planId.toUpperCase()} • {req.provider.toUpperCase()}</div>
+                          <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)' }}>
+                            {new Date(req.submittedAt).toLocaleDateString()}
+                          </div>
+                        </div>
+                        <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)', marginTop: '4px' }}>
+                          Reference ID: <span style={{ fontFamily: 'monospace', color: 'white' }}>{req.paymentReference}</span>
+                        </div>
+                        {req.status === PaymentStatus.PENDING && (
+                          <div style={{ fontSize: '12px', color: '#fcd34d', marginTop: '8px', padding: '8px 12px', background: 'rgba(245,158,11,0.1)', borderRadius: '6px' }}>
+                            Currently under manual review by the Executive AI team. Expected resolution: &lt; 2 hours.
+                          </div>
+                        )}
+                        {req.status === PaymentStatus.REJECTED && req.rejectReason && (
+                          <div style={{ fontSize: '12px', color: '#fb7185', marginTop: '8px', padding: '8px 12px', background: 'rgba(244,63,94,0.1)', borderRadius: '6px' }}>
+                            <strong>Rejection Reason:</strong> {req.rejectReason}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* ACTIVE STEP MODULES */}
 

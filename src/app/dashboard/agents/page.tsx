@@ -75,6 +75,12 @@ export default function AgentsDashboard() {
         payload.opportunity = SEED_OPPORTUNITIES[0];
         payload.type = "Personal Statement";
         payload.instructions = "Focus on my leadership experience.";
+      } else if (agent.id === 'planner') {
+        payload.opportunity = SEED_OPPORTUNITIES[0];
+        payload.daysUntilDeadline = 45;
+      } else if (['reviewer', 'compliance', 'readiness'].includes(agent.id)) {
+        payload.opportunity = SEED_OPPORTUNITIES[0];
+        payload.submission = "My goal is to advance artificial intelligence in emerging markets. Throughout my undergraduate studies...";
       }
 
       const token = await getIdToken();
@@ -124,8 +130,53 @@ export default function AgentsDashboard() {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '16px' }}>
-        {AGENTS.map(agent => (
+      <div style={{ marginBottom: '40px' }}>
+        <h2 style={{ fontSize: '18px', fontWeight: 700, color: 'white', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{ color: '#818cf8' }}>⚡</span> The Core Pipeline
+        </h2>
+        <div style={{ display: 'flex', gap: '16px', alignItems: 'stretch' }}>
+          {['discovery', 'gap-analysis', 'strategist', 'builder'].map((id, index) => {
+            const agent = AGENTS.find(a => a.id === id)!;
+            return (
+              <div key={agent.id} style={{ flex: 1, display: 'flex', alignItems: 'center' }}>
+                <div 
+                  className="card-magnetic glow-border"
+                  style={{ 
+                    flex: 1,
+                    padding: '24px', 
+                    position: 'relative', 
+                    cursor: 'pointer',
+                    background: activeAgent?.id === agent.id ? 'rgba(99,102,241,0.1)' : 'rgba(255,255,255,0.02)',
+                    border: activeAgent?.id === agent.id ? '1px solid rgba(99,102,241,0.6)' : '1px solid rgba(255,255,255,0.06)'
+                  }}
+                  onClick={() => runAgent(agent)}
+                >
+                  <div style={{ fontSize: '28px', marginBottom: '16px' }}>{agent.icon}</div>
+                  <h3 style={{ fontSize: '15px', fontWeight: 700, color: 'white', marginBottom: '8px' }}>{agent.name}</h3>
+                  <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.4)', minHeight: '36px' }}>{agent.desc}</p>
+                  
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '16px' }}>
+                    <span className={`agent-status-dot ${isRunning && activeAgent?.id === agent.id ? 'running' : 'idle'}`} />
+                    <span style={{ fontSize: '10px', color: isRunning && activeAgent?.id === agent.id ? '#818cf8' : '#10b981', fontWeight: 600 }}>
+                      {isRunning && activeAgent?.id === agent.id ? 'PROCESSING...' : 'READY'}
+                    </span>
+                  </div>
+                </div>
+                {index < 3 && (
+                  <div style={{ padding: '0 12px', color: 'rgba(255,255,255,0.2)', fontSize: '24px' }}>→</div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div>
+        <h2 style={{ fontSize: '18px', fontWeight: 700, color: 'white', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span>🛠️</span> Specialized Agents
+        </h2>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '16px' }}>
+          {AGENTS.filter(a => !['discovery', 'gap-analysis', 'strategist', 'builder'].includes(a.id)).map(agent => (
           <div 
             key={agent.id}
             className="card"
@@ -160,6 +211,7 @@ export default function AgentsDashboard() {
             </div>
           </div>
         ))}
+        </div>
       </div>
 
       {/* Results Modal/Panel */}

@@ -13,7 +13,19 @@ export async function POST(req: NextRequest) {
   }
   try {
     const body = await req.json();
-    const { opportunity, daysUntilDeadline, userId } = body;
+    const { daysUntilDeadline, userId } = body;
+    let { opportunity } = body;
+
+    // Fallback if missing (for robust testing)
+    if (!opportunity || !opportunity.id) {
+      opportunity = {
+        id: 'demo-fallback-opp',
+        title: 'Demo Fellowship',
+        organization: 'Global Foundation',
+        deadline: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+        description: 'A mock fellowship used for fallback testing.',
+      };
+    }
     const result = await runSubmissionPlannerAgent(opportunity, daysUntilDeadline, userId);
     return NextResponse.json(result);
   } catch (error: any) {

@@ -15,6 +15,7 @@ interface ProfileContextType {
   isUpgradeModalOpen: boolean;
   openUpgradeModal: () => void;
   closeUpgradeModal: () => void;
+  isOffline: boolean;
 }
 
 const ProfileContext = createContext<ProfileContextType | undefined>(undefined);
@@ -26,6 +27,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
   const [profileStatus, setProfileStatus] = useState<'loading' | 'unauthenticated' | 'no_profile' | 'has_profile'>('loading');
   const [error, setError] = useState<string | null>(null);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
+  const [isOffline, setIsOffline] = useState(false);
 
   const loadProfile = async () => {
     if (authLoading) return;
@@ -43,10 +45,17 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
       const data = await UserService.getProfile(user.uid);
       setProfile(data);
       setProfileStatus(data ? 'has_profile' : 'no_profile');
+      setIsOffline(false);
     } catch (err: any) {
       console.error('Failed to load profile:', err);
-      setError('Failed to load profile.');
-      setProfileStatus('no_profile');
+      if (err.code === 'unavailable' || err.message?.includes('offline')) {
+         setIsOffline(true);
+         // Continue with optimistic or null profile if offline
+         setProfileStatus('has_profile'); // Or maybe no_profile depending on cache
+      } else {
+         setError('Failed to load profile.');
+         setProfileStatus('no_profile');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -63,18 +72,25 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
     setProfileStatus('has_profile');
     try {
       await UserService.saveProfile(user.uid, updates);
+      setIsOffline(false);
     } catch (err: any) {
       console.error('Failed to save profile:', err);
-      setError('Failed to save profile.');
-      // rollback
-      setProfile(profile);
+      if (err.code === 'unavailable' || err.message?.includes('offline')) {
+         setIsOffline(true);
+         // We do NOT rollback if offline, we keep optimistic update since it will sync later
+      } else {
+         setError('Failed to save profile.');
+         // rollback
+         setProfile(profile);
+      }
     }
   };
 
   return (
     <ProfileContext.Provider value={{ 
       profile, isLoading: isLoading || authLoading, profileStatus, error, updateProfile, reloadProfile: loadProfile,
-      isUpgradeModalOpen, openUpgradeModal: () => setIsUpgradeModalOpen(true), closeUpgradeModal: () => setIsUpgradeModalOpen(false)
+      isUpgradeModalOpen, openUpgradeModal: () => setIsUpgradeModalOpen(true), closeUpgradeModal: () => setIsUpgradeModalOpen(false),
+      isOffline
     }}>
       {children}
     </ProfileContext.Provider>

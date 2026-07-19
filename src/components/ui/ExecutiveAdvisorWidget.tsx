@@ -6,6 +6,8 @@ import { useProfile } from '@/components/auth/ProfileContext';
 interface Message {
   sender: 'ai' | 'user';
   text: string;
+  evidenceUsed?: string[];
+  confidenceScore?: number;
 }
 
 export default function ExecutiveAdvisorWidget() {
@@ -138,7 +140,7 @@ export default function ExecutiveAdvisorWidget() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isTyping]);
 
-  const handleSendMessage = (text: string) => {
+  const handleSendMessage = async (text: string) => {
     if (!text.trim()) return;
 
     const updatedMessages = [...messages, { sender: 'user', text } as Message];
@@ -146,23 +148,27 @@ export default function ExecutiveAdvisorWidget() {
     setInputVal('');
     setIsTyping(true);
 
-    setTimeout(() => {
-      let replyText = `That is an interesting query, ${userName}. Based on your Opportunity DNA profile and matching metrics, I suggest reviewing active target milestones in your Execution Plan.`;
+    try {
+      const res = await fetch('/api/agents/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: text, profile })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to fetch reply');
 
-      const queryLower = text.toLowerCase();
-      if (queryLower.includes('ielts') || queryLower.includes('gap')) {
-        replyText = `Hey ${userName}, I reviewed your academic profile. To cross the match threshold for DAAD or Chevening with high confidence, we need to bridge your English proficiency parameters. I recommend target IELTS prep aiming for a minimum 7.5 band score. Shall I prepare a weekly study timeline in your Execution Plan?`;
-      } else if (queryLower.includes('sop') || queryLower.includes('chevening') || queryLower.includes('draft')) {
-        replyText = `Understood. I will model an essay outline for your Chevening Leadership & Influence prompt. We will hook the reader using your technical initiatives (Python, Machine Learning) and structure the narrative around your leadership roles in academic teams. You can open this workspace directly inside our Application Studio!`;
-      } else if (queryLower.includes('daad') || queryLower.includes('germany')) {
-        replyText = `DAAD requires a strong academic explanation for your target postgraduate research project. Since your background is in Computer Science, focusing on Machine Learning applications for sustainable local infrastructure will yield the highest success scores.`;
-      } else if (queryLower.includes('money') || queryLower.includes('fund') || queryLower.includes('cost')) {
-        replyText = `Opportunities like Fulbright, Chevening, and Erasmus Mundus offer fully-funded sponsorships covering full tuition, flights, health insurance, and monthly living stipends. This fully protects you from international relocation costs.`;
-      }
-
-      setMessages(prev => [...prev, { sender: 'ai', text: replyText }]);
+      setMessages(prev => [...prev, { 
+        sender: 'ai', 
+        text: data.reply || 'I am unable to provide a strategic recommendation at this time.',
+        evidenceUsed: data.evidenceUsed,
+        confidenceScore: data.confidenceScore
+      }]);
+    } catch (e: any) {
+      console.error(e);
+      setMessages(prev => [...prev, { sender: 'ai', text: "I encountered an error connecting to the strategic database. Please check your network connection and try again." }]);
+    } finally {
       setIsTyping(false);
-    }, 1200);
+    }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -294,6 +300,21 @@ export default function ExecutiveAdvisorWidget() {
                 }}
               >
                 {msg.text}
+                {msg.sender === 'ai' && (msg.evidenceUsed || msg.confidenceScore) && (
+                  <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px dashed rgba(255,255,255,0.1)', fontSize: '10px' }}>
+                    {msg.confidenceScore && (
+                      <div style={{ color: msg.confidenceScore > 80 ? '#10b981' : '#f59e0b', fontWeight: 600, marginBottom: '4px' }}>
+                        ⚡ Confidence: {msg.confidenceScore}%
+                      </div>
+                    )}
+                    {msg.evidenceUsed && msg.evidenceUsed.length > 0 && (
+                      <div style={{ color: 'rgba(255,255,255,0.5)' }}>
+                        <span style={{ fontWeight: 600, color: '#818cf8' }}>Evidence: </span>
+                        {msg.evidenceUsed.join(' • ')}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             ))}
 

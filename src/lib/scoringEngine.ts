@@ -83,7 +83,7 @@ export function computeEvidenceMatch(
   // --- Academic Standing ---
   if (profile.gpa) {
     const gpaNum = parseFloat(profile.gpa);
-    const requiredGPA = opportunity.requiredGPA ? parseFloat(opportunity.requiredGPA) : null;
+    const requiredGPA = opportunity.gpaRequirement ? parseFloat(opportunity.gpaRequirement.split('/')[0]) : (opportunity.requiredGPA ? parseFloat(opportunity.requiredGPA) : null);
     
     if (!isNaN(gpaNum)) {
       if (requiredGPA && !isNaN(requiredGPA)) {
@@ -100,18 +100,25 @@ export function computeEvidenceMatch(
         weak.push({ requirement: 'Strong Academic Standing', status: 'weak', evidence: `GPA ${profile.gpa} — below competitive threshold`, source: 'Transcript / Profile', confidence: 'high' });
       }
     }
+  } else if (opportunity.gpaRequirement || opportunity.requiredGPA) {
+    missing.push({ requirement: `Academic Standing (GPA ≥ ${opportunity.gpaRequirement || opportunity.requiredGPA})`, status: 'missing', confidence: 'low' });
   } else {
     missing.push({ requirement: 'Academic Standing (GPA)', status: 'missing', confidence: 'low' });
   }
 
   // --- English Proficiency ---
-  const requiresEnglish = opportunity.requirements?.some(r => r.toLowerCase().includes('ielts') || r.toLowerCase().includes('toefl') || r.toLowerCase().includes('english'));
+  const requiresEnglish = opportunity.englishRequirement || opportunity.requirements?.some(r => r.toLowerCase().includes('ielts') || r.toLowerCase().includes('toefl') || r.toLowerCase().includes('english'));
   const requiredTests = opportunity.requiredTests || [];
   
   if (profile.ieltsScore) {
     const ieltsNum = parseFloat(profile.ieltsScore);
     const requiredIelts = requiredTests.find(t => t.toLowerCase().includes('ielts'));
-    const requiredMin = requiredIelts ? parseFloat(requiredIelts.replace(/[^\d.]/g, '')) : 6.5;
+    let requiredMin = 6.5;
+    if (opportunity.englishRequirement && opportunity.englishRequirement.toLowerCase().includes('ielts')) {
+      requiredMin = parseFloat(opportunity.englishRequirement.replace(/[^\d.]/g, '')) || 6.5;
+    } else if (requiredIelts) {
+      requiredMin = parseFloat(requiredIelts.replace(/[^\d.]/g, '')) || 6.5;
+    }
     
     if (!isNaN(ieltsNum) && ieltsNum >= requiredMin) {
       ready.push({ requirement: `IELTS ≥ ${requiredMin}`, status: 'ready', evidence: `IELTS Band ${profile.ieltsScore}`, source: 'Test Score / Profile', confidence: 'high' });
@@ -121,10 +128,20 @@ export function computeEvidenceMatch(
       documentsMissing.push('IELTS Certificate (needs improvement)');
     }
   } else if (profile.toeflScore) {
-    ready.push({ requirement: 'English Proficiency', status: 'ready', evidence: `TOEFL Score ${profile.toeflScore}`, source: 'Test Score / Profile', confidence: 'high' });
-    documentsReady.push('TOEFL Certificate');
+    let requiredToeflMin = 90;
+    if (opportunity.englishRequirement && opportunity.englishRequirement.toLowerCase().includes('toefl')) {
+      requiredToeflMin = parseFloat(opportunity.englishRequirement.replace(/[^\d.]/g, '')) || 90;
+    }
+    const toeflNum = parseFloat(profile.toeflScore);
+    if (!isNaN(toeflNum) && toeflNum >= requiredToeflMin) {
+       ready.push({ requirement: `TOEFL ≥ ${requiredToeflMin}`, status: 'ready', evidence: `TOEFL Score ${profile.toeflScore}`, source: 'Test Score / Profile', confidence: 'high' });
+       documentsReady.push('TOEFL Certificate');
+    } else {
+       weak.push({ requirement: `TOEFL ≥ ${requiredToeflMin}`, status: 'weak', evidence: `TOEFL ${profile.toeflScore} is below ${requiredToeflMin}`, source: 'Test Score / Profile', confidence: 'high' });
+       documentsMissing.push('TOEFL Certificate (needs improvement)');
+    }
   } else if (requiresEnglish) {
-    missing.push({ requirement: 'English Proficiency (IELTS/TOEFL)', status: 'missing', confidence: 'low' });
+    missing.push({ requirement: `English Proficiency (${opportunity.englishRequirement || 'IELTS/TOEFL'})`, status: 'missing', confidence: 'low' });
     documentsMissing.push('IELTS/TOEFL Certificate');
   }
 
@@ -142,20 +159,20 @@ export function computeEvidenceMatch(
   }
 
   // --- Work Experience ---
-  const requiresExperience = opportunity.requirements?.some(r => r.toLowerCase().includes('work experience') || r.toLowerCase().includes('professional'));
+  const requiresExperience = opportunity.experienceLevel || opportunity.requirements?.some(r => r.toLowerCase().includes('work experience') || r.toLowerCase().includes('professional'));
   const hasExperience = (profile.workExperience && profile.workExperience.length > 0) || !!profile.experience;
   
   if (hasExperience) {
     const expEvidence = profile.workExperience?.length
       ? profile.workExperience.map(w => `${w.role} at ${w.company}`).join(', ')
       : profile.experience || 'Work experience on record';
-    ready.push({ requirement: 'Work Experience', status: 'ready', evidence: expEvidence, source: 'Resume / Profile', confidence: 'medium' });
+    ready.push({ requirement: `Work Experience (${opportunity.experienceLevel || 'Required'})`, status: 'ready', evidence: expEvidence, source: 'Resume / Profile', confidence: 'medium' });
   } else if (requiresExperience || opportunity.requiredExperience) {
-    missing.push({ requirement: opportunity.requiredExperience || 'Work Experience', status: 'missing', confidence: 'low' });
+    missing.push({ requirement: opportunity.requiredExperience || `Work Experience (${opportunity.experienceLevel || 'Required'})`, status: 'missing', confidence: 'low' });
   }
 
   // --- Leadership ---
-  const requiresLeadership = opportunity.requirements?.some(r => r.toLowerCase().includes('leadership'));
+  const requiresLeadership = opportunity.requirements?.some(r => r.toLowerCase().includes('leadership')) || opportunity.requiredSkills?.some(s => s.toLowerCase().includes('leadership'));
   const skillsArray = normalizeSkills(profile.skills);
   const hasLeadership = skillsArray.some(s => s.toLowerCase().includes('lead') || s.toLowerCase().includes('organize') || s.toLowerCase().includes('manage') || s.toLowerCase().includes('president') || s.toLowerCase().includes('captain'));
   
@@ -164,6 +181,19 @@ export function computeEvidenceMatch(
     ready.push({ requirement: 'Leadership Experience', status: 'ready', evidence: leaderSkills.join(', '), source: 'Skills / Profile', confidence: 'medium' });
   } else if (requiresLeadership) {
     missing.push({ requirement: 'Leadership Experience', status: 'missing', confidence: 'low' });
+  }
+
+  // --- Specific Required Skills ---
+  if (opportunity.requiredSkills && opportunity.requiredSkills.length > 0) {
+    opportunity.requiredSkills.forEach(reqSkill => {
+      if (reqSkill.toLowerCase() === 'leadership') return; // Handled above
+      const hasSkill = skillsArray.some(s => s.toLowerCase().includes(reqSkill.toLowerCase()));
+      if (hasSkill) {
+        ready.push({ requirement: `Skill: ${reqSkill}`, status: 'ready', evidence: `Profile lists skill related to ${reqSkill}`, source: 'Skills / Profile', confidence: 'high' });
+      } else {
+        missing.push({ requirement: `Skill: ${reqSkill}`, status: 'missing', confidence: 'low' });
+      }
+    });
   }
 
   // --- Passport ---
@@ -399,4 +429,77 @@ export function calculateProfileCompleteness(profile: any | null): {
   });
 
   return { score, items };
+}
+
+// ========================
+// NEW GLOBAL ENGINE SCORING
+// ========================
+
+/**
+ * Calculates a Compatibility Score (0-100) based on how well the user profile
+ * matches the opportunity's requirements.
+ */
+export function calculateCompatibilityScore(
+  profile: UserProfile | null,
+  opportunity: Opportunity
+): number {
+  if (!profile) return 0;
+  
+  const matchResult = computeEvidenceMatch(profile, opportunity);
+  
+  // Weights: Ready=1.0, Weak=0.5, Missing=0, Unknown=0
+  const readyWeight = 1.0;
+  const weakWeight = 0.5;
+  
+  let score = 0;
+  const totalItems = matchResult.ready.length + matchResult.weak.length + matchResult.missing.length;
+  
+  if (totalItems > 0) {
+    const rawScore = (matchResult.ready.length * readyWeight) + (matchResult.weak.length * weakWeight);
+    score = Math.round((rawScore / totalItems) * 100);
+  } else {
+    // If no specific requirements are checked, use a base score of 50
+    score = 50;
+  }
+  
+  return score;
+}
+
+/**
+ * Generates human-readable explainability for the compatibility score.
+ */
+export function generateExplainability(
+  profile: UserProfile | null,
+  opportunity: Opportunity
+): { reasons: string[], isHighlyCompatible: boolean } {
+  if (!profile) return { reasons: ['Complete your profile to see compatibility reasons.'], isHighlyCompatible: false };
+
+  const matchResult = computeEvidenceMatch(profile, opportunity);
+  const score = calculateCompatibilityScore(profile, opportunity);
+  const reasons: string[] = [];
+
+  // Positive reasons
+  if (matchResult.ready.length > 0) {
+    // Pick top 2 ready items
+    matchResult.ready.slice(0, 2).forEach(item => {
+      reasons.push(`✓ Your ${item.evidence || item.requirement} strongly matches requirements.`);
+    });
+  }
+
+  // Weak/Missing reasons
+  if (matchResult.missing.length > 0) {
+    matchResult.missing.slice(0, 1).forEach(item => {
+      reasons.push(`✗ Missing: ${item.requirement}`);
+    });
+  } else if (matchResult.weak.length > 0) {
+    matchResult.weak.slice(0, 1).forEach(item => {
+      reasons.push(`! ${item.requirement} could be improved.`);
+    });
+  }
+
+  if (reasons.length === 0) {
+    reasons.push('We need more information in your profile to provide a detailed match analysis.');
+  }
+
+  return { reasons, isHighlyCompatible: score >= 80 };
 }

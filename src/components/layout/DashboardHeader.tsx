@@ -9,6 +9,7 @@ import { NotificationService } from '@/lib/services/NotificationService';
 import { useProfile } from '@/components/auth/ProfileContext';
 import { usePipeline } from '@/components/auth/PipelineContext';
 import { SEED_OPPORTUNITIES } from '@/lib/opportunities';
+import { NotificationRepository, AppNotification } from '@/lib/repositories/NotificationRepository';
 interface SearchResult {
   title: string;
   category: string;
@@ -28,7 +29,7 @@ const SEARCH_DATABASE: SearchResult[] = [
 export default function DashboardHeader() {
   const router = useRouter();
   const { user, logout } = useAuth();
-  const { profile, openUpgradeModal } = useProfile() as any;
+  const { profile, openUpgradeModal, isOffline } = useProfile() as any;
   const { pipeline: applications } = usePipeline();
   const [showSearch, setShowSearch] = useState(false);
   const [query, setQuery] = useState('');
@@ -38,23 +39,73 @@ export default function DashboardHeader() {
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState<any[]>([]);
 
+  const isAdmin = user ? isUserAdmin(user.email) : false;
+
   useEffect(() => {
+    let unsubUser: () => void;
+    let unsubAdmin: () => void;
+    
+    if (user?.uid) {
+      unsubUser = NotificationRepository.subscribeToUserNotifications(user.uid, (data) => {
+        setNotifications(prev => {
+          // Merge with proactive ones or just replace
+          // Since we want Firestore ones to be prominent:
+          const existingProactive = prev.filter(n => n.type === 'PROACTIVE');
+          const newNotifs = data.map(n => ({
+            id: n.id,
+            title: n.title,
+            text: n.message,
+            time: new Date(n.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+            unread: !n.read,
+            type: n.type
+          }));
+          return [...newNotifs, ...existingProactive];
+        });
+      });
+    }
+
+    if (isAdmin) {
+      unsubAdmin = NotificationRepository.subscribeToAdminNotifications((data) => {
+        setNotifications(prev => {
+          const others = prev.filter(n => n.type !== 'ADMIN_ALERT');
+          const adminNotifs = data.map(n => ({
+            id: n.id,
+            title: n.title,
+            text: n.message,
+            time: new Date(n.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+            unread: !n.read,
+            type: 'ADMIN_ALERT'
+          }));
+          return [...adminNotifs, ...others];
+        });
+      });
+    }
+
     if (profile) {
       const proactive = NotificationService.generateProactiveNotifications(
         profile as any, 
         SEED_OPPORTUNITIES as any, 
         applications || []
       );
-      setNotifications(proactive.map(n => ({ 
+      const proactiveMapped = proactive.map(n => ({ 
         id: n.id, 
         title: n.title, 
         text: n.message, 
         time: 'Just now', 
-        unread: !n.read 
-      })));
+        unread: !n.read,
+        type: 'PROACTIVE'
+      }));
+      setNotifications(prev => {
+        const firestoreNotifs = prev.filter(n => n.type !== 'PROACTIVE');
+        return [...firestoreNotifs, ...proactiveMapped];
+      });
     }
-  }, [profile, applications]);
-  const isAdmin = user ? isUserAdmin(user.email) : false;
+
+    return () => {
+      if (unsubUser) unsubUser();
+      if (unsubAdmin) unsubAdmin();
+    };
+  }, [user, profile, applications, isAdmin]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -93,7 +144,13 @@ export default function DashboardHeader() {
     router.push(href);
   };
 
-  const markAllRead = () => {
+  const markAllRead = async () => {
+    if (user?.uid) {
+      await NotificationRepository.markAllAsRead(user.uid);
+      if (isAdmin) {
+        await NotificationRepository.markAllAsRead('admin');
+      }
+    }
     setNotifications(notifications.map(n => ({ ...n, unread: false })));
   };
 
@@ -171,6 +228,25 @@ export default function DashboardHeader() {
         {/* Notifications & Links */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
           
+          {/* Offline Pill */}
+          {isOffline && (
+            <div
+              style={{
+                background: 'rgba(255, 255, 255, 0.05)',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                borderRadius: '20px',
+                padding: '4px 10px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+              }}
+              title="Changes will sync automatically when reconnected."
+            >
+              <span style={{ fontSize: '10px', color: '#94a3b8' }}>⚪</span>
+              <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 500 }}>Offline</span>
+            </div>
+          )}
+
           {/* AI Credits Pill */}
           {profile?.aiCredits !== undefined && (
             <button

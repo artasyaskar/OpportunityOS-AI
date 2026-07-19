@@ -4,11 +4,12 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { OpportunityRepository } from '@/lib/repositories/OpportunityRepository';
-import type { Opportunity } from '@/lib/gemini';
+import { Opportunity } from '@/lib/gemini';
 import { getProbabilityColor } from '@/lib/scoring';
 import { calculateOpportunityScore } from '@/lib/scoringEngine';
 import { useProfile } from '@/components/auth/ProfileContext';
 import { usePipeline } from '@/components/auth/PipelineContext';
+import { useAuth } from '@/components/auth/AuthProvider';
 
 export default function OpportunityDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -18,9 +19,12 @@ export default function OpportunityDetailPage() {
   const [loading, setLoading] = useState(true);
   const { profile: userProfile } = useProfile();
   const { pipeline: applications, addOpportunity } = usePipeline();
+  const { getIdToken } = useAuth();
   const [resumeUploaded, setResumeUploaded] = useState(false);
   const [transcriptUploaded, setTranscriptUploaded] = useState(false);
   const [activeTab, setActiveTab] = useState('intelligence');
+  const [intelligenceData, setIntelligenceData] = useState<any>(null);
+  const [loadingIntelligence, setLoadingIntelligence] = useState(false);
 
   // Fallback to empty object if profile not found for scoring engine
   const profile: any = userProfile || {};
@@ -36,6 +40,33 @@ export default function OpportunityDetailPage() {
     setResumeUploaded(!!(userProfile?.verifiedEvidence?.some(e => e.source.toLowerCase().includes('resume'))));
     setTranscriptUploaded(!!(userProfile?.verifiedEvidence?.some(e => e.source.toLowerCase().includes('transcript'))));
   }, [userProfile]);
+
+  useEffect(() => {
+    if (opp && !intelligenceData && !loadingIntelligence) {
+      setLoadingIntelligence(true);
+      getIdToken().then(token => {
+        fetch('/api/agents/intelligence', {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ opportunityId: opp.id })
+        })
+        .then(res => res.json())
+        .then(data => {
+          if (data.success && data.intelligence) {
+            setIntelligenceData(data.intelligence);
+          }
+        })
+        .catch(console.error)
+        .finally(() => setLoadingIntelligence(false));
+      }).catch(err => {
+        console.error('Failed to get auth token', err);
+        setLoadingIntelligence(false);
+      });
+    }
+  }, [opp, intelligenceData, loadingIntelligence]);
 
   if (loading) return <div style={{ color: 'white', padding: '40px', textAlign: 'center' }}>Loading...</div>;
   if (!opp) return <div style={{ color: 'white', padding: '40px', textAlign: 'center' }}>Opportunity not found.</div>;
@@ -159,37 +190,43 @@ export default function OpportunityDetailPage() {
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
-          <div className="glass-panel" style={{ padding: '16px', background: 'rgba(16,185,129,0.02)', border: '1px solid rgba(16,185,129,0.1)' }}>
-            <div style={{ fontSize: '11px', fontWeight: 800, color: '#10b981', letterSpacing: '1px', marginBottom: '12px' }}>WHY THIS? (FIT & EVIDENCE)</div>
-            {scoreResult.strengths.map((str, i) => (
-              <div key={i} style={{ display: 'flex', gap: '8px', marginBottom: '8px', fontSize: '12px', color: 'rgba(255,255,255,0.8)' }}>
-                <span style={{ color: '#10b981' }}>✓</span>
-                <span>{str}</span>
+          {loadingIntelligence || !intelligenceData ? (
+            <div style={{ gridColumn: 'span 3', padding: '40px', textAlign: 'center', background: 'rgba(255,255,255,0.02)', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.05)' }}>
+              <div className="spinner" style={{ width: '24px', height: '24px', border: '2px solid rgba(99,102,241,0.2)', borderTopColor: '#6366f1', borderRadius: '50%', margin: '0 auto 16px', animation: 'spin 1s linear infinite' }}></div>
+              <div style={{ fontSize: '14px', fontWeight: 700, color: '#818cf8', marginBottom: '8px' }}>AI Agents Initializing Strategic Intelligence...</div>
+              <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)' }}>Generating personalized competitive positioning from your verified evidence.</div>
+            </div>
+          ) : (
+            <>
+              <div className="glass-panel" style={{ padding: '16px', background: 'rgba(16,185,129,0.02)', border: '1px solid rgba(16,185,129,0.1)' }}>
+                <div style={{ fontSize: '11px', fontWeight: 800, color: '#10b981', letterSpacing: '1px', marginBottom: '12px' }}>WHY THIS? (FIT & EVIDENCE)</div>
+                {(intelligenceData.whyThis || []).map((str: string, i: number) => (
+                  <div key={i} style={{ display: 'flex', gap: '8px', marginBottom: '8px', fontSize: '12px', color: 'rgba(255,255,255,0.8)' }}>
+                    <span style={{ color: '#10b981', flexShrink: 0 }}>✓</span>
+                    <span>{str}</span>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-          <div className="glass-panel" style={{ padding: '16px', background: 'rgba(99,102,241,0.02)', border: '1px solid rgba(99,102,241,0.1)' }}>
-            <div style={{ fontSize: '11px', fontWeight: 800, color: '#818cf8', letterSpacing: '1px', marginBottom: '12px' }}>WHY NOW? (TIMING & PRIORITY)</div>
-            <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', fontSize: '12px', color: 'rgba(255,255,255,0.8)' }}>
-              <span style={{ color: '#818cf8' }}>⌛</span>
-              <span>Deadline is in {opp.deadline ? 'a few months' : 'strategic alignment'}. Applying now leverages your NUST CS milestones.</span>
-            </div>
-            <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', fontSize: '12px', color: 'rgba(255,255,255,0.8)' }}>
-              <span style={{ color: '#818cf8' }}>⚡</span>
-              <span>Your academic GPA (3.72) is in peak selectivity phase before graduation filters lock.</span>
-            </div>
-          </div>
-          <div className="glass-panel" style={{ padding: '16px', background: 'rgba(245,158,11,0.02)', border: '1px solid rgba(245,158,11,0.1)' }}>
-            <div style={{ fontSize: '11px', fontWeight: 800, color: '#f59e0b', letterSpacing: '1px', marginBottom: '12px' }}>WHY NOT OTHERS? (COMPARATIVE)</div>
-            <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', fontSize: '12px', color: 'rgba(255,255,255,0.8)' }}>
-              <span style={{ color: '#f59e0b' }}>⚠️</span>
-              <span>Gates Cambridge requires a top 10% class rank; Chevening values community leadership, where you have a 45% advantage.</span>
-            </div>
-            <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', fontSize: '12px', color: 'rgba(255,255,255,0.8)' }}>
-              <span style={{ color: '#f59e0b' }}>→</span>
-              <span>Other programs require full GRE scores, while Chevening waives standard test components.</span>
-            </div>
-          </div>
+              <div className="glass-panel" style={{ padding: '16px', background: 'rgba(99,102,241,0.02)', border: '1px solid rgba(99,102,241,0.1)' }}>
+                <div style={{ fontSize: '11px', fontWeight: 800, color: '#818cf8', letterSpacing: '1px', marginBottom: '12px' }}>WHY NOW? (TIMING & PRIORITY)</div>
+                {(intelligenceData.whyNow || []).map((str: string, i: number) => (
+                  <div key={i} style={{ display: 'flex', gap: '8px', marginBottom: '8px', fontSize: '12px', color: 'rgba(255,255,255,0.8)' }}>
+                    <span style={{ color: '#818cf8', flexShrink: 0 }}>⌛</span>
+                    <span>{str}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="glass-panel" style={{ padding: '16px', background: 'rgba(245,158,11,0.02)', border: '1px solid rgba(245,158,11,0.1)' }}>
+                <div style={{ fontSize: '11px', fontWeight: 800, color: '#f59e0b', letterSpacing: '1px', marginBottom: '12px' }}>WHY NOT OTHERS? (COMPARATIVE)</div>
+                {(intelligenceData.whyNotOthers || []).map((str: string, i: number) => (
+                  <div key={i} style={{ display: 'flex', gap: '8px', marginBottom: '8px', fontSize: '12px', color: 'rgba(255,255,255,0.8)' }}>
+                    <span style={{ color: '#f59e0b', flexShrink: 0 }}>⚠️</span>
+                    <span>{str}</span>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
         </div>
       </div>
 
@@ -348,26 +385,35 @@ export default function OpportunityDetailPage() {
               <span>📊 Competitor Intelligence Benchmarks</span>
               <span className="badge badge-rose" style={{ fontSize: '9px' }}>SELECTIVITY HIGH</span>
             </h3>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '16px' }}>
-              <div className="glass-sm" style={{ padding: '12px' }}>
-                <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)' }}>AVG ADMITTED GPA</div>
-                <div style={{ fontSize: '18px', fontWeight: 800, color: 'white', marginTop: '4px' }}>3.82 / 4.0</div>
-                <span style={{ fontSize: '9px', color: '#f43f5e' }}>Gap: -0.10 GPA</span>
+            {loadingIntelligence || !intelligenceData ? (
+              <div style={{ padding: '20px', textAlign: 'center' }}>
+                <div className="spinner" style={{ width: '20px', height: '20px', border: '2px solid rgba(99,102,241,0.2)', borderTopColor: '#6366f1', borderRadius: '50%', margin: '0 auto 10px', animation: 'spin 1s linear infinite' }}></div>
+                <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)' }}>Analyzing global competitor profiles...</div>
               </div>
-              <div className="glass-sm" style={{ padding: '12px' }}>
-                <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)' }}>AVG IELTS BAND</div>
-                <div style={{ fontSize: '18px', fontWeight: 800, color: 'white', marginTop: '4px' }}>7.5 / 9.0</div>
-                <span style={{ fontSize: '9px', color: '#10b981' }}>Gap: Met target</span>
-              </div>
-              <div className="glass-sm" style={{ padding: '12px' }}>
-                <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)' }}>AVG PUBLICATIONS</div>
-                <div style={{ fontSize: '18px', fontWeight: 800, color: 'white', marginTop: '4px' }}>1.2 papers</div>
-                <span style={{ fontSize: '9px', color: '#f43f5e' }}>Gap: Need 1 paper</span>
-              </div>
-            </div>
-            <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)', lineHeight: 1.5 }}>
-              <strong>AI Diagnostic:</strong> Admitted candidates exhibit high publication rates. Bridging your research publications gap will lift your success index dynamically by **+12%**.
-            </p>
+            ) : (
+              <>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '16px' }}>
+                  <div className="glass-sm" style={{ padding: '12px' }}>
+                    <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)' }}>AVG ADMITTED GPA</div>
+                    <div style={{ fontSize: '18px', fontWeight: 800, color: 'white', marginTop: '4px' }}>{intelligenceData.competitorBenchmarks?.avgGpa || 'N/A'}</div>
+                    <span style={{ fontSize: '9px', color: intelligenceData.competitorBenchmarks?.gpaGap?.includes('-') ? '#f43f5e' : '#10b981' }}>{intelligenceData.competitorBenchmarks?.gpaGap || 'Gap: Unknown'}</span>
+                  </div>
+                  <div className="glass-sm" style={{ padding: '12px' }}>
+                    <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)' }}>AVG IELTS/TOEFL</div>
+                    <div style={{ fontSize: '18px', fontWeight: 800, color: 'white', marginTop: '4px' }}>{intelligenceData.competitorBenchmarks?.avgTest || 'N/A'}</div>
+                    <span style={{ fontSize: '9px', color: intelligenceData.competitorBenchmarks?.testGap?.includes('-') ? '#f43f5e' : '#10b981' }}>{intelligenceData.competitorBenchmarks?.testGap || 'Gap: Unknown'}</span>
+                  </div>
+                  <div className="glass-sm" style={{ padding: '12px' }}>
+                    <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)' }}>AVG PUBLICATIONS</div>
+                    <div style={{ fontSize: '18px', fontWeight: 800, color: 'white', marginTop: '4px' }}>{intelligenceData.competitorBenchmarks?.avgResearch || 'N/A'}</div>
+                    <span style={{ fontSize: '9px', color: intelligenceData.competitorBenchmarks?.researchGap?.includes('Need') ? '#f43f5e' : '#10b981' }}>{intelligenceData.competitorBenchmarks?.researchGap || 'Gap: Unknown'}</span>
+                  </div>
+                </div>
+                <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)', lineHeight: 1.5 }}>
+                  <strong>AI Diagnostic:</strong> {intelligenceData.competitorBenchmarks?.diagnostic || 'Review your profile to see how you stack against competitors.'}
+                </p>
+              </>
+            )}
           </div>
 
           {/* NETWORKING & MENTOR DISCOVERY */}

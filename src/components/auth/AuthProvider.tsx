@@ -165,24 +165,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await updateProfile(cred.user, { displayName: name });
       await sendEmailVerification(cred.user);
       
-      // --- HACKATHON TRACTION STRATEGY ---
-      // Automatically grant 'founder_lifetime' to anyone signing up before Aug 10, 2026.
-      // After this date, the condition fails and users fall back to the Free plan.
-      const isHackathonPreLaunch = Date.now() < new Date('2026-08-10T00:00:00Z').getTime();
-      if (isHackathonPreLaunch) {
-        const subRef = doc(db, 'subscriptions', cred.user.uid);
-        const subSnap = await getDoc(subRef);
-        if (!subSnap.exists()) {
-          await setDoc(subRef, {
-            state: 'LIFETIME',
-            planId: 'founder_lifetime', // Triggers +999 revenue in Admin Dashboard
-            startDate: new Date().toISOString(),
-            endDate: null,
-            paymentProvider: 'hackathon_pre_launch'
-          });
-        }
-      }
-      // ------------------------------------
+      // Assign a Free 'Hackathon Pro Trial' to demonstrate the business model authentically
+      const subRef = doc(db, 'subscriptions', cred.user.uid);
+      await setDoc(subRef, {
+        state: 'TRIAL',
+        planId: 'hackathon_pro_trial',
+        startDate: new Date().toISOString(),
+        endDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(), // 14-day trial
+        paymentProvider: 'trial_grant'
+      }, { merge: true });
 
       setUser(firebaseUserToAppUser(cred.user));
       updateTelemetry('signup');
@@ -199,22 +190,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const provider = new GoogleAuthProvider();
       const result = await signInWithPopup(auth, provider);
       
-      // --- HACKATHON TRACTION STRATEGY ---
-      const isHackathonPreLaunch = Date.now() < new Date('2026-08-10T00:00:00Z').getTime();
-      if (isHackathonPreLaunch) {
-        const subRef = doc(db, 'subscriptions', result.user.uid);
-        const subSnap = await getDoc(subRef);
-        if (!subSnap.exists()) {
-          await setDoc(subRef, {
-            state: 'LIFETIME',
-            planId: 'founder_lifetime',
-            startDate: new Date().toISOString(),
-            endDate: null,
-            paymentProvider: 'hackathon_pre_launch'
-          });
-        }
-      }
-      // ------------------------------------
+      // Assign a Free 'Hackathon Pro Trial' to demonstrate the business model authentically
+      const subRef = doc(db, 'subscriptions', result.user.uid);
+      await setDoc(subRef, {
+        state: 'TRIAL',
+        planId: 'hackathon_pro_trial',
+        startDate: new Date().toISOString(),
+        endDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+        paymentProvider: 'trial_grant'
+      }, { merge: true });
 
       setUser(firebaseUserToAppUser(result.user));
       updateTelemetry('signin'); // Treating Google popup as a sign in for simplicity

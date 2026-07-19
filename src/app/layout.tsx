@@ -72,7 +72,7 @@ export default function RootLayout({
           rel="stylesheet"
         />
       </head>
-      <body>
+      <body className={process.env.NEXT_PUBLIC_PRESENTATION_MODE === 'true' ? 'presentation-mode' : ''}>
         <Providers>
           <Analytics />
           <CommandPalette />

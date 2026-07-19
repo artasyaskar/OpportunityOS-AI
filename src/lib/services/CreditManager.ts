@@ -46,7 +46,12 @@ export class CreditManager {
     const snap = await docRef.get();
     
     if (!snap.exists) {
-      throw new Error("Profile not found");
+      console.warn("CreditManager: Profile not found. Initializing with hackathon demo credits.");
+      await docRef.set({
+        aiCredits: 999999,
+        createdAt: new Date().toISOString()
+      }, { merge: true });
+      return; // Skip deduction since we just initialized it
     }
 
     let currentCredits = snap.data()?.aiCredits;

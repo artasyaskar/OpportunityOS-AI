@@ -124,11 +124,14 @@ export async function fetchPaymentMerchants(): Promise<PaymentMerchantConfig[]> 
 // Re-export query / where (imported above)
 
 export async function uploadPaymentReceipt(uid: string, file: File): Promise<string> {
-  const ext = file.name.split('.').pop();
-  const filename = `receipts/${uid}_${Date.now()}.${ext}`;
-  const storageRef = ref(storage, filename);
-  await uploadBytes(storageRef, file);
-  return await getDownloadURL(storageRef);
+  // Use Base64 encoding to store directly in Firestore, bypassing Firebase Storage
+  // which requires a paid plan or tedious setup.
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = error => reject(error);
+    reader.readAsDataURL(file);
+  });
 }
 
 export async function fetchPendingSubscriptions(): Promise<{uid: string, sub: SubscriptionRecord}[]> {

@@ -24,6 +24,7 @@ const ALLOWED_MIME_TYPES = [
 ];
 
 export async function POST(req: NextRequest) {
+  console.log('HIT /api/documents/presign POST route');
   // 1. Auth Validation
   const authResult = await validateRequest(req);
   if ('status' in authResult) return authResult;
@@ -81,7 +82,7 @@ export async function POST(req: NextRequest) {
       uploadUrl,
       downloadUrl,
       storageKey
-    });
+    }, { status: 200 });
 
   } catch (error: any) {
     console.error('Presign Error:', error);
