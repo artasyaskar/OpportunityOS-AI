@@ -197,7 +197,7 @@ export function computeEvidenceMatch(
   }
 
   // --- Passport ---
-  const hasPassport = profile.country || profile.verifiedEvidence?.some(e => e.source.toLowerCase().includes('passport'));
+  const hasPassport = profile.hasPassport || profile.verifiedEvidence?.some(e => e.source.toLowerCase().includes('passport')) || false;
   if (hasPassport) {
     ready.push({ requirement: 'Valid Passport', status: 'ready', evidence: 'Passport on file', source: 'Profile', confidence: 'high' });
     documentsReady.push('Passport Copy');
@@ -222,7 +222,7 @@ export function computeEvidenceMatch(
   }
 
   // --- Resume ---
-  const hasResume = profile.verifiedEvidence?.some(e => e.source.toLowerCase().includes('resume')) || false;
+  const hasResume = !!profile.resumeFile || (profile.verifiedEvidence?.some(e => e.source.toLowerCase().includes('resume')) || false);
   if (hasResume) {
     documentsReady.push('Resume / CV');
   } else {
@@ -230,7 +230,7 @@ export function computeEvidenceMatch(
   }
 
   // --- Transcript ---
-  const hasTranscript = profile.verifiedEvidence?.some(e => e.source.toLowerCase().includes('transcript')) || false;
+  const hasTranscript = !!profile.transcriptFile || (profile.verifiedEvidence?.some(e => e.source.toLowerCase().includes('transcript')) || false);
   if (hasTranscript) {
     documentsReady.push('Official Transcript');
   } else {
@@ -404,10 +404,10 @@ export function calculateProfileCompleteness(profile: any | null): {
     return { score: 0, items: defaultItems };
   }
 
-  const hasResume = profile.verifiedEvidence?.some((e: any) => e.source.toLowerCase().includes('resume')) || false;
-  const hasTranscript = profile.verifiedEvidence?.some((e: any) => e.source.toLowerCase().includes('transcript')) || false;
+  const hasResume = !!profile.resumeFile || (profile.verifiedEvidence?.some((e: any) => e.source.toLowerCase().includes('resume')) || false);
+  const hasTranscript = !!profile.transcriptFile || (profile.verifiedEvidence?.some((e: any) => e.source.toLowerCase().includes('transcript')) || false);
   const hasLinkedin = profile.verifiedEvidence?.some((e: any) => e.source.toLowerCase().includes('linkedin')) || false;
-  const hasPassport = profile.country || profile.verifiedEvidence?.some((e: any) => e.source.toLowerCase().includes('passport')) || false;
+  const hasPassport = !!profile.hasPassport || (profile.verifiedEvidence?.some((e: any) => e.source.toLowerCase().includes('passport')) || false);
 
   const items: CompletenessItem[] = [
     { name: 'Resume Uploaded', status: hasResume ? 'complete' : 'missing', weight: 20 },
