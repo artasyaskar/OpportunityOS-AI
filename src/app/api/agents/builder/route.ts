@@ -1,26 +1,22 @@
-import { checkRateLimit } from '@/lib/rateLimiter';
 import { NextRequest, NextResponse } from 'next/server';
 import { runApplicationBuilderAgent } from '@/services/ai/agents/applicationBuilderAgent';
 import { type UserProfile, type Opportunity } from '@/lib/gemini';
 import { EvidenceEngine, HallucinationError } from '@/lib/services/EvidenceEngine';
 import { adminDb } from '@/lib/firebase-admin';
+import { guardAgentRoute } from '@/lib/auth/agentGuard';
 
 export async function POST(req: NextRequest) {
-  const rateLimit = checkRateLimit(req);
-  if (!rateLimit.success) {
-    return NextResponse.json(
-      { error: 'Rate limit exceeded' },
-      { status: 429, headers: rateLimit.headers }
-    );
-  }
+  const guard = await guardAgentRoute(req);
+  if (guard instanceof NextResponse) return guard;
+  const { uid: userId } = guard;
   try {
-    const { type, opportunity, instructions, profile, userId } = await req.json() as {
+    const { type, opportunity, instructions, profile } = await req.json() as {
       type: string;
       opportunity: Opportunity;
       instructions: string;
       profile: UserProfile;
-      userId: string;
     };
+    if (profile) profile.userId = userId;
 
     // Fetch actual evidence from verified documents
     let evidence: any[] = [];
