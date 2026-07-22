@@ -8,8 +8,11 @@ import { useAuth } from '@/components/auth/AuthProvider';
 import { usePipeline } from '@/components/auth/PipelineContext';
 import { useSubscription } from '@/components/auth/SubscriptionContext';
 import { EvidenceRepository, EvidenceDocument } from '@/lib/repositories/EvidenceRepository';
+import { OpportunityRepository } from '@/lib/repositories/OpportunityRepository';
+import type { Opportunity } from '@/lib/gemini';
 import Link from 'next/link';
 import { SEED_OPPORTUNITIES } from '@/lib/opportunities';
+import { ChevronDown, Map, Target, Zap, Lock, Bot, AlertCircle, AlertTriangle, MapPin, CheckCircle } from 'lucide-react';
 
 const PRIORITY_COLORS: Record<string, string> = {
   critical: '#f43f5e',
@@ -22,12 +25,15 @@ export default function RoadmapPage() {
   const router = useRouter();
   const { user, getIdToken } = useAuth();
   const { profile: userProfile } = useProfile();
-  const { pipeline: apps } = usePipeline();
+  const { pipeline: apps } = usePipeline() as any;
   const { subscription } = useSubscription();
   const [documents, setDocuments] = useState<EvidenceDocument[]>([]);
 
-  const [ielts, setIelts] = useState(6.0);
-  const [researchPapers, setResearchPapers] = useState(0);
+  const [selectedOppId, setSelectedOppId] = useState<string | null>(null);
+  const [pipelineOpps, setPipelineOpps] = useState<Opportunity[]>([]);
+  const [currentOpp, setCurrentOpp] = useState<Opportunity | null>(null);
+
+  const [leverValues, setLeverValues] = useState<Record<string, number>>({});
   const [overallReadiness, setOverallReadiness] = useState(0);
 
   const [aiAnalysis, setAiAnalysis] = useState<any>(null);
@@ -36,6 +42,37 @@ export default function RoadmapPage() {
 
   const profile: any = userProfile || {};
 
+  // Initialize selectedOppId and pipelineOpps
+  useEffect(() => {
+    async function load() {
+      if (apps && apps.length > 0) {
+        const opps = await Promise.all(apps.map((p: any) => OpportunityRepository.getOpportunityById(p.id)));
+        const valid = opps.filter(Boolean) as Opportunity[];
+        setPipelineOpps(valid);
+        if (!selectedOppId && valid.length > 0) {
+          setSelectedOppId(valid[0].id);
+        }
+      } else {
+        setPipelineOpps([]);
+        if (!selectedOppId) {
+          setSelectedOppId(SEED_OPPORTUNITIES[0].id); // Fallback to Chevening just for a safe demo empty state
+        }
+      }
+    }
+    load();
+  }, [apps, selectedOppId]);
+
+  useEffect(() => {
+    if (selectedOppId) {
+      const opp = pipelineOpps.find(o => o.id === selectedOppId);
+      if (opp) {
+        setCurrentOpp(opp);
+      } else {
+        OpportunityRepository.getOpportunityById(selectedOppId).then(setCurrentOpp);
+      }
+    }
+  }, [selectedOppId, pipelineOpps]);
+
   useEffect(() => {
     if (user?.uid) {
       EvidenceRepository.getEvidenceForUser(user.uid).then(setDocuments);
@@ -43,11 +80,11 @@ export default function RoadmapPage() {
   }, [user]);
 
   useEffect(() => {
-    if (!profile || !user?.uid) return;
+    if (!profile || !user?.uid || !selectedOppId || !currentOpp) return;
     const fetchAnalysis = async () => {
       try {
-        const topApp = apps.length > 0 ? apps[0] : null;
-        const opportunity = topApp ? SEED_OPPORTUNITIES.find(o => o.id === topApp.id) : SEED_OPPORTUNITIES[0];
+        setIsAiLoading(true);
+        const opportunity = currentOpp;
         
         const token = await getIdToken();
         const res = await fetch('/api/agents/gap-analysis', {
@@ -63,6 +100,7 @@ export default function RoadmapPage() {
         const data = await res.json();
         const content = data.content || data;
         setAiAnalysis(content);
+        
         if (content?.gaps) {
           const c = content.gaps.filter((g: any) => g.priority === 'critical').length;
           const h = content.gaps.filter((g: any) => g.priority === 'high').length;
@@ -70,6 +108,17 @@ export default function RoadmapPage() {
           setStats({ critical: c, high: h, medium: m, complete: 5 }); // Mock complete
         }
         setOverallReadiness(content?.readinessPercentage || 40);
+
+        if (content?.simulatorLevers) {
+          const initialLevers: Record<string, number> = {};
+          content.simulatorLevers.forEach((lever: any) => {
+            initialLevers[lever.name] = lever.current;
+          });
+          setLeverValues(initialLevers);
+        } else {
+          setLeverValues({});
+        }
+
       } catch (err) {
         console.error(err);
       } finally {
@@ -77,26 +126,61 @@ export default function RoadmapPage() {
       }
     };
     fetchAnalysis();
-  }, [profile, user, documents, apps]);
+  }, [profile, user, documents, selectedOppId, currentOpp]);
 
-  const targetTitle = apps.length > 0 ? SEED_OPPORTUNITIES.find(o => o.id === apps[0].id)?.title : profile?.careerGoal || 'Global Executive Target';
+  const targetTitle = currentOpp?.title || 'Global Executive Target';
 
   // Dynamic Simulator odds
+  let probabilityBoost = 0;
+  if (aiAnalysis?.simulatorLevers) {
+    aiAnalysis.simulatorLevers.forEach((lever: any) => {
+      const val = leverValues[lever.name] !== undefined ? leverValues[lever.name] : lever.current;
+      const diff = val - lever.current;
+      probabilityBoost += diff * (lever.impactMultiplier || 5);
+    });
+  }
+
   const simulatedProbability = Math.min(
-    Math.round(overallReadiness + (ielts - 6.5) * 12 + researchPapers * 10),
+    Math.round(overallReadiness + probabilityBoost),
     98
   );
   const probColor = getProbabilityColor(simulatedProbability);
 
   return (
     <div>
-      <div style={{ marginBottom: '32px' }}>
-        <h1 style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '28px', fontWeight: 800, color: 'white', marginBottom: '8px' }}>
-          🗺️ Gap Analysis & Roadmap
-        </h1>
-        <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '14px' }}>
-          Your personalized AI-driven action plan to win {targetTitle}
-        </p>
+      <div style={{ marginBottom: '32px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
+        <div>
+          <h1 style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '28px', fontWeight: 800, color: 'white', marginBottom: '8px' }}>
+            <Map size={28} className="inline mr-2 text-indigo-400" /> Gap Analysis & Roadmap
+          </h1>
+          <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '14px' }}>
+            Your personalized AI-driven action plan to win {targetTitle}
+          </p>
+        </div>
+        
+        {/* Opportunity Selector */}
+        <div style={{ position: 'relative', width: '320px' }}>
+          <select 
+            className="input"
+            style={{ width: '100%', appearance: 'none', background: 'rgba(255,255,255,0.05)', color: 'white', border: '1px solid rgba(255,255,255,0.1)', padding: '12px 40px 12px 16px', borderRadius: '12px', fontSize: '14px', cursor: 'pointer', outline: 'none' }}
+            value={selectedOppId || ''}
+            onChange={(e) => setSelectedOppId(e.target.value)}
+            disabled={isAiLoading || pipelineOpps.length === 0}
+          >
+            {pipelineOpps.length > 0 ? (
+              <optgroup label="Your Pipeline">
+                {pipelineOpps.map(opp => (
+                  <option key={opp.id} value={opp.id}>{opp.title}</option>
+                ))}
+              </optgroup>
+            ) : (
+              <optgroup label="Empty Pipeline">
+                <option value={SEED_OPPORTUNITIES[0].id}>Chevening (Demo Mode)</option>
+              </optgroup>
+            )}
+          </select>
+          <ChevronDown size={18} style={{ position: 'absolute', right: '16px', top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.5)', pointerEvents: 'none' }} />
+        </div>
       </div>
 
       {/* Status Banner */}
@@ -135,7 +219,7 @@ export default function RoadmapPage() {
             {aiAnalysis?.estimatedTimeToReady || '3-4 Months'}
           </div>
           <div style={{ marginTop: '8px' }}>
-            <span className="badge badge-amber">🎯 Target: {targetTitle}</span>
+            <span className="badge badge-amber"><Target size={14} className="inline mr-1" /> Target: {targetTitle}</span>
           </div>
         </div>
       </div>
@@ -144,37 +228,34 @@ export default function RoadmapPage() {
       <div className="card" style={{ padding: '24px', marginBottom: '28px', border: '1px solid rgba(99,102,241,0.25)', background: 'rgba(99,102,241,0.02)' }}>
         <div style={{ marginBottom: '16px' }}>
           <h2 style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '15px', fontWeight: 700, color: 'white' }}>
-            ⚡ AI Success Simulator
+            <Zap size={16} className="inline mr-2 text-yellow-400" /> Dynamic AI Success Simulator
           </h2>
           <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.4)', marginTop: '2px' }}>
-            Drag variables to see how bridging credentials shifts your success odds live.
+            Drag variables to see how bridging credentials shifts your success odds live for this specific opportunity.
           </p>
         </div>
+        
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px' }}>
-          <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: 'white', fontWeight: 600, marginBottom: '8px' }}>
-              <span>English Proficiency (IELTS Target)</span>
-              <span style={{ color: '#818cf8' }}>{ielts.toFixed(1)} Band</span>
-            </div>
-            <input 
-              type="range" min="6.0" max="9.0" step="0.5"
-              value={ielts}
-              onChange={e => setIelts(parseFloat(e.target.value))}
-              style={{ width: '100%', cursor: 'pointer' }}
-            />
-          </div>
-          <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: 'white', fontWeight: 600, marginBottom: '8px' }}>
-              <span>Research Publications (IEEE / ACM)</span>
-              <span style={{ color: '#10b981' }}>{researchPapers} Published</span>
-            </div>
-            <input 
-              type="range" min="0" max="3" step="1"
-              value={researchPapers}
-              onChange={e => setResearchPapers(parseInt(e.target.value))}
-              style={{ width: '100%', cursor: 'pointer' }}
-            />
-          </div>
+          {isAiLoading ? (
+            <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: '14px' }}>Generating simulation parameters...</div>
+          ) : aiAnalysis?.simulatorLevers && aiAnalysis.simulatorLevers.length > 0 ? (
+            aiAnalysis.simulatorLevers.map((lever: any, i: number) => (
+              <div key={i}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: 'white', fontWeight: 600, marginBottom: '8px' }}>
+                  <span>{lever.name}</span>
+                  <span style={{ color: '#818cf8' }}>{leverValues[lever.name] !== undefined ? leverValues[lever.name] : lever.current}</span>
+                </div>
+                <input 
+                  type="range" min={lever.min} max={lever.max} step={lever.step}
+                  value={leverValues[lever.name] !== undefined ? leverValues[lever.name] : lever.current}
+                  onChange={e => setLeverValues(prev => ({ ...prev, [lever.name]: parseFloat(e.target.value) }))}
+                  style={{ width: '100%', cursor: 'pointer' }}
+                />
+              </div>
+            ))
+          ) : (
+            <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: '14px' }}>No simulation parameters available for this opportunity.</div>
+          )}
         </div>
       </div>
 
@@ -188,7 +269,7 @@ export default function RoadmapPage() {
           <div style={{ padding: '24px' }}>
             {(!subscription || subscription.status === 'FREE' || subscription.planId === 'free') ? (
               <div className="card-magnetic glow-border" style={{ padding: '32px', textAlign: 'center', background: 'rgba(99,102,241,0.05)', border: '1px solid rgba(99,102,241,0.2)' }}>
-                <h3 style={{ fontSize: '18px', fontWeight: 800, color: 'white', marginBottom: '12px' }}>🔒 Step-by-Step AI Roadmap</h3>
+                <h3 style={{ fontSize: '18px', fontWeight: 800, color: 'white', marginBottom: '12px' }}><Lock size={18} className="inline mr-2 text-indigo-400" /> Step-by-Step AI Roadmap</h3>
                 <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.7)', marginBottom: '24px', maxWidth: '400px', margin: '0 auto 24px' }}>
                   Upgrade to Pro to generate a highly personalized timeline and task checklist based on your gap analysis.
                 </p>
@@ -214,7 +295,7 @@ export default function RoadmapPage() {
           <div style={{ padding: '24px' }}>
             {(!subscription || subscription.status === 'FREE' || subscription.planId === 'free') ? (
               <div className="card-magnetic glow-border" style={{ padding: '32px', textAlign: 'center', background: 'rgba(99,102,241,0.05)', border: '1px solid rgba(99,102,241,0.2)' }}>
-                <h3 style={{ fontSize: '18px', fontWeight: 800, color: 'white', marginBottom: '12px' }}>🔒 Premium AI Gap Analysis</h3>
+                <h3 style={{ fontSize: '18px', fontWeight: 800, color: 'white', marginBottom: '12px' }}><Lock size={18} className="inline mr-2 text-indigo-400" /> Premium AI Gap Analysis</h3>
                 <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.7)', marginBottom: '24px', maxWidth: '400px', margin: '0 auto 24px' }}>
                   Upgrade to Pro to unlock the AI Planner, identify critical weaknesses in your profile, and receive a step-by-step roadmap to admission.
                 </p>
@@ -256,7 +337,7 @@ export default function RoadmapPage() {
         {/* AI Missions Timeline */}
         <div className="card" style={{ padding: '28px' }}>
           <h2 style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '18px', fontWeight: 700, color: 'white', marginBottom: '24px' }}>
-            🎯 Active AI Missions
+            <Target size={18} className="inline mr-2 text-indigo-400" /> Active AI Missions
           </h2>
           <div style={{ position: 'relative', paddingLeft: '24px' }}>
             <div style={{ position: 'absolute', left: '7px', top: 0, bottom: 0, width: '2px', background: 'linear-gradient(180deg, #6366f1, #06b6d4)', borderRadius: '1px', opacity: 0.3 }} />
@@ -280,7 +361,7 @@ export default function RoadmapPage() {
                   />
                   <div style={{ flex: 1 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px', flexWrap: 'wrap' }}>
-                      <span style={{ fontSize: '16px' }}>🤖</span>
+                      <span style={{ fontSize: '16px' }}><Bot size={16} /></span>
                       <span style={{ fontSize: '14px', fontWeight: 700, color: 'white' }}>{item.action}</span>
                       <span className="badge badge-emerald" style={{ fontSize: '10px' }}>Step {item.step}</span>
                     </div>
@@ -299,10 +380,10 @@ export default function RoadmapPage() {
         {/* Stats Summary */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           {[
-            { label: 'Critical Gaps', value: stats.critical, icon: '🚨', color: '#f43f5e', desc: 'Must resolve before applying' },
-            { label: 'High Priority', value: stats.high, icon: '⚠️', color: '#f59e0b', desc: 'Strongly recommended to fix' },
-            { label: 'Medium Priority', value: stats.medium, icon: '📌', color: '#3b82f6', desc: 'Will improve your chances' },
-            { label: 'Items Complete', value: stats.complete, icon: '✅', color: '#10b981', desc: 'Already meeting requirements' },
+            { label: 'Critical Gaps', value: stats.critical, icon: <AlertCircle size={14} />, color: '#f43f5e', desc: 'Must resolve before applying' },
+            { label: 'High Priority', value: stats.high, icon: <AlertTriangle size={14} />, color: '#f59e0b', desc: 'Strongly recommended to fix' },
+            { label: 'Medium Priority', value: stats.medium, icon: <MapPin size={14} />, color: '#3b82f6', desc: 'Will improve your chances' },
+            { label: 'Items Complete', value: stats.complete, icon: <CheckCircle size={14} />, color: '#10b981', desc: 'Already meeting requirements' },
           ].map(stat => (
             <div key={stat.label} className="card" style={{ padding: '16px', display: 'flex', alignItems: 'center', gap: '16px' }}>
               <div
