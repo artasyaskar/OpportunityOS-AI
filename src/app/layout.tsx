@@ -49,7 +49,7 @@ export const viewport = {
   themeColor: '#020408',
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 1,
+  // No maximumScale: users must be able to pinch-zoom (WCAG 1.4.4).
 };
 
 import Analytics from '@/components/Analytics';
