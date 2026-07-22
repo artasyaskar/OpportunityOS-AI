@@ -64,6 +64,30 @@ export async function POST(req: NextRequest) {
     // Background async parsing (Fire and forget - Pseudo Queue)
     const processDocument = async () => {
       try {
+        // 1.5. SHA-256 Cache Check
+        if (docData.fileHash) {
+          const cachedQuery = await adminDb.collection('evidence')
+            .where('fileHash', '==', docData.fileHash)
+            .where('status', 'in', [DocumentStatus.NEEDS_REVIEW, DocumentStatus.VERIFIED])
+            .limit(1)
+            .get();
+            
+          if (!cachedQuery.empty) {
+            const cachedDoc = cachedQuery.docs[0].data();
+            if (cachedDoc.extractedData && docRef && cachedDoc.id !== docData.id) {
+              console.log(`[Cache Hit] Reusing extracted data for hash ${docData.fileHash}`);
+              await docRef.update({
+                extractedData: cachedDoc.extractedData,
+                status: DocumentStatus.NEEDS_REVIEW,
+                aiConfidence: cachedDoc.aiConfidence || 100,
+                parserUsed: `${docData.type.charAt(0).toUpperCase() + docData.type.slice(1)} Parser (Cache Hit)`,
+                whoVerified: 'AI'
+              }).catch(() => {});
+              return; // Done, skip AI
+            }
+          }
+        }
+
         // 2. Download from Storage via ServerStorageProvider
         let buffer: Buffer;
         if (serverStorageProvider.getFileBuffer) {
