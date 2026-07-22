@@ -4,7 +4,7 @@ import { EvidenceDocument, EvidenceRepository, PassportData, IELTSData, Transcri
 export type EvidenceClassification = 'Verified' | 'Missing' | 'Weak' | 'User Confirmation Required' | 'Not Provided';
 
 export interface EvidenceNode {
-  type: 'academic' | 'experience' | 'skill' | 'origin' | 'goal' | 'award' | 'project' | 'metric';
+  type: 'academic' | 'experience' | 'skill' | 'origin' | 'goal' | 'award' | 'project' | 'metric' | 'research' | 'interview_story' | 'context';
   fact: string;
   source: string; // Granular Document Source, e.g. "Transcript", "Resume", "Passport"
   classification: EvidenceClassification;
@@ -18,6 +18,37 @@ export class HallucinationError extends Error {
 }
 
 export class EvidenceEngine {
+  /**
+   * Pre-filters available Knowledge Nodes based on Opportunity semantic relevance.
+   */
+  static getOpportunityAwareKnowledge(docs: EvidenceDocument[], opportunity: Opportunity): EvidenceDocument[] {
+    // In MVP, we filter based on basic domain heuristics. 
+    // If the opportunity domain matches keywords in the document's insights, we boost it.
+    // We return everything sorted by relevance so the UI can pre-check the top N.
+    return docs.map(doc => {
+      let score = doc.metrics?.importance || 50;
+      
+      const textToSearch = JSON.stringify(doc.extractedInsights || {}).toLowerCase() + (doc.fileName || '').toLowerCase();
+      // Use cast since domain isn't fully defined yet on Opportunity
+      const oppDomain = ((opportunity as any).domain || opportunity.title || '').toLowerCase();
+      
+      // Very basic keyword heuristic
+      oppDomain.split(' ').forEach((word: string) => {
+        if (word.length > 3 && textToSearch.includes(word)) {
+          score += 25;
+        }
+      });
+      
+      if (doc.type === 'interview_memory') score += 15; // Universal value
+      if (doc.type === 'resume' || doc.type === 'transcript') score += 50; // Core docs
+      
+      // Update relevance metric
+      if (!doc.metrics) doc.metrics = { importance: 50, confidence: 90, usageCount: 0 };
+      doc.metrics.relevance = score;
+      return doc;
+    }).sort((a, b) => (b.metrics?.relevance || 0) - (a.metrics?.relevance || 0));
+  }
+
   /**
    * Translates verified EvidenceDocuments into undeniable EvidenceNodes.
    */
@@ -77,6 +108,16 @@ export class EvidenceEngine {
             evidence.push({ type: 'skill', fact: `Applicant possesses skill: ${s}.`, source: sourceStr, classification: 'Verified' });
           });
         }
+      }
+
+      if (doc.type === 'research_memory' && doc.extractedInsights) {
+        const r = doc.extractedInsights;
+        evidence.push({ type: 'research', fact: `Research Publication/Project: ${r.Title || doc.fileName}. Domain: ${r.ResearchArea}. Core Gap: ${r.ResearchGap}. Novelty: ${r.Novelty}. Methodology: ${r.Methodology}. Findings: ${r.Results}. Keywords: ${Array.isArray(r.Keywords) ? r.Keywords.join(', ') : r.Keywords}. Impact: ${r.Impact}.`, source: sourceStr, classification: 'Verified' });
+      }
+
+      if (doc.type === 'interview_memory' && doc.extractedInsights) {
+        const i = doc.extractedInsights;
+        evidence.push({ type: 'interview_story', fact: `Behavioral Context (Traits: ${Array.isArray(i.DemonstratedTraits) ? i.DemonstratedTraits.join(', ') : i.DemonstratedTraits}): Question asked: ${i.Question}. Applicant Answered: ${i.Answer}`, source: sourceStr, classification: 'Verified' });
       }
     });
 
