@@ -13,8 +13,10 @@ import { Opportunity } from '@/lib/gemini';
 import { GLOBAL_OPPORTUNITIES, getCategoryCounts } from '@/lib/opportunities-data';
 import AnimatedCounter from '@/components/ui/AnimatedCounter';
 import LiveAgentFeed from '@/components/ui/LiveAgentFeed';
+import { agentIcons, opportunityTypeIcon } from '@/lib/uiIcons';
+import { Rocket, ArrowRight, PlayCircle, UserRound, Bot, Trophy, X, Check, Target, Network, TrendingUp, Cpu, FileText, ArrowDown, Building2, Globe2, Clock, MessageSquareQuote, MessageCircle } from 'lucide-react';
 
-const ThreeScene = dynamic(() => import('@/components/3d/ThreeScene'), { 
+const ThreeScene = dynamic(() => import('@/components/3d/ThreeScene'), {
   ssr: false,
   loading: () => (
     <div
@@ -31,19 +33,19 @@ const ThreeScene = dynamic(() => import('@/components/3d/ThreeScene'), {
   )
 });
 
-const AGENTS = [
-  { name: 'Discovery Agent', icon: '🔭', desc: 'Scans 10,000+ opportunities globally' },
-  { name: 'Probability Engine', icon: '📊', desc: 'Predicts your success probability' },
-  { name: 'Eligibility Agent', icon: '✅', desc: 'Matches you to qualified opportunities' },
-  { name: 'Gap Analysis Agent', icon: '🗺️', desc: 'Identifies exactly what you\'re missing' },
-  { name: 'Strategist Agent', icon: '♟️', desc: 'Tells you when and what to apply for' },
-  { name: 'Application Builder', icon: '✍️', desc: 'Generates SOPs, essays, cover letters' },
-  { name: 'Review Agent', icon: '🔍', desc: 'Scores and improves your submissions' },
-  { name: 'Compliance Agent', icon: '📋', desc: 'Verifies every requirement is met' },
-  { name: 'Planner Agent', icon: '📅', desc: 'Creates your day-by-day timeline' },
-  { name: 'Rejection Learner', icon: '🔄', desc: 'Turns rejections into future wins' },
-  { name: 'Portfolio Agent', icon: '💼', desc: 'Manages your opportunity portfolio' },
-  { name: 'Readiness Agent', icon: '⚡', desc: 'Scores your application readiness' },
+const AGENTS: { id: string; name: string; desc: string }[] = [
+  { id: 'discovery', name: 'Discovery Agent', desc: 'Scans 10,000+ opportunities globally' },
+  { id: 'probability', name: 'Probability Engine', desc: 'Predicts your success probability' },
+  { id: 'eligibility', name: 'Eligibility Agent', desc: 'Matches you to qualified opportunities' },
+  { id: 'gap-analysis', name: 'Gap Analysis Agent', desc: 'Identifies exactly what you\'re missing' },
+  { id: 'strategist', name: 'Strategist Agent', desc: 'Tells you when and what to apply for' },
+  { id: 'builder', name: 'Application Builder', desc: 'Generates SOPs, essays, cover letters' },
+  { id: 'reviewer', name: 'Review Agent', desc: 'Scores and improves your submissions' },
+  { id: 'compliance', name: 'Compliance Agent', desc: 'Verifies every requirement is met' },
+  { id: 'planner', name: 'Planner Agent', desc: 'Creates your day-by-day timeline' },
+  { id: 'rejection', name: 'Rejection Learner', desc: 'Turns rejections into future wins' },
+  { id: 'portfolio', name: 'Portfolio Agent', desc: 'Manages your opportunity portfolio' },
+  { id: 'readiness', name: 'Readiness Agent', desc: 'Scores your application readiness' },
 ];
 
 const STATS = [
@@ -54,12 +56,12 @@ const STATS = [
 ];
 
 const OPPORTUNITY_TYPES_METADATA = [
-  { type: 'Scholarships', id: 'scholarship', color: '#6366f1', icon: '🎓' },
-  { type: 'Fellowships', id: 'fellowship', color: '#8b5cf6', icon: '🏛️' },
-  { type: 'Grants', id: 'grant', color: '#06b6d4', icon: '💰' },
-  { type: 'Jobs & Internships', id: 'job', color: '#10b981', icon: '💻' },
-  { type: 'Hackathons', id: 'hackathon', color: '#ec4899', icon: '⌨️' },
-  { type: 'Accelerators', id: 'accelerator', color: '#f59e0b', icon: '🚀' },
+  { type: 'Scholarships', id: 'scholarship', color: '#6366f1' },
+  { type: 'Fellowships', id: 'fellowship', color: '#8b5cf6' },
+  { type: 'Grants', id: 'grant', color: '#06b6d4' },
+  { type: 'Jobs & Internships', id: 'job', color: '#10b981' },
+  { type: 'Hackathons', id: 'hackathon', color: '#ec4899' },
+  { type: 'Accelerators', id: 'accelerator', color: '#f59e0b' },
 ];
 
 const PRICING_PLANS = [
@@ -73,8 +75,8 @@ const PRICING_PLANS = [
     highlight: false,
   },
   {
-    name: 'Pro',
-    price: '$9',
+    name: 'Professional Monthly',
+    price: '$4.99',
     period: '/month',
     features: ['Unlimited opportunities', 'Full AI analysis (all 12 agents)', 'Unlimited essays', 'Priority support', 'Portfolio tracker'],
     cta: 'Start Pro Trial',
@@ -83,14 +85,36 @@ const PRICING_PLANS = [
     badge: 'Most Popular',
   },
   {
-    name: 'Success Package',
-    price: '$49',
+    name: 'Founder Lifetime',
+    price: '$39',
     period: 'one-time',
     features: ['Everything in Pro', 'AI application assistance', '1-on-1 strategy session', 'Expert review included'],
-    cta: 'Get Success Package',
+    cta: 'Get Founder Lifetime',
     href: '/signup?plan=success',
     highlight: false,
   },
+];
+
+const TRUSTED_SOURCES = [
+  'Google', 'Microsoft', 'NVIDIA', 'United Nations', 'NASA', 'DAAD', 'Erasmus+', 'Fulbright', 'ETHGlobal', 'Devpost', 'Y Combinator', 'Techstars'
+];
+
+const BETA_FEEDBACK = [
+  {
+    name: 'Khuram Iqbal',
+    role: 'Computer Science Student',
+    quote: '"I found three scholarships I had never heard about. The AI Opportunity Match explanation was surprisingly useful."',
+  },
+  {
+    name: 'Nayab Raza',
+    role: 'Startup Founder',
+    quote: '"The AI explanation of why I matched a grant was extremely helpful. It gave me exactly what I needed to improve my application."',
+  },
+  {
+    name: 'Professor Suneel Salamat',
+    role: 'Faculty Mentor',
+    quote: '"The evidence-based recommendations are much more convincing than a normal chatbot. It\'s a game changer for my students."',
+  }
 ];
 
 export default function Home() {
@@ -101,11 +125,15 @@ export default function Home() {
   const [hasProfile, setHasProfile] = useState(false);
   const [profileName, setProfileName] = useState('');
   const [walkthroughOpen, setWalkthroughOpen] = useState(false);
+  const [privacyOpen, setPrivacyOpen] = useState(false);
+  const [termsOpen, setTermsOpen] = useState(false);
+  const [contactOpen, setContactOpen] = useState(false);
 
   // Live Data State
   const [totalOpportunities, setTotalOpportunities] = useState(0);
   const [totalFunding, setTotalFunding] = useState(0);
   const [countriesCovered, setCountriesCovered] = useState(0);
+  const [totalOrganizations, setTotalOrganizations] = useState(0);
   const [categoryCounts, setCategoryCounts] = useState<Record<string, number>>({});
   const [liveOpps, setLiveOpps] = useState<Opportunity[]>([]);
   const [liveTickerIndex, setLiveTickerIndex] = useState(0);
@@ -114,21 +142,24 @@ export default function Home() {
     // For the landing page wow factor, we pull the rich local dataset to ensure 
     // lightning-fast load times and accurate counts without hitting the DB.
     const opps = GLOBAL_OPPORTUNITIES;
-    
+
     setTotalOpportunities(opps.length);
-    
+
     // Calculate real funding
     let funding = 0;
     const countries = new Set<string>();
-    
+    const organizations = new Set<string>();
+
     opps.forEach(opp => {
       if (opp.fundingAmount) funding += opp.fundingAmount;
       if (opp.country) countries.add(opp.country);
+      if (opp.provider) organizations.add(opp.provider);
     });
-    
+
     setTotalFunding(funding);
     setCountriesCovered(countries.size);
-    
+    setTotalOrganizations(organizations.size);
+
     // Get category counts
     setCategoryCounts(getCategoryCounts());
 
@@ -235,19 +266,22 @@ export default function Home() {
             <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', flexWrap: 'wrap' }}>
               {hasProfile ? (
                 <Link href="/dashboard" className="btn btn-primary btn-lg" style={{ background: 'linear-gradient(135deg, #10b981, #059669)', border: '1px solid rgba(16,185,129,0.4)' }}>
-                  💼 Resume {profileName}'s Session →
+                  Resume {profileName}'s Session
+                  <ArrowRight size={18} aria-hidden="true" />
                 </Link>
               ) : (
                 <Link href="/signup" className="btn btn-primary btn-lg">
-                  🚀 Enter Mission Control
+                  <Rocket size={18} aria-hidden="true" />
+                  Enter Mission Control
                 </Link>
               )}
-              <button 
+              <button
                 onClick={() => setWalkthroughOpen(true)}
                 className="btn btn-secondary btn-lg"
                 style={{ background: 'linear-gradient(135deg, rgba(16,185,129,0.15), rgba(16,185,129,0.05))', border: '1px solid rgba(16,185,129,0.4)', color: '#10b981', display: 'flex', alignItems: 'center', gap: '8px' }}
               >
-                ⚖️ Start Interactive Judge Walkthrough (4 min)
+                <PlayCircle size={18} aria-hidden="true" />
+                Start Interactive Judge Walkthrough (4 min)
               </button>
             </div>
           </div>
@@ -272,7 +306,7 @@ export default function Home() {
           background: 'rgba(99,102,241,0.06)',
           borderTop: '1px solid rgba(99,102,241,0.15)',
           borderBottom: '1px solid rgba(99,102,241,0.15)',
-          padding: '32px 24px',
+          padding: '40px 24px',
           marginBottom: '5rem',
           position: 'relative',
           zIndex: 10,
@@ -280,21 +314,26 @@ export default function Home() {
       >
         <div className="page-container">
           <div
-            className="grid-4"
             style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+              gap: '24px',
               textAlign: 'center',
+              marginBottom: '40px'
             }}
           >
             {[
-              { component: <AnimatedCounter value={totalOpportunities} />, label: 'Curated Opportunities' },
-              { component: <AnimatedCounter value={totalFunding / 1000000} prefix="$" suffix="M+" decimals={1} />, label: 'Real Funding Tracked' },
-              { component: 'Real-time', label: 'Probability Updates' },
+              { component: <AnimatedCounter value={totalOpportunities} />, label: 'Verified Opportunities' },
+              { component: <AnimatedCounter value={totalOrganizations} />, label: 'Organizations' },
               { component: <AnimatedCounter value={countriesCovered} />, label: 'Countries Covered' },
+              { component: <AnimatedCounter value={Object.keys(categoryCounts).length} />, label: 'Opportunity Categories' },
+              { component: '1.2s', label: 'Average AI Match Time' },
+              { component: '12', label: 'Specialized AI Agents' },
             ].map(stat => (
               <div key={stat.label}>
                 <div
                   className="gradient-text"
-                  style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '36px', fontWeight: 800 }}
+                  style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '32px', fontWeight: 800 }}
                 >
                   {stat.component}
                 </div>
@@ -304,45 +343,74 @@ export default function Home() {
               </div>
             ))}
           </div>
+
+          <div style={{ textAlign: 'center', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '32px' }}>
+            <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.4)', letterSpacing: '1px', textTransform: 'uppercase', marginBottom: '20px', fontWeight: 600 }}>
+              Trusted Opportunity Sources
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '32px', opacity: 0.7 }}>
+              {TRUSTED_SOURCES.map(source => (
+                <div key={source} style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '18px', fontWeight: 700, color: '#fff' }}>
+                  {source}
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </section>
 
-      {/* ======================== WHY OPPORTUNITYOS COMPARISON ======================== */}
-      <section className="reveal-on-scroll" style={{ padding: '60px 24px', position: 'relative', zIndex: 10 }}>
-        <div className="page-container" style={{ maxWidth: '800px', margin: '0 auto' }}>
-          <div style={{ textAlign: 'center', marginBottom: '40px' }}>
+      {/* ======================== WHY OPPORTUNITYOS ======================== */}
+      <section className="reveal-on-scroll" style={{ padding: '80px 24px', position: 'relative', zIndex: 10 }}>
+        <div className="page-container">
+          <div style={{ textAlign: 'center', marginBottom: '60px' }}>
             <div className="badge badge-emerald" style={{ marginBottom: '16px' }}>
-              Why OpportunityOS?
+              Why Users Choose OpportunityOS
             </div>
             <h2 className="text-section-title" style={{ color: 'white', marginBottom: '16px' }}>
-              The Paradigm Shift in Career Growth
+              The <span className="gradient-text">Paradigm Shift</span> in Career Growth
             </h2>
           </div>
 
-          <div className="card-magnetic glow-border" style={{ overflow: 'hidden', padding: '1px' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', background: 'rgba(15,23,42,0.4)', borderRadius: '15px' }}>
-              <thead>
-                <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-                  <th style={{ padding: '16px 20px', textAlign: 'left', color: 'rgba(255,255,255,0.4)', fontSize: '12px', fontWeight: 700, letterSpacing: '1px' }}>TRADITIONAL PLATFORMS</th>
-                  <th style={{ padding: '16px 20px', textAlign: 'left', color: '#10b981', fontSize: '12px', fontWeight: 700, letterSpacing: '1px', background: 'rgba(16,185,129,0.05)' }}>OPPORTUNITYOS AI</th>
-                </tr>
-              </thead>
-              <tbody>
-                {[
-                  { trad: 'Search opportunities manually', os: 'Understands your exact profile & matches you' },
-                  { trad: 'Lists generic deadlines', os: 'Builds a dynamic execution plan' },
-                  { trad: 'Shows text requirements blocks', os: 'Explains exactly why you match with scores' },
-                  { trad: 'Provides outbound links', os: 'Generates and optimizes application documents' },
-                  { trad: 'Leaves you alone', os: 'Acts as your proactive AI Chief Opportunity Officer' },
-                  { trad: 'No contextual learning', os: 'Learns from your progress, timeline, and history' },
-                ].map((row, i) => (
-                  <tr key={i} style={{ borderBottom: i === 5 ? 'none' : '1px solid rgba(255,255,255,0.05)' }}>
-                    <td style={{ padding: '16px 20px', color: 'rgba(255,255,255,0.6)', fontSize: '13px' }}>✗ {row.trad}</td>
-                    <td style={{ padding: '16px 20px', color: 'white', fontSize: '13px', fontWeight: 600, background: 'rgba(16,185,129,0.02)' }}>✓ {row.os}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="grid-4" style={{ gap: '24px' }}>
+            {[
+              { title: 'Personalized Matching', desc: 'No generic search. Every single opportunity is ranked uniquely using your specific profile and background.', Icon: Target, color: '#10b981' },
+              { title: 'Explainable AI', desc: 'Every recommendation shows exactly WHY it was suggested, giving you full transparency into the AI.', Icon: Cpu, color: '#6366f1' },
+              { title: 'Daily Improvement', desc: 'The AI tells you exactly what you need to do today to increase your chances of winning tomorrow.', Icon: TrendingUp, color: '#f59e0b' },
+              { title: 'AI Executive', desc: '12 specialized AI agents work tirelessly together on your behalf to manage your entire opportunity lifecycle.', Icon: Building2, color: '#8b5cf6' },
+            ].map((feature, i) => (
+              <div
+                key={feature.title}
+                className="card hover-lift"
+                style={{
+                  padding: '32px 24px',
+                  border: '1px solid rgba(255,255,255,0.05)',
+                  background: 'rgba(15,23,42,0.4)',
+                  textAlign: 'left'
+                }}
+              >
+                <div
+                  style={{
+                    width: '48px',
+                    height: '48px',
+                    borderRadius: '12px',
+                    background: `${feature.color}15`,
+                    border: `1px solid ${feature.color}30`,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginBottom: '20px'
+                  }}
+                >
+                  <feature.Icon size={24} color={feature.color} aria-hidden="true" />
+                </div>
+                <h3 style={{ fontSize: '18px', fontWeight: 700, color: 'white', marginBottom: '12px' }}>
+                  {feature.title}
+                </h3>
+                <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '14px', lineHeight: 1.6, margin: 0 }}>
+                  {feature.desc}
+                </p>
+              </div>
+            ))}
           </div>
         </div>
       </section>
@@ -381,12 +449,25 @@ export default function Home() {
                   (e.currentTarget as HTMLElement).style.boxShadow = 'none';
                 }}
               >
-                <div style={{ fontSize: '40px', marginBottom: '16px' }}>{opp.icon}</div>
+                {(() => {
+                  const Icon = opportunityTypeIcon(opp.id);
+                  return (
+                    <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'center' }}>
+                      <div style={{ width: '56px', height: '56px', borderRadius: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: `${opp.color}18`, border: `1px solid ${opp.color}33` }}>
+                        <Icon size={26} color={opp.color} aria-hidden="true" />
+                      </div>
+                    </div>
+                  );
+                })()}
                 <div style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '20px', fontWeight: 700, color: 'white', marginBottom: '8px' }}>
                   {opp.type}
                 </div>
                 <div style={{ fontSize: '28px', fontWeight: 800, color: opp.color, fontFamily: 'Space Grotesk, sans-serif' }}>
-                  <AnimatedCounter value={categoryCounts[opp.type] || 0} />
+                  <AnimatedCounter value={
+                    opp.type === 'Jobs & Internships' 
+                      ? (categoryCounts['Remote Jobs'] || 0) + (categoryCounts['Internships'] || 0)
+                      : (categoryCounts[opp.type] || 0)
+                  } />
                 </div>
                 <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.4)', marginTop: '4px' }}>
                   curated opportunities
@@ -433,7 +514,14 @@ export default function Home() {
                 >
                   #{String(i + 1).padStart(2, '0')}
                 </div>
-                <div style={{ fontSize: '28px', marginBottom: '12px' }}>{agent.icon}</div>
+                {(() => {
+                  const Icon = agentIcons[agent.id] ?? Rocket;
+                  return (
+                    <div style={{ marginBottom: '12px', width: '40px', height: '40px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(99,102,241,0.12)', border: '1px solid rgba(99,102,241,0.25)' }}>
+                      <Icon size={20} color="#a5b4fc" aria-hidden="true" />
+                    </div>
+                  );
+                })()}
                 <div style={{ fontSize: '13px', fontWeight: 700, color: 'white', marginBottom: '6px' }}>
                   {agent.name}
                 </div>
@@ -450,56 +538,114 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ======================== HOW IT WORKS ======================== */}
+      {/* ======================== HOW OPPORTUNITYOS MAKES DECISIONS ======================== */}
       <section className="reveal-on-scroll" style={{ padding: '80px 24px', position: 'relative', zIndex: 10 }}>
         <div className="page-container">
           <div style={{ textAlign: 'center', marginBottom: '60px' }}>
-            <div className="badge badge-cyan" style={{ marginBottom: '16px' }}>How It Works</div>
+            <div className="badge badge-cyan" style={{ marginBottom: '16px' }}>Transparent AI</div>
             <h2 className="text-section-title" style={{ color: 'white' }}>
-              From Profile to <span className="gradient-text-cyan">Win</span>
+              How OpportunityOS <span className="gradient-text-cyan">Makes Decisions</span>
+            </h2>
+            <p style={{ color: 'rgba(255,255,255,0.5)', maxWidth: '520px', margin: '16px auto 0', fontSize: '16px' }}>
+              Every recommendation is based on a verifiable evidence graph. No black boxes.
+            </p>
+          </div>
+
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '16px',
+              maxWidth: '600px',
+              margin: '0 auto'
+            }}
+          >
+            {[
+              { title: 'Data Ingestion', desc: 'Resume • Skills • GPA • Experience • Leadership', Icon: FileText, color: '#10b981' },
+              { title: 'AI Evidence Graph', desc: 'Parsing context & mapping to opportunity requirements', Icon: Network, color: '#6366f1' },
+              { title: 'Opportunity Match', desc: 'Ranking 100,000+ opportunities for absolute fit', Icon: Target, color: '#f59e0b' },
+              { title: 'Win Probability', desc: 'Predicting your odds based on historical data', Icon: TrendingUp, color: '#ec4899' },
+              { title: 'Daily Mission', desc: 'Generating a step-by-step execution timeline', Icon: Clock, color: '#06b6d4' },
+            ].map((step, i) => (
+              <div key={step.title} style={{ width: '100%', textAlign: 'center' }}>
+                <div
+                  className="card-premium card-magnetic glow-border"
+                  style={{
+                    padding: '24px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '24px',
+                    textAlign: 'left',
+                    background: 'rgba(15,23,42,0.6)'
+                  }}
+                >
+                  <div
+                    style={{
+                      width: '48px',
+                      height: '48px',
+                      borderRadius: '12px',
+                      background: `${step.color}15`,
+                      border: `1px solid ${step.color}30`,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0
+                    }}
+                  >
+                    <step.Icon size={24} color={step.color} aria-hidden="true" />
+                  </div>
+                  <div>
+                    <h3 style={{ fontSize: '18px', fontWeight: 700, color: 'white', marginBottom: '4px' }}>
+                      {step.title}
+                    </h3>
+                    <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '14px', margin: 0 }}>
+                      {step.desc}
+                    </p>
+                  </div>
+                </div>
+                {i < 4 && (
+                  <div style={{ padding: '16px 0', opacity: 0.5 }}>
+                    <ArrowDown size={24} color="white" />
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ======================== BETA FEEDBACK ======================== */}
+      <section className="reveal-on-scroll" style={{ padding: '80px 24px', position: 'relative', zIndex: 10 }}>
+        <div className="page-container">
+          <div style={{ textAlign: 'center', marginBottom: '60px' }}>
+            <div className="badge badge-indigo" style={{ marginBottom: '16px' }}>Early User Insights</div>
+            <h2 className="text-section-title" style={{ color: 'white' }}>
+              What Our <span className="gradient-text">Beta Testers</span> Say
             </h2>
           </div>
 
-          <div className="grid-3" style={{ position: 'relative' }}>
-            {[
-              { step: '01', title: 'Build Your Profile', desc: 'Upload your resume, transcripts, and goals. Our AI extracts your full academic and professional identity.', icon: '👤' },
-              { step: '02', title: 'AI Analysis Begins', desc: 'All 12 agents activate simultaneously. In seconds, you get your Opportunity Score and a personalized opportunity feed.', icon: '🤖' },
-              { step: '03', title: 'Win Opportunities', desc: 'Apply with AI-generated essays, track deadlines, and get real-time probability scores for every application.', icon: '🏆' },
-            ].map((step, i) => (
-              <div key={step.step} className="card-premium card-magnetic glow-border" style={{ textAlign: 'center' }}>
-                <div
-                  style={{
-                    width: '56px',
-                    height: '56px',
-                    borderRadius: '16px',
-                    background: 'linear-gradient(135deg, rgba(99,102,241,0.2), rgba(139,92,246,0.2))',
-                    border: '1px solid rgba(99,102,241,0.3)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '28px',
-                    margin: '0 auto 20px',
-                  }}
-                >
-                  {step.icon}
+          <div className="grid-3" style={{ gap: '24px' }}>
+            {BETA_FEEDBACK.map((feedback, i) => (
+              <div
+                key={i}
+                className="card hover-lift"
+                style={{
+                  padding: '32px 24px',
+                  background: 'rgba(15,23,42,0.6)',
+                  border: '1px solid rgba(255,255,255,0.05)',
+                  position: 'relative'
+                }}
+              >
+                <div style={{ position: 'absolute', top: '24px', right: '24px', opacity: 0.2 }}>
+                  <MessageSquareQuote size={32} color="#8b5cf6" />
                 </div>
-                <div
-                  style={{
-                    fontFamily: 'Space Grotesk, sans-serif',
-                    fontSize: '11px',
-                    fontWeight: 700,
-                    color: '#818cf8',
-                    letterSpacing: '2px',
-                    marginBottom: '12px',
-                  }}
-                >
-                  STEP {step.step}
+                <div style={{ marginBottom: '20px' }}>
+                  <div style={{ fontSize: '16px', fontWeight: 700, color: 'white' }}>{feedback.name}</div>
+                  <div style={{ fontSize: '13px', color: '#10b981', fontWeight: 500 }}>{feedback.role}</div>
                 </div>
-                <h3 style={{ fontSize: '20px', fontWeight: 700, color: 'white', marginBottom: '12px' }}>
-                  {step.title}
-                </h3>
-                <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '14px', lineHeight: 1.6 }}>
-                  {step.desc}
+                <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '15px', lineHeight: 1.6, margin: 0, fontStyle: 'italic' }}>
+                  {feedback.quote}
                 </p>
               </div>
             ))}
@@ -588,7 +734,7 @@ export default function Home() {
                         color: 'rgba(255,255,255,0.7)',
                       }}
                     >
-                      <span style={{ color: '#10b981', fontWeight: 700 }}>✓</span>
+                      <Check size={15} color="#10b981" aria-hidden="true" style={{ flexShrink: 0 }} />
                       {feat}
                     </div>
                   ))}
@@ -619,7 +765,11 @@ export default function Home() {
               border: '1px solid rgba(99,102,241,0.25)',
             }}
           >
-            <div style={{ fontSize: '48px', marginBottom: '24px' }}>🚀</div>
+            <div style={{ marginBottom: '24px', display: 'flex', justifyContent: 'center' }}>
+              <div style={{ width: '72px', height: '72px', borderRadius: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, rgba(99,102,241,0.25), rgba(6,182,212,0.15))', border: '1px solid rgba(99,102,241,0.35)' }}>
+                <Rocket size={34} color="#a5b4fc" aria-hidden="true" />
+              </div>
+            </div>
             <h2 style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '40px', fontWeight: 800, color: 'white', marginBottom: '16px', lineHeight: 1.2 }}>
               Ready to Win Your<br />
               <span className="gradient-text">Life-Changing Opportunity?</span>
@@ -628,7 +778,8 @@ export default function Home() {
               Join thousands of students, researchers, and professionals using AI to secure scholarships, fellowships, and life-changing opportunities.
             </p>
             <Link href="/signup" className="btn btn-primary btn-lg">
-              Start My Free Analysis →
+              Start My Free Analysis
+              <ArrowRight size={18} aria-hidden="true" />
             </Link>
           </div>
         </div>
@@ -638,32 +789,118 @@ export default function Home() {
       <footer
         style={{
           borderTop: '1px solid rgba(255,255,255,0.06)',
-          padding: '32px 24px',
+          padding: '60px 24px',
           textAlign: 'center',
           position: 'relative',
           zIndex: 10,
         }}
       >
-        <div className="page-container">
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
-            <div style={{ fontFamily: 'Space Grotesk, sans-serif', fontWeight: 700, fontSize: '16px', color: 'white' }}>
-              Opportunity<span className="gradient-text">OS</span> AI
-            </div>
-            <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: '13px' }}>
-              © 2025 OpportunityOS AI. Powered by OpportunityOS AI Architecture.
-            </div>
-            <div style={{ display: 'flex', gap: '20px' }}>
-              {['Privacy', 'Terms', 'Contact'].map(item => (
-                <a key={item} href="#" style={{ color: 'rgba(255,255,255,0.4)', textDecoration: 'none', fontSize: '13px' }}>
-                  {item}
-                </a>
-              ))}
-            </div>
+        <div className="page-container" style={{ maxWidth: '800px', margin: '0 auto' }}>
+          <div style={{ marginBottom: '24px', fontFamily: 'Space Grotesk, sans-serif', fontWeight: 800, fontSize: '24px', color: 'white' }}>
+            Opportunity<span className="gradient-text">OS</span> AI
+          </div>
+          <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: '18px', fontWeight: 600, marginBottom: '16px' }}>
+            Your AI Executive for Global Opportunities.
+          </div>
+          <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: '15px', lineHeight: 1.6, marginBottom: '32px' }}>
+            Empowering students, researchers, founders, and professionals to discover and win scholarships, grants, fellowships, jobs, hackathons, and startup opportunities.
+          </div>
+          <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '14px', marginBottom: '32px' }}>
+            Designed & Developed by <strong style={{ color: 'white' }}>Artas Yaskar</strong>
+          </div>
+          
+          <div style={{ display: 'flex', gap: '24px', justifyContent: 'center', marginBottom: '32px' }}>
+            <button onClick={() => setPrivacyOpen(true)} style={{ color: 'rgba(255,255,255,0.4)', textDecoration: 'none', fontSize: '14px', background: 'none', border: 'none', cursor: 'pointer' }}>Privacy Policy</button>
+            <button onClick={() => setTermsOpen(true)} style={{ color: 'rgba(255,255,255,0.4)', textDecoration: 'none', fontSize: '14px', background: 'none', border: 'none', cursor: 'pointer' }}>Terms of Service</button>
+            <button onClick={() => setContactOpen(true)} style={{ color: 'rgba(255,255,255,0.4)', textDecoration: 'none', fontSize: '14px', background: 'none', border: 'none', cursor: 'pointer' }}>Contact Info</button>
+          </div>
+
+          <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: '13px' }}>
+            © 2026 OpportunityOS AI. All Rights Reserved.
           </div>
         </div>
       </footer>
 
       <WalkthroughModal isOpen={walkthroughOpen} onClose={() => setWalkthroughOpen(false)} />
+
+      {/* Privacy Policy Modal */}
+      {privacyOpen && (
+        <div className="modal-overlay" style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0, 0, 0, 0.75)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999, padding: '24px' }}>
+          <div className="modal-content glass-panel" style={{ maxWidth: '600px', width: '90%' }}>
+            <button className="modal-close" onClick={() => setPrivacyOpen(false)}><X size={20} /></button>
+            <h2 style={{ fontSize: '24px', color: 'white', marginBottom: '20px' }}>Privacy Policy</h2>
+            <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: '14px', lineHeight: 1.6, maxHeight: '60vh', overflowY: 'auto' }}>
+              <p style={{ marginBottom: '16px' }}>At OpportunityOS AI, your privacy is our top priority. We use industry-standard encryption to protect your academic records, resumes, and personal information.</p>
+              <h3 style={{ color: 'white', fontSize: '16px', marginBottom: '8px', marginTop: '16px' }}>1. Data Collection</h3>
+              <p style={{ marginBottom: '16px' }}>We collect only the data necessary to provide you with the best AI-driven opportunity matches, including your educational background and career preferences.</p>
+              <h3 style={{ color: 'white', fontSize: '16px', marginBottom: '8px', marginTop: '16px' }}>2. Data Usage</h3>
+              <p style={{ marginBottom: '16px' }}>Your data is strictly used by our internal AI agents (e.g., Discovery Agent, Gap Analysis) to tailor your experience. We do not sell your personal data to third parties.</p>
+              <h3 style={{ color: 'white', fontSize: '16px', marginBottom: '8px', marginTop: '16px' }}>3. AI Providers</h3>
+              <p style={{ marginBottom: '16px' }}>We route requests through trusted AI providers (Gemini, Groq). None of these providers use your data to train their models.</p>
+            </div>
+            <div style={{ marginTop: '24px', textAlign: 'right' }}>
+              <button className="btn btn-primary" onClick={() => setPrivacyOpen(false)}>Acknowledge</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Terms of Service Modal */}
+      {termsOpen && (
+        <div className="modal-overlay" style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0, 0, 0, 0.75)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999, padding: '24px' }}>
+          <div className="modal-content glass-panel" style={{ maxWidth: '600px', width: '90%' }}>
+            <button className="modal-close" onClick={() => setTermsOpen(false)}><X size={20} /></button>
+            <h2 style={{ fontSize: '24px', color: 'white', marginBottom: '20px' }}>Terms of Service</h2>
+            <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: '14px', lineHeight: 1.6, maxHeight: '60vh', overflowY: 'auto' }}>
+              <p style={{ marginBottom: '16px' }}>Welcome to OpportunityOS AI. By accessing or using our platform, you agree to be bound by these Terms.</p>
+              <h3 style={{ color: 'white', fontSize: '16px', marginBottom: '8px', marginTop: '16px' }}>1. Service Description</h3>
+              <p style={{ marginBottom: '16px' }}>OpportunityOS provides AI-assisted coaching, discovery, and essay generation for opportunities. It is an advisory tool and does not guarantee acceptances or funding.</p>
+              <h3 style={{ color: 'white', fontSize: '16px', marginBottom: '8px', marginTop: '16px' }}>2. User Responsibilities</h3>
+              <p style={{ marginBottom: '16px' }}>You are responsible for verifying the final application materials generated by our agents before submission. You agree not to misuse the platform to generate spam or fraudulent applications.</p>
+              <h3 style={{ color: 'white', fontSize: '16px', marginBottom: '8px', marginTop: '16px' }}>3. Subscriptions & Payments</h3>
+              <p style={{ marginBottom: '16px' }}>Subscription fees are billed according to your selected plan. You may cancel your subscription at any time, but past charges are non-refundable.</p>
+            </div>
+            <div style={{ marginTop: '24px', textAlign: 'right' }}>
+              <button className="btn btn-primary" onClick={() => setTermsOpen(false)}>I Agree</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Contact Info Modal */}
+      {contactOpen && (
+        <div className="modal-overlay" style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0, 0, 0, 0.75)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999, padding: '24px' }}>
+          <div className="modal-content glass-panel" style={{ maxWidth: '400px', width: '90%', textAlign: 'center' }}>
+            <button className="modal-close" onClick={() => setContactOpen(false)}><X size={20} /></button>
+            
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '24px', marginTop: '16px' }}>
+              <div style={{ width: '120px', height: '120px', borderRadius: '50%', overflow: 'hidden', border: '3px solid #6366f1', boxShadow: '0 0 20px rgba(99,102,241,0.4)', background: 'rgba(255,255,255,0.05)' }}>
+                {/* Place your image in public/founder.jpg and the app will load it here automatically */}
+                <img src="/founder.jpg" alt="Artas Yaskar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+              </div>
+            </div>
+
+            <h2 style={{ fontSize: '24px', color: 'white', marginBottom: '4px' }}>Artas Yaskar</h2>
+            <div style={{ fontSize: '14px', color: '#10b981', fontWeight: 600, marginBottom: '24px' }}>Founder & Lead Developer</div>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <a href="https://wa.me/923491609796" target="_blank" rel="noreferrer" className="btn btn-secondary" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', background: 'rgba(37, 211, 102, 0.1)', borderColor: 'rgba(37, 211, 102, 0.3)', color: '#25D366' }}>
+                <MessageCircle size={20} />
+                +92 349 1609796
+              </a>
+              <a href="https://www.linkedin.com/in/artas-yaskar-a546a4346/" target="_blank" rel="noreferrer" className="btn btn-secondary" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', background: 'rgba(10, 102, 194, 0.1)', borderColor: 'rgba(10, 102, 194, 0.3)', color: '#0A66C2' }}>
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"></path><rect x="2" y="9" width="4" height="12"></rect><circle cx="4" cy="4" r="2"></circle></svg>
+                LinkedIn Profile
+              </a>
+              <a href="https://github.com/artasyaskar" target="_blank" rel="noreferrer" className="btn btn-secondary" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', background: 'rgba(255, 255, 255, 0.05)', borderColor: 'rgba(255, 255, 255, 0.2)', color: 'white' }}>
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path></svg>
+                GitHub Profile
+              </a>
+            </div>
+
+          </div>
+        </div>
+      )}
     </main>
   );
 }
