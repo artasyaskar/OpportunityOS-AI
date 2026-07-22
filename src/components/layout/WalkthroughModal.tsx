@@ -2,72 +2,77 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import {
+  Rocket, UserRound, Zap, ShieldCheck, Globe, CheckCircle2,
+  PenLine, Mic, Target, Sparkles, ArrowLeft, ArrowRight, X,
+  type LucideIcon,
+} from 'lucide-react';
 
 interface WalkthroughModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
-const STEPS = [
+const STEPS: { title: string; subtitle: string; content: string; Icon: LucideIcon }[] = [
   {
     title: 'Welcome to OpportunityOS AI',
     subtitle: 'Your AI Chief Opportunity Officer',
     content: 'We are not just another chatbot or search engine. OpportunityOS is an autonomous AI executive that lives on your behalf. It discovers life-changing scholarships, fellowships, and jobs, then actively builds the applications for you.',
-    icon: '🚀'
+    Icon: Rocket
   },
   {
     title: 'The Canonical Profile',
     subtitle: 'Meet Alex Chen (CS Major, 3.8 GPA)',
     content: 'It all starts with your profile. Instead of filling out endless forms, you simply upload your resume and transcripts once. Our AI constructs a comprehensive, mathematically-scored canonical profile.',
-    icon: '👤'
+    Icon: UserRound
   },
   {
     title: 'Instant Extraction',
     subtitle: 'Data parsing in milliseconds',
     content: 'The Parser Agent extracts 50+ data points from your documents—skills, experiences, and academic metrics—structuring them into a deterministic JSON format ready for the matching engine.',
-    icon: '⚡'
+    Icon: Zap
   },
   {
     title: 'The Evidence Engine',
     subtitle: 'Zero Hallucinations. 100% Truth.',
     content: 'Unlike standard LLMs that invent stories, our proprietary Evidence Engine strictly enforces a "Zero Hallucination Policy." Every claim made in an essay must be mathematically traced back to your verified documents.',
-    icon: '🛡️'
+    Icon: ShieldCheck
   },
   {
     title: 'Global Matching',
     subtitle: 'Scanning 100,000+ Opportunities',
     content: 'The Discovery Agent continuously scans global databases, matching your precise profile against eligibility requirements to predict your exact Probability of Success (e.g., 84% Match).',
-    icon: '🌍'
+    Icon: Globe
   },
   {
     title: 'Strict Verification',
     subtitle: 'Are you actually eligible?',
     content: 'Before you waste hours applying, the Compliance Agent verifies every single requirement (GPA, citizenship, language scores). If you are missing an IELTS score, the Gap Analysis Agent tells you immediately.',
-    icon: '✅'
+    Icon: CheckCircle2
   },
   {
     title: 'Application Builder',
     subtitle: 'Writing your winning essay',
     content: 'The Builder Agent drafts a highly personalized, authentic Statement of Purpose. It weaves your specific projects and goals into a compelling narrative, backed entirely by your Evidence Graph.',
-    icon: '✍️'
+    Icon: PenLine
   },
   {
     title: 'AI Interview Coach',
     subtitle: 'Predicting their questions',
     content: 'Once you secure an interview, our Coach analyzes the specific opportunity and your specific resume to generate the exact behavioral and technical questions the judges are most likely to ask you.',
-    icon: '🎙️'
+    Icon: Mic
   },
   {
     title: 'Mission Control',
     subtitle: 'Your Daily Command Center',
     content: 'Your dashboard transforms into an active Mission Control. It tells you exactly what to do today—"Review this draft", "Upload your transcript"—so you never miss a deadline.',
-    icon: '🎯'
+    Icon: Target
   },
   {
     title: 'Your Turn',
     subtitle: 'Ready to secure your future?',
     content: 'Imagine having this AI Executive working for you 24/7. Stop searching. Start winning.',
-    icon: '✨'
+    Icon: Sparkles
   }
 ];
 
@@ -175,11 +180,13 @@ export default function WalkthroughModal({ isOpen, onClose }: WalkthroughModalPr
           <div style={{ fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.4)', letterSpacing: '1px' }}>
             STEP {currentStep + 1} OF {STEPS.length}
           </div>
-          <button 
+          <button
             onClick={onClose}
-            style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', fontSize: '14px' }}
+            aria-label="Close walkthrough"
+            style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', fontSize: '14px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
           >
-            Esc ✕
+            <span>Esc</span>
+            <X size={16} aria-hidden="true" />
           </button>
         </div>
 
@@ -196,9 +203,16 @@ export default function WalkthroughModal({ isOpen, onClose }: WalkthroughModalPr
             transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
           }}
         >
-          <div style={{ fontSize: '48px', marginBottom: '24px' }}>
-            {STEPS[currentStep].icon}
-          </div>
+          {(() => {
+            const StepIcon = STEPS[currentStep].Icon;
+            return (
+              <div style={{ marginBottom: '24px' }}>
+                <div style={{ width: '72px', height: '72px', borderRadius: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, rgba(99,102,241,0.2), rgba(139,92,246,0.2))', border: '1px solid rgba(99,102,241,0.3)' }}>
+                  <StepIcon size={34} color="#a5b4fc" aria-hidden="true" />
+                </div>
+              </div>
+            );
+          })()}
           <h2 style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '32px', fontWeight: 800, color: 'white', marginBottom: '8px', lineHeight: 1.2 }}>
             {STEPS[currentStep].title}
           </h2>
@@ -223,9 +237,13 @@ export default function WalkthroughModal({ isOpen, onClose }: WalkthroughModalPr
               borderRadius: '8px',
               cursor: currentStep === 0 ? 'default' : 'pointer',
               transition: 'all 0.2s',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
             }}
           >
-            ← Back
+            <ArrowLeft size={16} aria-hidden="true" />
+            Back
           </button>
 
           <div style={{ display: 'flex', gap: '6px' }}>
@@ -247,17 +265,19 @@ export default function WalkthroughModal({ isOpen, onClose }: WalkthroughModalPr
             <button 
               onClick={nextStep}
               className="btn btn-primary"
-              style={{ padding: '10px 24px', fontSize: '14px', margin: 0 }}
+              style={{ padding: '10px 24px', fontSize: '14px', margin: 0, display: 'inline-flex', alignItems: 'center', gap: '8px' }}
             >
-              Next →
+              Next
+              <ArrowRight size={16} aria-hidden="true" />
             </button>
           ) : (
             <Link 
               href="/signup" 
               className="btn btn-primary"
-              style={{ padding: '10px 24px', fontSize: '14px', margin: 0, background: 'linear-gradient(135deg, #10b981, #059669)', border: '1px solid rgba(16,185,129,0.4)' }}
+              style={{ padding: '10px 24px', fontSize: '14px', margin: 0, background: 'linear-gradient(135deg, #10b981, #059669)', border: '1px solid rgba(16,185,129,0.4)', display: 'inline-flex', alignItems: 'center', gap: '8px' }}
             >
-              Create Free Account 🚀
+              Create Free Account
+              <Rocket size={16} aria-hidden="true" />
             </Link>
           )}
         </div>
