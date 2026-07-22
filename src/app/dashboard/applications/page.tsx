@@ -1,13 +1,28 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { SEED_OPPORTUNITIES } from '@/lib/opportunities';
-import { APPLICATION_STAGES, type ApplicationStatus } from '@/lib/gemini';
+import { APPLICATION_STAGES, type ApplicationStatus, type Opportunity } from '@/lib/gemini';
 import { usePipeline } from '@/components/auth/PipelineContext';
+import { OpportunityRepository } from '@/lib/repositories/OpportunityRepository';
 
 export default function ApplicationsPage() {
   const { pipeline: applications, isLoading: loading } = usePipeline();
+  const [oppDetails, setOppDetails] = useState<Record<string, Opportunity>>({});
+
+  useEffect(() => {
+    async function load() {
+      if (applications.length > 0) {
+        const opps = await Promise.all(applications.map(app => OpportunityRepository.getOpportunityById(app.id)));
+        const map: Record<string, Opportunity> = {};
+        opps.forEach(o => {
+          if (o) map[o.id] = o;
+        });
+        setOppDetails(map);
+      }
+    }
+    load();
+  }, [applications]);
 
   const getStageInfo = (status: string) => {
     return APPLICATION_STAGES.find(s => s.key === status) || APPLICATION_STAGES[0];
@@ -112,7 +127,7 @@ export default function ApplicationsPage() {
       ) : (
         <div style={{ display: 'grid', gap: '16px' }}>
           {applications.map(app => {
-            const opp = SEED_OPPORTUNITIES.find(o => o.id === app.id);
+            const opp = oppDetails[app.id];
             if (!opp) return null;
 
             const stage = getStageInfo(app.stage);
