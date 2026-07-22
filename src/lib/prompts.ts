@@ -23,7 +23,9 @@ ${userRequest}
 }
 
 export const SECURE_PROMPTS = {
-  DISCOVERY: (profile: UserProfile, evidenceContext?: string) => {
+  // Discovery is GROUNDED: the model may only select from the REAL opportunity
+  // catalog we provide. It must never invent opportunities, URLs, or funding.
+  DISCOVERY: (profile: UserProfile, evidenceContext?: string, candidates?: Array<{ id: string; title: string; provider: string; country: string; type: string; tags?: string[] }>) => {
     const evidence = `
 User Profile:
 - Education: ${profile.education}
@@ -35,26 +37,37 @@ User Profile:
 
 Verified Documents:
 ${evidenceContext || 'None'}
+
+REAL OPPORTUNITY CATALOG (the ONLY opportunities you may recommend):
+${candidates && candidates.length
+  ? candidates.map(c => `- ${c.id} | ${c.title} | ${c.provider} | ${c.country} | ${c.type}${c.tags?.length ? ` | tags: ${c.tags.join(', ')}` : ''}`).join('\n')
+  : 'No catalog provided.'}
     `.trim();
 
     const request = `
-Find the most relevant opportunities (scholarships, fellowships, jobs) for this exact profile.
-Return a JSON array of 8-12 opportunities.
-Each must include: id, title, type, provider, country, amount, deadline, description, requirements (array), tags (array), url, eligibilityScore (number), successProbability (number).
-Ensure the JSON is perfectly formatted.
+From the REAL OPPORTUNITY CATALOG above, select the 8-12 opportunities that best fit this exact profile.
+You MUST NOT invent opportunities. Only reference ids that appear in the catalog.
+Return a JSON array where each item has: { "id": <catalog id>, "matchReason": <short evidence-based reason>, "eligibilityScore": <0-100> }.
+Order from best to worst fit. Ensure the JSON is perfectly formatted.
     `.trim();
 
-    return constructSecurePrompt('You are the Opportunity Discovery Agent.', evidence, request);
+    return constructSecurePrompt('You are the Opportunity Discovery Agent. You rank REAL opportunities; you never invent them.', evidence, request);
   },
 
   PARSER: (rawText: string, docType: string) => {
-    const evidence = `Raw Document Text (Type: ${docType}):\n${rawText}`;
+    const evidence = `Raw Document Text (MimeType: ${docType}):\n${rawText}`;
     const request = `
 Extract the key facts, skills, timeline, and achievements from this document.
-Return a structured JSON object containing arrays of "skills", "experience", "education", and "achievements".
-Include a "confidenceScore" (0-100) indicating how clear the document was.
-Include an "explainability" field summarizing what was found.
+You must also classify this document into a "nodeType" which must be one of:
+["resume", "transcript", "research_memory", "interview_memory", "project_memory", "leadership_memory", "hackathon_memory", "volunteer_memory", "patent_memory", "startup_memory", "github_memory", "blog_memory", "other"].
+
+Return a structured JSON object containing:
+- "nodeType": The classified type string.
+- "skills", "experience", "education", "achievements", "projects" arrays.
+- "extractedInsights": A deep summary of the document, focusing on methodology if research, tech stack if project, or impact if leadership.
+- "confidenceScore" (0-100) indicating how clear the document was.
+- "explainability" summarizing what was found.
     `.trim();
-    return constructSecurePrompt(`You are the Document Parser Agent. Extract facts from the raw ${docType} text.`, evidence, request);
+    return constructSecurePrompt(`You are the Document Parser Agent. Extract structured Knowledge Nodes from the raw ${docType} text.`, evidence, request);
   }
 };
