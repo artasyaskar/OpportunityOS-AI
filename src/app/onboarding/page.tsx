@@ -7,6 +7,8 @@ import { useAuth } from '@/components/auth/AuthProvider';
 import { storageProvider } from '@/lib/storage/StorageManager';
 import { ValidationPipeline } from '@/lib/storage/ValidationPipeline';
 import { EvidenceRepository } from '@/lib/repositories/EvidenceRepository';
+import { motion } from 'framer-motion';
+import { UploadCloud, FileText, BarChart, FlaskConical, BookUser, MessageCircle, Briefcase, Rocket, Download, Check, X } from 'lucide-react';
 
 const STEPS = [
   { id: 1, title: 'Verify Your Academic Profile', desc: 'Upload Evidence Documents' },
@@ -136,71 +138,6 @@ export default function OnboardingPage() {
   const [extractedFields, setExtractedFields] = useState<Record<string, boolean>>({});
 
   const handleNextStep = async () => {
-    if (step === 1 && user?.uid && (uploadedResume || uploadedTranscripts.length > 0 || linkedinConnected || uploadedResearchPapers.length > 0)) {
-      setExtractionLoading(true);
-      try {
-        // We poll evidence for up to 3 seconds to get the fast-path extraction results
-        let evidence = await EvidenceRepository.getEvidenceForUser(user.uid);
-        let parsedCount = evidence.filter(e => e.status === 'NEEDS_REVIEW' || e.status === 'VERIFIED').length;
-        
-        let attempts = 0;
-        while (parsedCount === 0 && attempts < 3) {
-          await new Promise(r => setTimeout(r, 1000));
-          evidence = await EvidenceRepository.getEvidenceForUser(user.uid);
-          parsedCount = evidence.filter(e => e.status === 'NEEDS_REVIEW' || e.status === 'VERIFIED').length;
-          attempts++;
-        }
-
-        const newProfile = { ...profile };
-        const newlyExtracted: Record<string, boolean> = { ...extractedFields };
-
-        // Process extracted data
-        evidence.forEach(doc => {
-          if (doc.extractedData) {
-            const data: any = doc.extractedData;
-            
-            if (data.education && !newProfile.education) { 
-              if (typeof data.education === 'string') {
-                newProfile.education = data.education;
-              } else if (Array.isArray(data.education) && data.education[0]) {
-                newProfile.education = data.education[0].institution || data.education[0].school || data.education[0].name || String(data.education[0]);
-              } else if (typeof data.education === 'object') {
-                newProfile.education = data.education.institution || data.education.school || data.education.name || JSON.stringify(data.education);
-              }
-              newlyExtracted.education = true; 
-            }
-            
-            if (data.gpa && !newProfile.gpa) { 
-              newProfile.gpa = typeof data.gpa === 'object' ? (data.gpa.score || data.gpa.value || JSON.stringify(data.gpa)) : String(data.gpa); 
-              newlyExtracted.gpa = true; 
-            }
-            
-            if (data.skills && !newProfile.skills) { 
-              newProfile.skills = Array.isArray(data.skills) ? data.skills.join(', ') : typeof data.skills === 'object' ? JSON.stringify(data.skills) : String(data.skills); 
-              newlyExtracted.skills = true; 
-            }
-            
-            if (data.experience && !newProfile.experience) { 
-              if (typeof data.experience === 'string') {
-                newProfile.experience = data.experience;
-              } else if (Array.isArray(data.experience)) {
-                newProfile.experience = data.experience.map((e: any) => e.title || e.role || e.company || String(e)).join(', ');
-              } else if (typeof data.experience === 'object') {
-                newProfile.experience = JSON.stringify(data.experience);
-              }
-              newlyExtracted.experience = true; 
-            }
-          }
-        });
-
-        setProfile(newProfile);
-        setExtractedFields(newlyExtracted);
-      } catch (e) {
-        console.error("Failed to fetch evidence", e);
-      } finally {
-        setExtractionLoading(false);
-      }
-    }
     setStep(s => s + 1);
   };
 
@@ -246,18 +183,32 @@ export default function OnboardingPage() {
 
         // 3. Stream Proxy Upload (Bypasses Next.js FormData bottlenecks & R2 CORS)
         if (presignData.uploadUrl) {
-           const uploadRes = await fetch(presignData.uploadUrl, {
-             method: 'PUT',
-             headers: {
-               'Content-Type': file.type,
-               'Authorization': `Bearer ${token}`
-             },
-             body: file
-           });
-           
-           if (!uploadRes.ok) {
-             throw new Error('Direct upload failed. Please try again.');
-           }
+          await new Promise<void>((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+            xhr.open('PUT', presignData.uploadUrl);
+            xhr.setRequestHeader('Content-Type', file.type);
+            xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+            
+            xhr.upload.onprogress = (e) => {
+              if (e.lengthComputable) {
+                const percentComplete = Math.round((e.loaded / e.total) * 100);
+                const baseProgress = (i / files.length) * 100;
+                const fileProgress = (percentComplete / files.length);
+                setSimulatedProgress(Math.min(99, Math.floor(baseProgress + fileProgress)));
+              }
+            };
+            
+            xhr.onload = () => {
+              if (xhr.status >= 200 && xhr.status < 300) {
+                resolve();
+              } else {
+                reject(new Error('Direct upload failed. Please try again.'));
+              }
+            };
+            
+            xhr.onerror = () => reject(new Error('Network error during upload'));
+            xhr.send(file);
+          });
         }
 
         // 4. Trigger Server Parsing
@@ -363,7 +314,7 @@ export default function OnboardingPage() {
                 <div key={agent.name} className="animate-slide-up" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', color: isCurrent ? 'white' : 'rgba(255,255,255,0.4)' }}>
                   <span>{agent.name}</span>
                   {!isCurrent ? (
-                    <span style={{ color: '#10b981', fontWeight: 700 }}>✓</span>
+                    <Check size={14} className="text-emerald-500 font-bold" />
                   ) : (
                     <span className="agent-status-dot running" style={{ display: 'inline-block' }} />
                   )}
@@ -430,7 +381,7 @@ export default function OnboardingPage() {
                   boxShadow: s.id === step ? '0 0 16px rgba(99,102,241,0.4)' : 'none',
                 }}
               >
-                {s.id < step ? '✓' : s.id}
+                {s.id < step ? <Check size={16} /> : s.id}
               </div>
               {s.id < STEPS.length && (
                 <div style={{ width: '32px', height: '2px', background: s.id < step ? 'var(--emerald)' : 'rgba(255,255,255,0.08)', borderRadius: '1px', transition: 'all 0.3s ease' }} />
@@ -467,7 +418,7 @@ export default function OnboardingPage() {
                 onMouseEnter={e => (e.currentTarget.style.borderColor = uploadedResume ? 'rgba(16,185,129,0.5)' : 'rgba(99,102,241,0.3)')}
                 onMouseLeave={e => (e.currentTarget.style.borderColor = uploadedResume ? 'rgba(16,185,129,0.3)' : 'rgba(255,255,255,0.08)')}
               >
-                <span style={{ fontSize: '24px' }}>📄</span>
+                <div style={{ display: 'flex', color: 'white' }}><FileText size={24} /></div>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: '13px', fontWeight: 600, color: 'white' }}>Resume / CV</div>
                   <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)', marginTop: '2px' }}>
@@ -488,7 +439,7 @@ export default function OnboardingPage() {
                     }}
                     style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: '12px', cursor: 'pointer' }}
                   >
-                    Disconnect ✕
+                    Disconnect <X size={12} />
                   </button>
                 ) : (
                   <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.3)' }}>Upload →</span>
@@ -505,7 +456,7 @@ export default function OnboardingPage() {
                 onMouseEnter={e => (e.currentTarget.style.borderColor = uploadedTranscripts.length > 0 ? 'rgba(16,185,129,0.5)' : 'rgba(99,102,241,0.3)')}
                 onMouseLeave={e => (e.currentTarget.style.borderColor = uploadedTranscripts.length > 0 ? 'rgba(16,185,129,0.3)' : 'rgba(255,255,255,0.08)')}
               >
-                <span style={{ fontSize: '24px' }}>📊</span>
+                <div style={{ display: 'flex', color: 'white' }}><BarChart size={24} /></div>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: '13px', fontWeight: 600, color: 'white' }}>Academic Transcripts</div>
                   <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)', marginTop: '2px' }}>
@@ -526,7 +477,7 @@ export default function OnboardingPage() {
                     }}
                     style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: '12px', cursor: 'pointer' }}
                   >
-                    Disconnect ✕
+                    Disconnect <X size={12} />
                   </button>
                 ) : (
                   <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.3)' }}>Upload →</span>
@@ -543,7 +494,7 @@ export default function OnboardingPage() {
                 onMouseEnter={e => (e.currentTarget.style.borderColor = uploadedResearchPapers.length > 0 ? 'rgba(16,185,129,0.5)' : 'rgba(99,102,241,0.3)')}
                 onMouseLeave={e => (e.currentTarget.style.borderColor = uploadedResearchPapers.length > 0 ? 'rgba(16,185,129,0.3)' : 'rgba(255,255,255,0.08)')}
               >
-                <span style={{ fontSize: '24px' }}>🔬</span>
+                <div style={{ display: 'flex', color: 'white' }}><FlaskConical size={24} /></div>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: '13px', fontWeight: 600, color: 'white' }}>Research Papers & Publications</div>
                   <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)', marginTop: '2px' }}>
@@ -564,7 +515,7 @@ export default function OnboardingPage() {
                     }}
                     style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: '12px', cursor: 'pointer' }}
                   >
-                    Remove ✕
+                    Remove <X size={12} />
                   </button>
                 ) : (
                   <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.3)' }}>Upload →</span>
@@ -580,7 +531,7 @@ export default function OnboardingPage() {
                 }}
                 style={{ padding: '20px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '16px', cursor: 'pointer', transition: 'all 0.2s ease', border: uploadedPassport ? '1px solid rgba(16,185,129,0.3)' : '1px solid rgba(255,255,255,0.08)' }}
               >
-                <span style={{ fontSize: '24px' }}>🛂</span>
+                <div style={{ display: 'flex', color: 'white' }}><BookUser size={24} /></div>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: '13px', fontWeight: 600, color: 'white' }}>Passport</div>
                   <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)', marginTop: '2px' }}>
@@ -594,7 +545,7 @@ export default function OnboardingPage() {
                   </div>
                 </div>
                 {uploadedPassport ? (
-                  <button onClick={(e) => { e.stopPropagation(); setUploadedPassport(null); }} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: '12px', cursor: 'pointer' }}>Remove ✕</button>
+                  <button onClick={(e) => { e.stopPropagation(); setUploadedPassport(null); }} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>Remove <X size={12} /></button>
                 ) : (
                   <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.3)' }}>Upload →</span>
                 )}
@@ -606,7 +557,7 @@ export default function OnboardingPage() {
                 style={{ padding: '20px', borderRadius: '12px', display: 'flex', flexDirection: 'column', gap: '16px', border: uploadedIelts ? '1px solid rgba(16,185,129,0.3)' : '1px solid rgba(255,255,255,0.08)' }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                  <span style={{ fontSize: '24px' }}>🗣️</span>
+                  <div style={{ display: 'flex', color: 'white' }}><MessageCircle size={24} /></div>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: '13px', fontWeight: 600, color: 'white' }}>IELTS</div>
                     <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)', marginTop: '2px' }}>
@@ -622,7 +573,7 @@ export default function OnboardingPage() {
                     </select>
                   )}
                   {uploadedIelts && (
-                    <button onClick={(e) => { e.stopPropagation(); setUploadedIelts(null); setIeltsStatus('Not Planned'); }} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: '12px', cursor: 'pointer' }}>Remove ✕</button>
+                    <button onClick={(e) => { e.stopPropagation(); setUploadedIelts(null); setIeltsStatus('Not Planned'); }} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>Remove <X size={12} /></button>
                   )}
                 </div>
 
@@ -656,7 +607,7 @@ export default function OnboardingPage() {
                 onMouseEnter={e => (e.currentTarget.style.borderColor = linkedinConnected ? 'rgba(16,185,129,0.5)' : 'rgba(99,102,241,0.3)')}
                 onMouseLeave={e => (e.currentTarget.style.borderColor = linkedinConnected ? 'rgba(16,185,129,0.3)' : 'rgba(255,255,255,0.08)')}
               >
-                <span style={{ fontSize: '24px' }}>💼</span>
+                <div style={{ display: 'flex', color: 'white' }}><Briefcase size={24} /></div>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: '13px', fontWeight: 600, color: 'white' }}>LinkedIn Profile URL</div>
                   <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)', marginTop: '2px' }}>
@@ -740,7 +691,7 @@ export default function OnboardingPage() {
               <div>
                 <label style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.6)', marginBottom: '8px' }}>
                   <span>Current/Most Recent Institution</span>
-                  {extractedFields.education && <span style={{ color: '#10b981' }}>✓ Extracted by AI</span>}
+                  {extractedFields.education && <span style={{ color: '#10b981', display: 'inline-flex', alignItems: 'center', gap: '4px' }}><Check size={12} /> Extracted by AI</span>}
                 </label>
                 <input 
                   className="input" 
@@ -754,7 +705,7 @@ export default function OnboardingPage() {
                 <div>
                   <label style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.6)', marginBottom: '8px' }}>
                     <span>GPA / Grade</span>
-                    {extractedFields.gpa && <span style={{ color: '#10b981' }}>✓ Extracted</span>}
+                    {extractedFields.gpa && <span style={{ color: '#10b981', display: 'inline-flex', alignItems: 'center', gap: '4px' }}><Check size={12} /> Extracted</span>}
                   </label>
                   <input 
                     className="input" 
@@ -777,7 +728,7 @@ export default function OnboardingPage() {
               <div>
                 <label style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.6)', marginBottom: '8px' }}>
                   <span>Field of Study</span>
-                  {extractedFields.field && <span style={{ color: '#10b981' }}>✓ Extracted by AI</span>}
+                  {extractedFields.field && <span style={{ color: '#10b981', display: 'inline-flex', alignItems: 'center', gap: '4px' }}><Check size={12} /> Extracted by AI</span>}
                 </label>
                 <input 
                   className="input" 
@@ -795,7 +746,7 @@ export default function OnboardingPage() {
               <div>
                 <label style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.6)', marginBottom: '8px' }}>
                   <span>Skills (comma-separated)</span>
-                  {extractedFields.skills && <span style={{ color: '#10b981' }}>✓ Extracted from Document</span>}
+                  {extractedFields.skills && <span style={{ color: '#10b981', display: 'inline-flex', alignItems: 'center', gap: '4px' }}><Check size={12} /> Extracted from Document</span>}
                 </label>
                 <textarea 
                   className="input" 
@@ -809,7 +760,7 @@ export default function OnboardingPage() {
               <div>
                 <label style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.6)', marginBottom: '8px' }}>
                   <span>Work / Research Experience</span>
-                  {extractedFields.experience && <span style={{ color: '#10b981' }}>✓ Extracted from Document</span>}
+                  {extractedFields.experience && <span style={{ color: '#10b981', display: 'inline-flex', alignItems: 'center', gap: '4px' }}><Check size={12} /> Extracted from Document</span>}
                 </label>
                 <textarea 
                   className="input" 
@@ -859,8 +810,8 @@ export default function OnboardingPage() {
               {extractionLoading ? 'Extracting...' : 'Continue →'}
             </button>
           ) : (
-            <button className="btn btn-primary" onClick={handleAnalyze} style={{ animation: 'pulse-glow 2s ease-in-out infinite' }}>
-              🚀 Activate AI Analysis
+            <button className="btn btn-primary" onClick={handleAnalyze} style={{ animation: 'pulse-glow 2s ease-in-out infinite', display: 'flex', alignItems: 'center' }}>
+              <Rocket size={18} style={{ marginRight: 8 }} /> Activate AI Analysis
             </button>
           )}
         </div>
@@ -896,7 +847,7 @@ export default function OnboardingPage() {
                 if (ocrConfirming === 'ielts') { setUploadedIelts({ name: 'ielts_report.pdf', size: '0.8 MB', source: 'local' }); setIeltsStatus('Uploaded'); }
                 setOcrConfirming(null);
                 setActiveUploadModal(null);
-              }}>✓ Confirm</button>
+              }}><Check size={14} className="inline mr-1" /> Confirm</button>
             </div>
           </div>
         </div>
@@ -975,16 +926,34 @@ export default function OnboardingPage() {
             ) : (
               <div>
                 {isUploading ? (
-                  <div style={{ padding: '40px 0', textAlign: 'center' }}>
-                    <div style={{ fontSize: '32px', animation: 'rotate-slow 2s linear infinite', marginBottom: '16px' }}>🔄</div>
-                    <div style={{ fontSize: '14px', fontWeight: 600, color: 'white', marginBottom: '8px' }}>
-                      Uploading to OpportunityOS Secure Vault...
+                  <div style={{ padding: '40px 0', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                    <motion.div
+                      animate={{ y: [0, -10, 0], scale: [1, 1.05, 1] }}
+                      transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                      style={{ marginBottom: '24px', background: 'rgba(99,102,241,0.1)', padding: '20px', borderRadius: '50%', boxShadow: '0 0 30px rgba(99,102,241,0.3)' }}
+                    >
+                      <UploadCloud size={48} color="#818cf8" strokeWidth={1.5} />
+                    </motion.div>
+                    
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      style={{ fontSize: '16px', fontWeight: 700, color: 'white', marginBottom: '12px' }}
+                    >
+                      Encrypting & Uploading to Vault...
+                    </motion.div>
+                    
+                    <div style={{ width: '100%', maxWidth: '320px', background: 'rgba(255,255,255,0.05)', borderRadius: '12px', height: '8px', overflow: 'hidden', position: 'relative', marginBottom: '12px' }}>
+                      <motion.div
+                        style={{ height: '100%', background: 'linear-gradient(90deg, #6366f1, #8b5cf6, #ec4899)' }}
+                        initial={{ width: 0 }}
+                        animate={{ width: `${simulatedProgress}%` }}
+                        transition={{ ease: "easeOut", duration: 0.2 }}
+                      />
                     </div>
-                    <div className="progress-bar" style={{ maxWidth: '300px', margin: '0 auto' }}>
-                      <div className="progress-fill" style={{ width: `${simulatedProgress}%` }} />
-                    </div>
-                    <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', marginTop: '8px' }}>
-                      {simulatedProgress}% uploaded
+                    
+                    <div style={{ fontSize: '13px', fontWeight: 600, color: 'rgba(255,255,255,0.6)', fontVariantNumeric: 'tabular-nums' }}>
+                      {simulatedProgress}% <span style={{ color: 'rgba(255,255,255,0.3)' }}>• SECURE TRANSFER</span>
                     </div>
                   </div>
                 ) : (
@@ -1013,7 +982,7 @@ export default function OnboardingPage() {
                           accept={activeUploadModal === 'resume' ? '.pdf,.doc,.docx' : '.pdf,.png,.jpg,.jpeg'}
                           multiple={activeUploadModal === 'transcript' || activeUploadModal === 'research'}
                         />
-                        <div style={{ fontSize: '40px', marginBottom: '16px' }}>📥</div>
+                        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px', color: 'white' }}><Download size={40} /></div>
                         <div style={{ fontSize: '14px', fontWeight: 600, color: 'white', marginBottom: '6px' }}>
                           Drag & drop {activeUploadModal === 'transcript' || activeUploadModal === 'research' ? 'files' : 'file'} here or click to browse
                         </div>
