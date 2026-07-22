@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { SubscriptionRecord } from '@/lib/subscription';
 import { useSubscription } from '@/components/auth/SubscriptionContext';
 import { getQuotaState, QuotaState } from '@/lib/costLimiter';
+import { Activity, Rocket } from 'lucide-react';
 
 interface CompareItem {
   id: string;
@@ -85,7 +86,7 @@ export default function ComparePage() {
           ← Back to Opportunity discovery
         </Link>
         <h1 style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '28px', fontWeight: 800, color: 'white', marginBottom: '8px' }}>
-          ⚖️ Opportunity Comparison Studio
+          <Activity size={28} className="inline mr-2 text-indigo-400" /> Opportunity Comparison Studio
         </h1>
         <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '14px' }}>
           Select and evaluate opportunities side-by-side with localized parameters and final AI CEO assessments.
@@ -163,8 +164,8 @@ export default function ComparePage() {
         {/* AI DECISION ENGINE CARD */}
         {!isFree && (
           <div className="card-magnetic glow-border" style={{ padding: '24px', marginTop: '24px', background: 'rgba(99,102,241,0.02)', borderLeft: '4px solid #818cf8' }}>
-            <h3 style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '16px', fontWeight: 800, color: 'white', marginBottom: '16px' }}>
-              ⚖️ AI Decision Engine Recommendation
+            <h3 style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '18px', fontWeight: 700, color: 'white', marginBottom: '16px' }}>
+              <Activity size={18} className="inline mr-2 text-indigo-400" /> AI Decision Engine Recommendation
             </h3>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px', marginBottom: '16px' }}>
               <div className="glass-sm" style={{ padding: '14px' }}>
@@ -210,7 +211,7 @@ export default function ComparePage() {
             zIndex: 5
           }}>
             <div className="card-magnetic glow-border glass-panel" style={{ maxWidth: '440px', width: '100%', padding: '32px', textAlign: 'center' }}>
-              <div style={{ fontSize: '40px', marginBottom: '12px' }}>⚖️</div>
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '12px' }}><Activity size={40} className="text-indigo-400" /></div>
               <h3 style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '18px', fontWeight: 800, color: 'white', marginBottom: '8px' }}>
                 Unlock Opportunity Comparison Studio
               </h3>
@@ -224,7 +225,7 @@ export default function ComparePage() {
               </div>
 
               <Link href="/dashboard/settings" className="btn btn-primary" style={{ display: 'flex', justifyContent: 'center', padding: '12px' }}>
-                🚀 Upgrade to Professional Tier
+                <Rocket size={18} className="inline mr-2" /> Upgrade to Professional Tier
               </Link>
             </div>
           </div>
