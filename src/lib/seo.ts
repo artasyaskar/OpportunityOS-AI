@@ -15,7 +15,7 @@ import type { Opportunity } from './gemini';
  * (opportunityos.dev) without hardcoding. No trailing slash.
  */
 export const SITE_URL = (
-  process.env.NEXT_PUBLIC_SITE_URL || 'https://opportunityos.dev'
+  process.env.NEXT_PUBLIC_SITE_URL || 'https://www.oppertunityos.dev'
 ).replace(/\/$/, '');
 
 export const SITE_NAME = 'OpportunityOS AI';
