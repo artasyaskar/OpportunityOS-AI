@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { getPersonalizationPrefs, savePersonalizationPrefs, PersonalizationPreferences } from '@/lib/personalization';
+import { Target } from 'lucide-react';
 
 export default function PreferencesPage() {
   const [prefs, setPrefs] = useState<PersonalizationPreferences>({
@@ -31,8 +32,8 @@ export default function PreferencesPage() {
 
   return (
     <div className="dashboard-content animate-fade-in" style={{ padding: '24px', maxWidth: '800px', margin: '0 auto' }}>
-      <h1 style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '28px', fontWeight: 800, color: 'white', marginBottom: '8px' }}>
-        🎯 Target Personalization Engine
+      <h1 style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '28px', fontWeight: 800, color: 'white', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <Target size={28} style={{ color: '#818cf8' }} /> Target Personalization Engine
       </h1>
       <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '14px', marginBottom: '32px' }}>
         Unlike your Evidence Vault (which tracks verified facts like your GPA), this engine dictates what the AI *looks for*. Set your goals below to calibrate the discovery algorithms.
