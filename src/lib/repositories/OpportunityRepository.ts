@@ -1,6 +1,8 @@
 import { db } from '../firebase';
 import { collection, doc, getDocs, getDoc, setDoc, query, writeBatch } from 'firebase/firestore';
 import type { Opportunity } from '../gemini';
+import { DeduplicationService } from '../services/DeduplicationService';
+import { GLOBAL_OPPORTUNITIES } from '../opportunities-data';
 
 // Simple in-memory cache to prevent excessive Firestore reads and speed up filtering
 let cachedOpportunities: Opportunity[] | null = null;
@@ -27,6 +29,7 @@ export interface PaginatedResult {
 export class OpportunityRepository {
   /**
    * Retrieves all available opportunities (with caching).
+   * Automatically merges static GLOBAL_OPPORTUNITIES with Firestore data.
    */
   static async getAllOpportunities(forceRefresh = false): Promise<Opportunity[]> {
     const now = Date.now();
@@ -43,34 +46,45 @@ export class OpportunityRepository {
         docs.push(docSnap.data() as Opportunity);
       });
       
-      cachedOpportunities = docs;
+      // Merge with static data to ensure no hardcoded opportunity is ever missing
+      const { unique } = DeduplicationService.deduplicate([...GLOBAL_OPPORTUNITIES, ...docs]);
+      
+      cachedOpportunities = unique;
       lastCacheTime = now;
-      return docs;
+      return unique;
     } catch (error) {
       console.warn("OpportunityRepository: Failed to fetch opportunities. Check Firestore rules.", error);
-      return cachedOpportunities || [];
+      // Fallback to static data if Firestore fails
+      const { unique } = DeduplicationService.deduplicate([...GLOBAL_OPPORTUNITIES, ...(cachedOpportunities || [])]);
+      return unique;
     }
   }
 
   /**
    * Retrieves a specific opportunity by ID.
    */
-  static async getOpportunityById(id: string): Promise<Opportunity | null> {
+  static async getOpportunityById(id: string | string[]): Promise<Opportunity | null> {
+    const normalizedId = Array.isArray(id) ? id[0] : id;
+    
     // Check cache first
     if (cachedOpportunities) {
-      const found = cachedOpportunities.find(o => o.id === id);
+      const found = cachedOpportunities.find(o => o.id === normalizedId);
       if (found) return found;
     }
 
+    // Check static data as secondary fallback
+    const staticFound = GLOBAL_OPPORTUNITIES.find(o => o.id === normalizedId);
+    if (staticFound) return staticFound;
+
     try {
-      const docRef = doc(db, 'opportunities', id);
+      const docRef = doc(db, 'opportunities', normalizedId);
       const docSnap = await getDoc(docRef);
       if (docSnap.exists()) {
         return docSnap.data() as Opportunity;
       }
       return null;
     } catch (error) {
-      console.warn(`OpportunityRepository: Failed to fetch opportunity ${id}.`, error);
+      console.warn(`OpportunityRepository: Failed to fetch opportunity ${normalizedId}.`, error);
       return null;
     }
   }
@@ -133,23 +147,44 @@ export class OpportunityRepository {
 
   /**
    * Saves or updates an opportunity.
+   * Prevents duplicates: if the incoming opportunity matches an existing one
+   * (by URL / provider+title / domain+country) under a *different* id, the
+   * two are merged into the canonical record instead of creating a duplicate.
    */
   static async saveOpportunity(opportunity: Opportunity): Promise<void> {
-    const docRef = doc(db, 'opportunities', opportunity.id);
-    await setDoc(docRef, opportunity, { merge: true });
+    // Dedup guard against the cached corpus (best-effort; skipped on cache miss).
+    let target = opportunity;
+    if (cachedOpportunities) {
+      const existing = DeduplicationService.findExisting(
+        opportunity,
+        cachedOpportunities.filter(o => o.id !== opportunity.id)
+      );
+      if (existing) {
+        const canonical = DeduplicationService.pickCanonical(existing, opportunity);
+        const duplicate = canonical === existing ? opportunity : existing;
+        target = { ...DeduplicationService.merge(canonical, duplicate), id: canonical.id };
+      }
+    }
+
+    const docRef = doc(db, 'opportunities', target.id);
+    await setDoc(docRef, target, { merge: true });
     // Invalidate cache
     cachedOpportunities = null;
   }
 
   /**
-   * Bulk insert using Firestore Batches (Max 500 per batch)
+   * Bulk insert using Firestore Batches (Max 500 per batch).
+   * Runs deduplication across the incoming set first so a single seed call can
+   * never introduce duplicate entries.
    */
   static async seedOpportunitiesToFirestore(opportunities: Opportunity[]): Promise<void> {
+    const { unique } = DeduplicationService.deduplicate(opportunities);
+
     const batches = [];
     let currentBatch = writeBatch(db);
     let count = 0;
 
-    for (const opp of opportunities) {
+    for (const opp of unique) {
       const docRef = doc(db, 'opportunities', opp.id);
       currentBatch.set(docRef, opp, { merge: true });
       count++;
