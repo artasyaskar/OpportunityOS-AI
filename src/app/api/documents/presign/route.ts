@@ -6,7 +6,7 @@ import { adminDb } from '@/lib/firebase-admin';
 import { z } from 'zod';
 import { DocumentStatus } from '@/lib/repositories/EvidenceRepository';
 
-export const runtime = 'nodejs';
+export const runtime = 'nodejs'; // force recompile route
 
 const presignSchema = z.object({
   filename: z.string().min(1),
