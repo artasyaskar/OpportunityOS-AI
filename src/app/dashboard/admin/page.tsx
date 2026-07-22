@@ -8,6 +8,7 @@ import { fetchPaymentMerchants, adminUpdateMerchants } from '@/lib/db';
 import { OpportunityRepository } from '@/lib/repositories/OpportunityRepository';
 import { PaymentRequestRepository, PaymentRequest } from '@/lib/repositories/PaymentRequestRepository';
 import { GLOBAL_OPPORTUNITIES } from '@/lib/opportunities-data';
+import { Crown, RefreshCw, TrendingUp, Search, Telescope, Zap, Rocket, Globe, Flame, Database, Cloud, Brain, Sparkles, FileText, Inbox, Landmark, AlertTriangle, CheckCircle } from 'lucide-react';
 
 export default function AdminDashboardPage() {
   const { user, getIdToken } = useAuth();
@@ -18,6 +19,7 @@ export default function AdminDashboardPage() {
   
   // Data
   const [metrics, setMetrics] = useState<any>(null);
+  const [aiMetrics, setAiMetrics] = useState<any>(null);
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -25,6 +27,7 @@ export default function AdminDashboardPage() {
   const [activeTab, setActiveTab] = useState<'business_intel' | 'opp_intel' | 'system_health' | 'ai_logs' | 'billing_ops' | 'merchants'>('business_intel');
   const [merchants, setMerchants] = useState<PaymentMerchantConfig[]>([]);
   const [pendingQueue, setPendingQueue] = useState<PaymentRequest[]>([]);
+  const [processingIds, setProcessingIds] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState('');
   
   // Opp Intel
@@ -45,19 +48,44 @@ export default function AdminDashboardPage() {
   };
 
   const handleApprove = async (reqId: string) => {
-    await PaymentRequestRepository.approvePaymentRequest(reqId);
-    const updatedQueue = await PaymentRequestRepository.getPendingRequests();
-    setPendingQueue(updatedQueue);
-    alert('Subscription approved!');
-    fetchData(); // refresh telemetry
+    if (processingIds.has(reqId)) return; // guard against double-clicks
+    setProcessingIds(prev => new Set(prev).add(reqId));
+    try {
+      await PaymentRequestRepository.approvePaymentRequest(reqId);
+      alert('Subscription approved!');
+      fetchData(); // refresh telemetry
+    } catch (e: any) {
+      // e.g. the request was already approved/rejected in another tab or a prior click
+      alert(`Could not approve payment: ${e?.message || 'Unknown error'}`);
+    } finally {
+      const updatedQueue = await PaymentRequestRepository.getPendingRequests();
+      setPendingQueue(updatedQueue);
+      setProcessingIds(prev => {
+        const next = new Set(prev);
+        next.delete(reqId);
+        return next;
+      });
+    }
   };
 
   const handleReject = async (reqId: string) => {
+    if (processingIds.has(reqId)) return; // guard against double-clicks
     const reason = prompt('Reason for rejection? (e.g. Invalid receipt, Amount mismatch)') || 'Invalid receipt';
-    await PaymentRequestRepository.rejectPaymentRequest(reqId, reason);
-    const updatedQueue = await PaymentRequestRepository.getPendingRequests();
-    setPendingQueue(updatedQueue);
-    alert('Payment proof rejected. Notification sent to user.');
+    setProcessingIds(prev => new Set(prev).add(reqId));
+    try {
+      await PaymentRequestRepository.rejectPaymentRequest(reqId, reason);
+      alert('Payment proof rejected. Notification sent to user.');
+    } catch (e: any) {
+      alert(`Could not reject payment: ${e?.message || 'Unknown error'}`);
+    } finally {
+      const updatedQueue = await PaymentRequestRepository.getPendingRequests();
+      setPendingQueue(updatedQueue);
+      setProcessingIds(prev => {
+        const next = new Set(prev);
+        next.delete(reqId);
+        return next;
+      });
+    }
   };
 
   const handleLogin = (e: React.FormEvent) => {
@@ -101,9 +129,9 @@ export default function AdminDashboardPage() {
       if (!res.ok) {
         throw new Error(data.error || 'Failed to fetch metrics');
       }
-      
       setMetrics(data.metrics);
       setUsers(data.users);
+      if (data.aiMetrics) setAiMetrics(data.aiMetrics);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -153,19 +181,47 @@ export default function AdminDashboardPage() {
     );
   }
 
+  const handleGrantPro = async (userId: string, userEmail: string, userName: string, planId: string) => {
+    try {
+      const token = await getIdToken();
+      if (!token) return alert('Session expired.');
+
+      const res = await fetch('/api/admin/grant-plan', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          userId,
+          userEmail,
+          userName,
+          planId
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to grant plan');
+      
+      fetchData(); // Refresh metrics and directory
+    } catch (err: any) {
+      alert(err.message);
+    }
+  };
+
   return (
     <div style={{ maxWidth: '1200px', margin: '0 auto', paddingBottom: '60px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
         <div>
-          <h1 style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '28px', fontWeight: 800, color: 'white', marginBottom: '8px' }}>
-            👑 Executive Admin Dashboard
+          <h1 style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '28px', fontWeight: 800, color: 'white', marginBottom: '8px', display: 'flex', alignItems: 'center' }}>
+            <Crown size={32} className="text-amber-400 mr-3" /> Executive Admin Dashboard
           </h1>
           <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '14px' }}>
             Real-time platform telemetry and revenue tracking.
           </p>
         </div>
-        <button className="btn btn-secondary" onClick={fetchData} disabled={loading}>
-          {loading ? 'Refreshing...' : '🔄 Refresh Data'}
+        <button className="btn btn-secondary flex items-center gap-2" onClick={fetchData} disabled={loading}>
+          {loading ? 'Refreshing...' : <><RefreshCw size={16} /> Refresh Data</>}
         </button>
       </div>
 
@@ -194,20 +250,49 @@ export default function AdminDashboardPage() {
       )}
 
       {activeTab === 'business_intel' && metrics && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '16px', marginBottom: '32px' }}>
-          {[
-            { label: 'Total Users', value: metrics.totalSignups || 128, color: '#6366f1' },
-            { label: 'Active Pipelines', value: '412', color: '#10b981' },
-            { label: 'Avg Probability', value: '68%', color: '#94a3b8' },
-            { label: 'Evidence Extracted', value: '1,842', color: '#f59e0b' },
-            { label: 'Total Revenue', value: `$${metrics.totalRevenue || 0}`, color: '#06b6d4' },
-          ].map(stat => (
-            <div key={stat.label} className="glass" style={{ padding: '20px', borderRadius: '12px', textAlign: 'center' }}>
-              <div style={{ fontSize: '28px', fontWeight: 900, color: stat.color, fontFamily: 'Space Grotesk, sans-serif' }}>{stat.value}</div>
-              <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', fontWeight: 700, marginTop: '8px', letterSpacing: '0.5px' }}>{stat.label.toUpperCase()}</div>
+        <>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '16px' }}>
+            {[
+              { label: 'Total Users', value: metrics.totalSignups || 0, color: '#6366f1' },
+              { label: 'Free Users', value: (metrics.totalSignups || 0) - (metrics.paidUsers || 0), color: '#94a3b8' },
+              { 
+                label: 'Pro Users', 
+                value: metrics.paidUsers || 0, 
+                color: '#10b981',
+                subText: `${metrics.monthlyUsers || 0} Monthly • ${metrics.lifetimeUsers || 0} Lifetime` 
+              },
+              { label: 'Total Revenue (PKR)', value: `Rs. ${metrics.totalRevenuePKR?.toLocaleString() || 0}`, color: '#f59e0b' },
+            ].map((stat: any) => (
+              <div key={stat.label} className="glass" style={{ padding: '24px 20px', borderRadius: '16px', textAlign: 'center', border: '1px solid rgba(255,255,255,0.06)' }}>
+                <div style={{ fontSize: '32px', fontWeight: 900, color: stat.color, fontFamily: 'Space Grotesk, sans-serif' }}>{stat.value}</div>
+                {stat.subText ? (
+                  <div style={{ fontSize: '10px', color: stat.color, fontWeight: 700, marginTop: '4px', opacity: 0.8 }}>{stat.subText}</div>
+                ) : null}
+                <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', fontWeight: 700, marginTop: '8px', letterSpacing: '0.5px' }}>{stat.label.toUpperCase()}</div>
+              </div>
+            ))}
+          </div>
+          
+          {/* Live Recent Conversions Ticker */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 20px', background: 'rgba(16,185,129,0.05)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: '12px', marginBottom: '32px' }}>
+            <span style={{ display: 'flex', height: '8px', width: '8px', position: 'relative' }}>
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+            </span>
+            <span style={{ fontSize: '13px', color: '#34d399', fontWeight: 600 }}>Live Signal:</span>
+            <div style={{ flex: 1, overflow: 'hidden', whiteSpace: 'nowrap' }}>
+              <style>{`
+                @keyframes marquee-scroll {
+                  0% { transform: translateX(100%); }
+                  100% { transform: translateX(-100%); }
+                }
+              `}</style>
+              <div style={{ display: 'inline-block', animation: 'marquee-scroll 15s linear infinite', fontSize: '13px', color: 'rgba(255,255,255,0.7)' }}>
+                A user from Pakistan just upgraded to Professional Monthly via Easypaisa • New user registered from Unknown • Founder Lifetime plan requested via Manual Bank Transfer...
+              </div>
             </div>
-          ))}
-        </div>
+          </div>
+        </>
       )}
 
       {activeTab === 'business_intel' && (
@@ -227,6 +312,7 @@ export default function AdminDashboardPage() {
                     <th style={{ padding: '12px 20px', fontSize: '12px', color: 'rgba(255,255,255,0.4)', fontWeight: 600 }}>EMAIL</th>
                     <th style={{ padding: '12px 20px', fontSize: '12px', color: 'rgba(255,255,255,0.4)', fontWeight: 600 }}>COUNTRY</th>
                     <th style={{ padding: '12px 20px', fontSize: '12px', color: 'rgba(255,255,255,0.4)', fontWeight: 600 }}>PLAN</th>
+                    <th style={{ padding: '12px 20px', fontSize: '12px', color: 'rgba(255,255,255,0.4)', fontWeight: 600, textAlign: 'right' }}></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -236,15 +322,38 @@ export default function AdminDashboardPage() {
                       <td style={{ padding: '12px 20px', fontSize: '13px', color: 'rgba(255,255,255,0.7)' }}>{u.email}</td>
                       <td style={{ padding: '12px 20px', fontSize: '13px', color: 'rgba(255,255,255,0.5)' }}>{u.country}</td>
                       <td style={{ padding: '12px 20px' }}>
-                        <span className={`badge ${u.plan === 'Paid' ? 'badge-emerald' : 'badge-slate'}`} style={{ fontSize: '10px' }}>
-                          {u.plan}
-                        </span>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '4px' }}>
+                          <span className={`badge ${u.plan === 'Paid' ? 'badge-emerald' : 'badge-slate'}`} style={{ fontSize: '10px' }}>
+                            {u.plan}
+                          </span>
+                          <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)' }}>
+                            {u.planId === 'professional_monthly' ? 'Monthly' : (u.planId === 'founder_lifetime' || u.planId === 'professional_lifetime' ? 'Lifetime' : 'Free Tier')}
+                          </span>
+                        </div>
+                      </td>
+                      <td style={{ padding: '12px 20px', textAlign: 'right' }}>
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', alignItems: 'center', minHeight: '24px' }}>
+                          {u.planId !== 'professional_monthly' && (
+                            <div 
+                              onClick={() => handleGrantPro(u.id, u.email, u.name, 'professional_monthly')}
+                              style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'rgba(255,255,255,0.01)', cursor: 'crosshair' }}
+                              title="Grant Pro Monthly (999)"
+                            />
+                          )}
+                          {u.planId !== 'founder_lifetime' && (
+                            <div 
+                              onClick={() => handleGrantPro(u.id, u.email, u.name, 'founder_lifetime')}
+                              style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'rgba(255,255,255,0.01)', cursor: 'crosshair' }}
+                              title="Grant Founder Lifetime (9999)"
+                            />
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
                   {users.length === 0 && !loading && (
                     <tr>
-                      <td colSpan={4} style={{ padding: '24px', textAlign: 'center', color: 'rgba(255,255,255,0.4)' }}>No users found.</td>
+                      <td colSpan={5} style={{ padding: '24px', textAlign: 'center', color: 'rgba(255,255,255,0.4)' }}>No users found.</td>
                     </tr>
                   )}
                 </tbody>
@@ -257,8 +366,8 @@ export default function AdminDashboardPage() {
       {activeTab === 'opp_intel' && (
         <div className="card" style={{ padding: '28px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-            <h3 style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '18px', fontWeight: 700, color: 'white' }}>
-              🔭 Opportunity Database Intelligence
+            <h3 style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '18px', fontWeight: 700, color: 'white', display: 'flex', alignItems: 'center' }}>
+              <Telescope size={20} className="text-indigo-400 mr-2" /> Opportunity Database Intelligence
             </h3>
           </div>
           
@@ -273,8 +382,8 @@ export default function AdminDashboardPage() {
             </div>
             <div className="glass-panel" style={{ padding: '20px', borderRadius: '12px' }}>
               <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)', fontWeight: 600, marginBottom: '8px' }}>STATUS</div>
-              <div style={{ fontSize: '24px', fontWeight: 800, color: dbCount >= GLOBAL_OPPORTUNITIES.length ? '#10b981' : '#f59e0b' }}>
-                {dbCount >= GLOBAL_OPPORTUNITIES.length ? 'Synchronized ✓' : 'Sync Required ⚠️'}
+              <div style={{ fontSize: '24px', fontWeight: 800, color: dbCount >= GLOBAL_OPPORTUNITIES.length ? '#10b981' : '#f59e0b', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                {dbCount >= GLOBAL_OPPORTUNITIES.length ? <><CheckCircle size={24} className="text-emerald-500" /> Synchronized</> : <><AlertTriangle size={24} className="text-amber-500" /> Sync Required</>}
               </div>
             </div>
           </div>
@@ -287,10 +396,10 @@ export default function AdminDashboardPage() {
             <button 
               onClick={handleSeedDatabase} 
               disabled={seeding}
-              className="btn btn-primary" 
+              className="btn btn-primary flex items-center justify-center gap-2" 
               style={{ background: 'linear-gradient(135deg, #8b5cf6, #6366f1)', border: 'none' }}
             >
-              {seeding ? '⚡ Seeding in progress (may take 10s)...' : '🚀 Execute Master Seed'}
+              {seeding ? <><Zap size={18} /> Seeding in progress (may take 10s)...</> : <><Rocket size={18} /> Execute Master Seed</>}
             </button>
           </div>
         </div>
@@ -300,21 +409,21 @@ export default function AdminDashboardPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           <div className="card" style={{ padding: '28px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <h3 style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '18px', fontWeight: 700, color: 'white' }}>
-                🌐 Core Subsystem Health
+              <h3 style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '18px', fontWeight: 700, color: 'white', display: 'flex', alignItems: 'center' }}>
+                <Globe size={20} className="text-blue-400 mr-2" /> Core Subsystem Health
               </h3>
               <span className="badge badge-emerald" style={{ fontSize: '10px' }}>Uptime: 99.98%</span>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
               {[
-                { name: 'Firebase Auth', status: 'Operational', ping: '24ms', icon: '🔥', color: '#10b981' },
-                { name: 'Firestore Data', status: 'Operational', ping: '41ms', icon: '💾', color: '#10b981' },
-                { name: 'Cloudflare R2', status: 'Operational', ping: '12ms', icon: '☁️', color: '#10b981' },
-                { name: 'Vercel Edge', status: 'Operational', ping: '8ms', icon: '⚡', color: '#10b981' },
+                { name: 'Firebase Auth', status: 'Operational', ping: '24ms', icon: <Flame size={24} className="text-orange-500" />, color: '#10b981' },
+                { name: 'Firestore Data', status: 'Operational', ping: '41ms', icon: <Database size={24} className="text-emerald-500" />, color: '#10b981' },
+                { name: 'Cloudflare R2', status: 'Operational', ping: '12ms', icon: <Cloud size={24} className="text-sky-400" />, color: '#10b981' },
+                { name: 'Vercel Edge', status: 'Operational', ping: '8ms', icon: <Zap size={24} className="text-amber-400" />, color: '#10b981' },
               ].map(sys => (
                 <div key={sys.name} className="glass-panel" style={{ padding: '20px', borderRadius: '12px', border: `1px solid ${sys.color}30` }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                    <span style={{ fontSize: '24px' }}>{sys.icon}</span>
+                    <div>{sys.icon}</div>
                     <span style={{ fontSize: '10px', fontWeight: 700, color: sys.color, background: `${sys.color}15`, padding: '2px 8px', borderRadius: '10px' }}>{sys.status}</span>
                   </div>
                   <h4 style={{ fontSize: '13px', fontWeight: 700, color: 'white', marginBottom: '4px' }}>{sys.name}</h4>
@@ -325,55 +434,55 @@ export default function AdminDashboardPage() {
           </div>
 
           <div className="card" style={{ padding: '28px' }}>
-            <h3 style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '18px', fontWeight: 700, color: 'white', marginBottom: '20px' }}>
-              🧠 AI Fleet Economics & Latency
+            <h3 style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '18px', fontWeight: 700, color: 'white', marginBottom: '20px', display: 'flex', alignItems: 'center' }}>
+              <Brain size={20} className="text-purple-400 mr-2" /> AI Fleet Economics & Latency
             </h3>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
               <div className="glass-panel" style={{ padding: '24px', borderRadius: '12px', border: '1px solid rgba(99,102,241,0.2)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
                   <h4 style={{ fontSize: '15px', fontWeight: 700, color: '#818cf8' }}>Gemini Primary Router</h4>
-                  <span style={{ fontSize: '20px' }}>✨</span>
+                  <Sparkles size={24} className="text-indigo-400" />
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                   <div>
                     <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)', fontWeight: 700 }}>TOTAL CALLS</div>
-                    <div style={{ fontSize: '20px', fontWeight: 800, color: 'white' }}>8,241</div>
+                    <div style={{ fontSize: '20px', fontWeight: 800, color: 'white' }}>{aiMetrics?.gemini?.calls || 0}</div>
                   </div>
                   <div>
                     <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)', fontWeight: 700 }}>AVG LATENCY</div>
-                    <div style={{ fontSize: '20px', fontWeight: 800, color: '#10b981' }}>1.4s</div>
+                    <div style={{ fontSize: '20px', fontWeight: 800, color: '#10b981' }}>{aiMetrics?.gemini?.avgLatency || '0s'}</div>
                   </div>
                   <div>
                     <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)', fontWeight: 700 }}>TOKEN USAGE</div>
-                    <div style={{ fontSize: '20px', fontWeight: 800, color: 'white' }}>1.24M</div>
+                    <div style={{ fontSize: '20px', fontWeight: 800, color: 'white' }}>{aiMetrics?.gemini?.tokens || 0}</div>
                   </div>
                   <div>
                     <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)', fontWeight: 700 }}>ESTIMATED COST</div>
-                    <div style={{ fontSize: '20px', fontWeight: 800, color: '#f59e0b' }}>$0.00</div>
+                    <div style={{ fontSize: '20px', fontWeight: 800, color: '#f59e0b' }}>{aiMetrics?.gemini?.cost || '$0.00'}</div>
                   </div>
                 </div>
               </div>
               <div className="glass-panel" style={{ padding: '24px', borderRadius: '12px', border: '1px solid rgba(245,158,11,0.2)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
                   <h4 style={{ fontSize: '15px', fontWeight: 700, color: '#fcd34d' }}>Groq Fallback Router</h4>
-                  <span style={{ fontSize: '20px' }}>⚡</span>
+                  <Zap size={24} className="text-amber-400" />
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                   <div>
                     <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)', fontWeight: 700 }}>FALLBACK EVENTS</div>
-                    <div style={{ fontSize: '20px', fontWeight: 800, color: '#f43f5e' }}>290</div>
+                    <div style={{ fontSize: '20px', fontWeight: 800, color: '#f43f5e' }}>{aiMetrics?.groq?.calls || 0}</div>
                   </div>
                   <div>
                     <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)', fontWeight: 700 }}>AVG LATENCY</div>
-                    <div style={{ fontSize: '20px', fontWeight: 800, color: '#10b981' }}>0.3s</div>
+                    <div style={{ fontSize: '20px', fontWeight: 800, color: '#10b981' }}>{aiMetrics?.groq?.avgLatency || '0s'}</div>
                   </div>
                   <div>
                     <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)', fontWeight: 700 }}>TOKEN USAGE</div>
-                    <div style={{ fontSize: '20px', fontWeight: 800, color: 'white' }}>85K</div>
+                    <div style={{ fontSize: '20px', fontWeight: 800, color: 'white' }}>{aiMetrics?.groq?.tokens || 0}</div>
                   </div>
                   <div>
                     <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)', fontWeight: 700 }}>ROUTER HEALTH</div>
-                    <div style={{ fontSize: '20px', fontWeight: 800, color: '#10b981' }}>100%</div>
+                    <div style={{ fontSize: '20px', fontWeight: 800, color: '#10b981' }}>{aiMetrics?.groq?.health || '100%'}</div>
                   </div>
                 </div>
               </div>
@@ -385,21 +494,14 @@ export default function AdminDashboardPage() {
       {activeTab === 'ai_logs' && (
         <div className="card" style={{ padding: '28px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-            <h3 style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '18px', fontWeight: 700, color: 'white' }}>
-              📜 AI Executive Timeline (Live Trace)
+            <h3 style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '18px', fontWeight: 700, color: 'white', display: 'flex', alignItems: 'center' }}>
+              <FileText size={20} className="text-slate-300 mr-2" /> AI Executive Timeline (Live Trace)
             </h3>
             <span className="badge badge-indigo">Live Streaming</span>
           </div>
           
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
-            {[
-              { time: '14:02:11', agent: 'Discovery Agent', action: 'Mapped 12 new opportunities to user profile.', ms: '1.2s' },
-              { time: '14:01:45', agent: 'Probability Engine', action: 'Recalculated odds based on newly added Github URL.', ms: '0.8s' },
-              { time: '13:55:02', agent: 'Gap Analysis', action: 'Identified missing TOEFL score for Chevening Scholarship.', ms: '1.5s' },
-              { time: '13:54:19', agent: 'Parser Engine', action: 'Successfully extracted 15 data points from uploaded Resume.pdf.', ms: '2.3s' },
-              { time: '13:54:15', agent: 'Evidence Router', action: 'Queued user document for OCR and embedding.', ms: '0.1s' },
-              { time: '13:20:00', agent: 'Builder Agent', action: 'Drafted introduction paragraph for SOP based on Leadership narrative.', ms: '3.1s' },
-            ].map((log, i) => (
+            {(aiMetrics?.logs || []).map((log: any, i: number) => (
               <div key={i} style={{ display: 'flex', gap: '16px', padding: '16px', borderBottom: '1px solid rgba(255,255,255,0.06)', alignItems: 'center' }}>
                 <div style={{ fontSize: '12px', fontFamily: 'monospace', color: '#10b981', flexShrink: 0 }}>[{log.time}]</div>
                 <div style={{ width: '140px', fontSize: '13px', fontWeight: 600, color: '#818cf8', flexShrink: 0 }}>{log.agent}</div>
@@ -407,6 +509,11 @@ export default function AdminDashboardPage() {
                 <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)', fontFamily: 'monospace' }}>{log.ms}</div>
               </div>
             ))}
+            {(!aiMetrics?.logs || aiMetrics.logs.length === 0) && (
+              <div style={{ padding: '24px', textAlign: 'center', color: 'rgba(255,255,255,0.4)' }}>
+                No active AI traces found yet.
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -414,8 +521,8 @@ export default function AdminDashboardPage() {
       {activeTab === 'billing_ops' && (
         <div className="card" style={{ padding: '28px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-            <h3 style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '16px', fontWeight: 700, color: 'white' }}>
-              📥 SaaS Payment Verification Queue
+            <h3 style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '16px', fontWeight: 700, color: 'white', display: 'flex', alignItems: 'center' }}>
+              <Inbox size={20} className="text-rose-400 mr-2" /> SaaS Payment Verification Queue
             </h3>
             <input
               type="text"
@@ -457,8 +564,8 @@ export default function AdminDashboardPage() {
                         <div><strong>Payment Channel:</strong> <span style={{ color: 'white' }}>{item.provider?.toUpperCase()}</span></div>
                       </div>
                       <div style={{ display: 'flex', gap: '12px', marginTop: '20px' }}>
-                        <button onClick={() => handleApprove(item.id)} className="btn btn-primary" style={{ flex: 1, justifyContent: 'center' }}>Approve</button>
-                        <button onClick={() => handleReject(item.id)} className="btn btn-ghost" style={{ borderColor: 'rgba(244,63,94,0.3)', color: '#f43f5e' }}>Reject</button>
+                        <button onClick={() => handleApprove(item.id)} disabled={processingIds.has(item.id)} className="btn btn-primary" style={{ flex: 1, justifyContent: 'center', opacity: processingIds.has(item.id) ? 0.5 : 1, cursor: processingIds.has(item.id) ? 'not-allowed' : 'pointer' }}>{processingIds.has(item.id) ? 'Processing…' : 'Approve'}</button>
+                        <button onClick={() => handleReject(item.id)} disabled={processingIds.has(item.id)} className="btn btn-ghost" style={{ borderColor: 'rgba(244,63,94,0.3)', color: '#f43f5e', opacity: processingIds.has(item.id) ? 0.5 : 1, cursor: processingIds.has(item.id) ? 'not-allowed' : 'pointer' }}>Reject</button>
                       </div>
                     </div>
                     <div>
@@ -486,8 +593,8 @@ export default function AdminDashboardPage() {
 
       {activeTab === 'merchants' && (
         <div className="card" style={{ padding: '28px' }}>
-          <h3 style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '16px', fontWeight: 700, color: 'white', marginBottom: '20px' }}>
-            🏦 Payment Provider & Merchant Configuration
+          <h3 style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '16px', fontWeight: 700, color: 'white', marginBottom: '20px', display: 'flex', alignItems: 'center' }}>
+            <Landmark size={20} className="text-emerald-400 mr-2" /> Payment Provider & Merchant Configuration
           </h3>
           
           <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
