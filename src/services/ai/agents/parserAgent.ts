@@ -3,6 +3,7 @@ import { aiRouter } from '../router';
 import { SECURE_PROMPTS } from '@/lib/prompts';
 
 export interface ParserResult {
+  nodeType?: string;
   skills?: string[];
   experience?: { company: string; role: string; duration: string }[];
   projects?: { title: string; description: string; url?: string }[];
@@ -11,6 +12,7 @@ export interface ParserResult {
   cgpa?: string;
   nationality?: string;
   testScores?: Record<string, any>;
+  extractedInsights?: Record<string, any>;
   confidenceScore?: number;
   explainability?: string;
 }
