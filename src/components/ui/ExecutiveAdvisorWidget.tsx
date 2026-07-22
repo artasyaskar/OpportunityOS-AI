@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useProfile } from '@/components/auth/ProfileContext';
+import { useAuth } from '@/components/auth/AuthProvider';
+import { Bot, Zap, X } from 'lucide-react';
 
 interface Message {
   sender: 'ai' | 'user';
@@ -32,6 +34,7 @@ export default function ExecutiveAdvisorWidget() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const { profile } = useProfile();
+  const { getIdToken } = useAuth();
 
   // Sync profile details and track device size
   useEffect(() => {
@@ -149,12 +152,17 @@ export default function ExecutiveAdvisorWidget() {
     setIsTyping(true);
 
     try {
+      const token = await getIdToken();
       const res = await fetch('/api/agents/chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ message: text, profile })
       });
       const data = await res.json();
+      if (res.status === 402) {
+        setMessages(prev => [...prev, { sender: 'ai', text: "You've used all your AI credits for now. Upgrade your plan to keep strategizing with me." }]);
+        return;
+      }
       if (!res.ok) throw new Error(data.error || 'Failed to fetch reply');
 
       setMessages(prev => [...prev, { 
@@ -214,7 +222,7 @@ export default function ExecutiveAdvisorWidget() {
             userSelect: 'none'
           }}
         >
-          <div style={{ fontSize: '20px' }}>🤖</div>
+          <div style={{ display: 'flex', alignItems: 'center' }}><Bot size={20} /></div>
           <div className="advisor-widget-btn-text" style={{ textAlign: 'left' }}>
             <div style={{ fontSize: '13px', fontWeight: 700, color: 'white' }}>Ask Executive Advisor</div>
             <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.6)' }}>Online • Context Loaded</div>
@@ -249,7 +257,7 @@ export default function ExecutiveAdvisorWidget() {
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', pointerEvents: 'none' }}>
-              <span style={{ fontSize: '20px' }}>🤖</span>
+              <span style={{ display: 'flex', alignItems: 'center' }}><Bot size={20} /></span>
               <div>
                 <div style={{ fontSize: '14px', fontWeight: 700, color: 'white' }}>Executive AI</div>
                 <div style={{ fontSize: '10px', color: '#10b981' }}>● System Active</div>
@@ -277,7 +285,7 @@ export default function ExecutiveAdvisorWidget() {
               onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(244,63,94,0.8)')}
               onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.1)')}
             >
-              ×
+              <X size={18} />
             </button>
           </div>
 
@@ -304,7 +312,7 @@ export default function ExecutiveAdvisorWidget() {
                   <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px dashed rgba(255,255,255,0.1)', fontSize: '10px' }}>
                     {msg.confidenceScore && (
                       <div style={{ color: msg.confidenceScore > 80 ? '#10b981' : '#f59e0b', fontWeight: 600, marginBottom: '4px' }}>
-                        ⚡ Confidence: {msg.confidenceScore}%
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}><Zap size={10} /> Confidence: {msg.confidenceScore}%</span>
                       </div>
                     )}
                     {msg.evidenceUsed && msg.evidenceUsed.length > 0 && (
