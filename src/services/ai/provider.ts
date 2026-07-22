@@ -3,6 +3,7 @@ export interface AIRequestOptions {
   temperature?: number;
   maxTokens?: number;
   responseFormat?: 'text' | 'json';
+  taskType?: string;
   image?: {
     data: string;
     mimeType: string;
@@ -17,6 +18,8 @@ export interface AIResponseMetadata {
   totalTokens: number;
   latencyMs: number;
   costUSD: number;
+  retryCount?: number;
+  cached?: boolean;
 }
 
 export interface AIResponse<T = string> {
