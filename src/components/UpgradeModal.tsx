@@ -2,6 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
+import { X, Rocket, Check } from 'lucide-react';
 
 interface UpgradeModalProps {
   isOpen: boolean;
@@ -44,10 +45,10 @@ export default function UpgradeModal({ isOpen, onClose, featureName = 'Premium F
           onClick={onClose}
           style={{ position: 'absolute', top: '16px', right: '16px', background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: '20px', cursor: 'pointer' }}
         >
-          ✕
+          <X size={20} />
         </button>
         
-        <div style={{ fontSize: '48px', marginBottom: '16px' }}>🚀</div>
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px', color: '#6366f1' }}><Rocket size={48} /></div>
         
         <h3 style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '24px', fontWeight: 800, color: 'white', marginBottom: '12px' }}>
           Unlock {featureName}
@@ -65,7 +66,7 @@ export default function UpgradeModal({ isOpen, onClose, featureName = 'Premium F
             '1-on-1 Visa & Interview Prep Simulation'
           ].map((benefit, i) => (
             <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13px', color: 'white' }}>
-              <span style={{ color: '#10b981' }}>✓</span> {benefit}
+              <Check size={16} color="#10b981" /> {benefit}
             </div>
           ))}
         </div>
