@@ -25,8 +25,12 @@ function cleanAndParseJSON(text: string): any {
 export class GeminiProvider extends AIProvider {
   name = 'gemini';
   private apiKey: string;
-  private defaultModel = 'gemini-1.5-flash-latest';
-  private defaultReasoningModel = 'gemini-1.5-pro';
+  // Model IDs are env-overridable so they can be updated without a redeploy when
+  // Google rotates model availability. Defaults track the current GA/stable line.
+  // gemini-2.0-flash was shut down 2026-06-01 and gemini-2.5-flash is no longer
+  // available to new API projects (404), so both defaults now target 3.5 Flash.
+  private defaultModel = process.env.GEMINI_FLASH_MODEL || 'gemini-3.5-flash';
+  private defaultReasoningModel = process.env.GEMINI_PRO_MODEL || 'gemini-3.5-flash';
 
   constructor() {
     super();
