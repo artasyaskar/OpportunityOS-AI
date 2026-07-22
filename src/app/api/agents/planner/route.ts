@@ -1,19 +1,15 @@
-import { checkRateLimit } from '@/lib/rateLimiter';
+import { guardAgentRoute } from '@/lib/auth/agentGuard';
 import { NextRequest, NextResponse } from 'next/server';
 import { runSubmissionPlannerAgent } from '@/services/ai/agents/submissionPlannerAgent';
 import { type Opportunity } from '@/lib/gemini';
 
 export async function POST(req: NextRequest) {
-  const rateLimit = checkRateLimit(req);
-  if (!rateLimit.success) {
-    return NextResponse.json(
-      { error: 'Rate limit exceeded' },
-      { status: 429, headers: rateLimit.headers }
-    );
-  }
+  const guard = await guardAgentRoute(req);
+  if ('status' in guard) return guard;
+  const { uid: userId } = guard;
   try {
     const body = await req.json();
-    const { daysUntilDeadline, userId } = body;
+    const { daysUntilDeadline } = body;
     let { opportunity } = body;
 
     // Fallback if missing (for robust testing)
