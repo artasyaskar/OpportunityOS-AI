@@ -1,5 +1,6 @@
 import type { Opportunity, UserProfile } from './gemini';
 import { calculateCompatibilityScore, generateExplainability } from './scoringEngine';
+import { RankingService, type UserPreferenceSignals, type RankingSignal } from './services/RankingService';
 
 // ========================
 // OPPORTUNITY FEED CATEGORIES
@@ -15,6 +16,8 @@ export interface CategorizedFeed {
 
 export interface OpportunityWithScore extends Opportunity {
   compatibilityScore: number;
+  rankScore: number;                 // NEW: composite smart-ranking score (0..100)
+  rankingSignals: RankingSignal[];   // NEW: explainable ranking breakdown
   explainability: {
     reasons: string[];
     isHighlyCompatible: boolean;
@@ -23,61 +26,82 @@ export interface OpportunityWithScore extends Opportunity {
 
 /**
  * Main AI Ranking Engine
- * Processes a raw list of opportunities and ranks/categorizes them based on the UserProfile
+ * Processes a raw list of opportunities and ranks/categorizes them based on the
+ * UserProfile using the composite, explainable RankingService.
+ *
+ * Backward compatible: same signature + CategorizedFeed shape as before, with
+ * two additive fields (rankScore, rankingSignals). `prefs` is optional so the
+ * ranking adapts to saved/hidden/rejected history when available.
  */
 export function generatePersonalizedFeed(
   profile: UserProfile | null,
-  opportunities: Opportunity[]
+  opportunities: Opportunity[],
+  prefs?: UserPreferenceSignals
 ): CategorizedFeed {
   const now = new Date();
 
-  // 1. Calculate scores and attach explainability for all opportunities
-  const scoredOpportunities: OpportunityWithScore[] = opportunities.map(opp => {
-    const compatibilityScore = calculateCompatibilityScore(profile, opp);
-    const explainability = generateExplainability(profile, opp);
+  // 1. Compute compatibility + explainability once per opportunity.
+  const compatibilityCache = new Map<string, number>();
+  const scoreFor = (opp: Opportunity): number => {
+    if (!compatibilityCache.has(opp.id)) {
+      compatibilityCache.set(opp.id, calculateCompatibilityScore(profile, opp));
+    }
+    return compatibilityCache.get(opp.id)!;
+  };
 
+  // 2. Smart composite ranking (compatibility + deadline + funding + prestige +
+  //    freshness + competition + adaptive preference feedback).
+  const ranked = RankingService.rank(opportunities, scoreFor, { prefs, profile, now });
+
+  // 3. Attach explainability and build the enriched list, preserving rank order.
+  const scoredOpportunities: OpportunityWithScore[] = ranked.map(r => {
+    const compatibilityScore = r.compatibilityScore;
+    const explainability = generateExplainability(profile, r.opportunity);
     return {
-      ...opp,
+      ...r.opportunity,
       compatibilityScore,
-      explainability
+      rankScore: r.rankScore,
+      rankingSignals: r.signals,
+      explainability,
     };
   });
 
-  // 2. Sort by highest compatibility score first (weighted ranking)
-  // If scores are equal, sort by prestige/roi
-  const allRanked = [...scoredOpportunities].sort((a, b) => {
-    if (a.compatibilityScore !== b.compatibilityScore) {
-      return b.compatibilityScore - a.compatibilityScore;
-    }
-    // Tie-breaker: prestige or ROI
-    return (b.prestigeScore || 50) - (a.prestigeScore || 50);
-  });
+  // allRanked is already sorted by composite rankScore (desc).
+  const allRanked = scoredOpportunities;
 
-  // 3. Categorize into Feeds
+  // 4. Categorize into Feeds (thresholds preserved from the original engine).
 
-  // "Recommended For You" -> Highly compatible (score >= 80)
-  const recommended = allRanked.filter(o => o.compatibilityScore >= 80);
+  // "Recommended For You" -> Highly compatible (score >= 60)
+  let recommended = allRanked.filter(o => o.compatibilityScore >= 60);
+  // Guarantee a minimum of 12 recommendations so new users don't see an empty feed
+  if (recommended.length < 12) {
+    const toAdd = allRanked.filter(o => !recommended.includes(o)).slice(0, 12 - recommended.length);
+    recommended = [...recommended, ...toAdd];
+  }
 
-  // "Easy Wins" -> High compatibility AND low/medium competition
-  const easyWins = allRanked.filter(o => 
-    o.compatibilityScore >= 70 && 
+  // "Easy Wins" -> Good compatibility AND low/medium competition
+  let easyWins = allRanked.filter(o =>
+    o.compatibilityScore >= 55 &&
     (o.competitionLevel === 'low' || o.competitionLevel === 'medium')
   );
+  if (easyWins.length < 6) {
+    const lowComp = allRanked.filter(o => o.competitionLevel === 'low' || o.competitionLevel === 'medium');
+    const toAdd = lowComp.filter(o => !easyWins.includes(o)).slice(0, 6 - easyWins.length);
+    easyWins = [...easyWins, ...toAdd];
+  }
 
-  // "Dream Opportunities" -> High prestige (>=90) OR full funding, regardless of current score
-  // but sorted by score so we show the ones they are closest to first
+  // "Dream Opportunities" -> High prestige (>=90) OR full funding
   const dreamOpportunities = allRanked.filter(o => {
     const isHighPrestige = (o.prestigeScore || 0) >= 90;
     const isFullFunding = o.fundingLevel?.toLowerCase().includes('full') || (o.fundingAmount || 0) > 50000;
     return isHighPrestige || isFullFunding;
   });
 
-  // "Closing Soon" -> Deadline is within the next 45 days, ranked by compatibility
+  // "Closing Soon" -> Deadline within the next 45 days, still ordered by rankScore
   const closingSoon = allRanked.filter(o => {
     if (!o.deadline) return false;
     const deadlineDate = new Date(o.deadline);
-    const diffTime = deadlineDate.getTime() - now.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    const diffDays = Math.ceil((deadlineDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
     return diffDays > 0 && diffDays <= 45;
   });
 
@@ -86,6 +110,6 @@ export function generatePersonalizedFeed(
     easyWins,
     dreamOpportunities,
     closingSoon,
-    allRanked
+    allRanked,
   };
 }
