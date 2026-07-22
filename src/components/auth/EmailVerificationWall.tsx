@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useAuth } from '@/components/auth/AuthProvider';
+import { Mail } from 'lucide-react';
 
 export default function EmailVerificationWall({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
@@ -40,7 +41,7 @@ export default function EmailVerificationWall({ children }: { children: React.Re
       minHeight: '100vh', background: '#020408', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px'
     }}>
       <div className="card-magnetic" style={{ maxWidth: '440px', width: '100%', padding: '40px 32px', textAlign: 'center' }}>
-        <span style={{ fontSize: '48px', marginBottom: '16px', display: 'block' }}>✉️</span>
+        <span style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px', color: '#818cf8' }}><Mail size={48} /></span>
         <h2 style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '24px', fontWeight: 800, color: 'white', marginBottom: '12px' }}>
           Verify Your Email
         </h2>
