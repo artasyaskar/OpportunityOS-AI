@@ -4,9 +4,12 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { SEED_OPPORTUNITIES } from '@/lib/opportunities';
-import { type ApplicationStatus, APPLICATION_STAGES } from '@/lib/gemini';
+import { type ApplicationStatus, APPLICATION_STAGES, type Opportunity } from '@/lib/gemini';
 import { useProfile } from '@/components/auth/ProfileContext';
 import { usePipeline } from '@/components/auth/PipelineContext';
+import { useAuth } from '@/components/auth/AuthProvider';
+import { Folder } from 'lucide-react';
+import { OpportunityRepository } from '@/lib/repositories/OpportunityRepository';
 
 // Define the 12 workspace documents
 interface WorkspaceDoc {
@@ -18,9 +21,21 @@ interface WorkspaceDoc {
 export default function ApplicationWorkspacePage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const opp = SEED_OPPORTUNITIES.find(o => o.id === id) || SEED_OPPORTUNITIES[0];
-  const { profile } = useProfile();
-  const { pipeline: applications, updateOpportunity } = usePipeline();
+  
+  const [opp, setOpp] = useState<Opportunity | null>(null);
+  const [isLoadingOpp, setIsLoadingOpp] = useState(true);
+
+  const { profile } = useProfile() as any;
+  const { pipeline: applications, updateOpportunity } = usePipeline() as any;
+  const { user } = useAuth();
+  const appId = id;
+
+  useEffect(() => {
+    OpportunityRepository.getOpportunityById(id).then(o => {
+      setOpp(o);
+      setIsLoadingOpp(false);
+    });
+  }, [id]);
 
   // Pipeline state: draft, applied, interview, accepted, rejected
   const [pipelineStatus, setPipelineStatus] = useState<ApplicationStatus>('wishlist');
@@ -79,14 +94,17 @@ export default function ApplicationWorkspacePage() {
     }
 
     // Check current application status from user applications ledger
-    const match = applications.find((a: any) => a.id === opp.id);
-    if (match) {
-      setPipelineStatus(match.stage || 'wishlist');
+    if (opp) {
+      const match = applications.find((a: any) => a.id === opp.id);
+      if (match) {
+        setPipelineStatus(match.stage || 'wishlist');
+      }
     }
-  }, [opp.id, profile, applications]);
+  }, [opp?.id, profile, applications]);
 
   // Handle pipeline status update
   const handleStatusChange = async (status: ApplicationStatus) => {
+    if (!opp) return;
     setPipelineStatus(status);
     await updateOpportunity(opp.id, { stage: status });
   };
@@ -167,6 +185,9 @@ export default function ApplicationWorkspacePage() {
     });
   };
 
+  if (isLoadingOpp) return <div style={{ padding: '64px', textAlign: 'center', color: 'white' }}>Loading Workspace...</div>;
+  if (!opp) return <div style={{ padding: '64px', textAlign: 'center', color: 'white' }}>Opportunity Not Found.</div>;
+
   return (
     <div style={{ maxWidth: '1200px', margin: '0 auto', paddingBottom: '80px', padding: '24px' }}>
       <div style={{ marginBottom: '24px' }}>
@@ -180,8 +201,8 @@ export default function ApplicationWorkspacePage() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
           <div>
             <span className="badge badge-indigo" style={{ marginBottom: '12px' }}>{opp.type.toUpperCase()} WORKSPACE</span>
-            <h1 style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '28px', fontWeight: 800, color: 'white', marginBottom: '8px' }}>
-              📁 Application Workspace: {opp.title}
+            <h1 style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '20px', fontWeight: 800, color: 'white' }}>
+              <Folder size={20} className="inline mr-2 text-indigo-400" /> Application Workspace: {opp.title}
             </h1>
             <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '14px' }}>
               Manage, review, and verify every document required to submit a competitive application.
@@ -212,9 +233,9 @@ export default function ApplicationWorkspacePage() {
           <div className="card" style={{ padding: '24px', marginBottom: '28px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
               <div>
-                <h2 style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '18px', fontWeight: 700, color: 'white' }}>
-                  📂 Mandatory Document Checklist
-                </h2>
+                <h3 style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '15px', fontWeight: 700, color: 'white' }}>
+                  <Folder size={16} className="inline mr-2 text-indigo-400" /> Mandatory Document Checklist
+                </h3>
                 <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.4)', marginTop: '2px' }}>
                   Track formatting requirements and approval pipelines for target selectors.
                 </p>
@@ -393,9 +414,45 @@ export default function ApplicationWorkspacePage() {
                   <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)', marginBottom: '8px' }}>
                     <strong>Gaps to address:</strong> {interviewFeedback.weaknesses}
                   </p>
-                  <p style={{ fontSize: '12px', color: '#a78bfa' }}>
+                  <p style={{ fontSize: '12px', color: '#a78bfa', marginBottom: '16px' }}>
                     <strong>Pro-Tip:</strong> {interviewFeedback.tip}
                   </p>
+                  <button 
+                    onClick={async () => {
+                      if (!user?.uid) return;
+                      try {
+                        const newDoc = {
+                          id: crypto.randomUUID(),
+                          userId: user.uid,
+                          type: 'interview_memory',
+                          fileName: 'Mock Interview (App Workspace)',
+                          size: 0,
+                          mimeType: 'text/plain',
+                          uploadedAt: new Date().toISOString(),
+                          lastUpdatedAt: new Date().toISOString(),
+                          status: 'VERIFIED',
+                          storageKey: `evidence/${user.uid}/interview/${Date.now()}_mock`,
+                          source: 'AI Interview Coach (Workspace)',
+                          aiConfidence: 100,
+                          version: 1,
+                          usedInApplications: [appId],
+                          extractedInsights: {
+                            Question: "How do your target plans in the UK align with your development goal of establishing technology corridors in Pakistan?",
+                            Answer: userInterviewAnswer,
+                            DemonstratedTraits: ['Strategic Planning', 'Domain Alignment']
+                          },
+                          metrics: { importance: 85, confidence: 95, usageCount: 1, lastUsed: new Date().toISOString() }
+                        };
+                        const { EvidenceRepository } = await import('@/lib/repositories/EvidenceRepository');
+                        await EvidenceRepository.saveEvidence(user.uid, newDoc as any);
+                        alert("Mock interview securely saved to your Personal Intelligence Vault!");
+                      } catch(e) { console.error(e); }
+                    }}
+                    className="btn btn-ghost btn-sm"
+                    style={{ width: '100%', fontSize: '11px', padding: '6px', border: '1px solid rgba(167,139,250,0.3)', color: '#a78bfa' }}
+                  >
+                    Save Story to Knowledge Vault
+                  </button>
                 </div>
               )}
             </div>
