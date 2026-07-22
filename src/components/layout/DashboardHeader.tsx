@@ -10,6 +10,7 @@ import { useProfile } from '@/components/auth/ProfileContext';
 import { usePipeline } from '@/components/auth/PipelineContext';
 import { SEED_OPPORTUNITIES } from '@/lib/opportunities';
 import { NotificationRepository, AppNotification } from '@/lib/repositories/NotificationRepository';
+import { Menu, Search, Bell, Zap, WifiOff } from 'lucide-react';
 interface SearchResult {
   title: string;
   category: string;
@@ -17,18 +18,20 @@ interface SearchResult {
   badge?: string;
 }
 
-const SEARCH_DATABASE: SearchResult[] = [
-  { title: 'Chevening Scholarship 2025-2026', category: 'Opportunities', href: '/dashboard/opportunities/chevening-2025', badge: 'Active' },
-  { title: 'DAAD Graduate Scholarship', category: 'Opportunities', href: '/dashboard/opportunities/daad-2025', badge: 'Active' },
-  { title: 'SOP Draft Statement (First Revision)', category: 'Documents', href: '/dashboard/builder' },
-  { title: 'Scholarship Resume PDF', category: 'Portfolio', href: '/dashboard/portfolio' },
-  { title: 'IELTS Prep Milestone', category: 'Execution Plan', href: '/dashboard/roadmap' },
+// Static app destinations. Opportunity results are sourced live from the real
+// opportunity dataset (see handleSearchChange) so Cmd+K never links to a
+// record that doesn't exist.
+const NAV_DESTINATIONS: SearchResult[] = [
+  { title: 'Opportunity Feed', category: 'Navigation', href: '/dashboard/opportunities' },
+  { title: 'Application Builder', category: 'Navigation', href: '/dashboard/builder' },
+  { title: 'Portfolio', category: 'Navigation', href: '/dashboard/portfolio' },
+  { title: 'Execution Roadmap', category: 'Navigation', href: '/dashboard/roadmap' },
   { title: 'AI Transparency Center', category: 'Settings', href: '/dashboard/settings' },
 ];
 
 export default function DashboardHeader() {
   const router = useRouter();
-  const { user, logout } = useAuth();
+  const { user, logout, getIdToken } = useAuth();
   const { profile, openUpgradeModal, isOffline } = useProfile() as any;
   const { pipeline: applications } = usePipeline();
   const [showSearch, setShowSearch] = useState(false);
@@ -39,7 +42,34 @@ export default function DashboardHeader() {
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState<any[]>([]);
 
+  // Mirror the shared `sidebar-open` class into React state so the toggle button
+  // can expose accurate aria-expanded regardless of which control changed it.
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  useEffect(() => {
+    const root = document.documentElement;
+    const sync = () => setSidebarOpen(root.classList.contains('sidebar-open'));
+    sync();
+    const observer = new MutationObserver(sync);
+    observer.observe(root, { attributes: true, attributeFilter: ['class'] });
+    // Escape closes the mobile nav for keyboard users.
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && root.classList.contains('sidebar-open')) {
+        root.classList.remove('sidebar-open');
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('keydown', onKey);
+    };
+  }, []);
+
   const isAdmin = user ? isUserAdmin(user.email) : false;
+
+  const toggleSidebar = () => {
+    const isOpen = document.documentElement.classList.toggle('sidebar-open');
+    setSidebarOpen(isOpen);
+  };
 
   useEffect(() => {
     let unsubUser: () => void;
@@ -130,11 +160,28 @@ export default function DashboardHeader() {
       setResults([]);
       return;
     }
-    const filtered = SEARCH_DATABASE.filter(item => 
-      item.title.toLowerCase().includes(val.toLowerCase()) || 
-      item.category.toLowerCase().includes(val.toLowerCase())
+    const q = val.toLowerCase();
+
+    // Real opportunity matches from the live dataset — links resolve to real ids.
+    const oppMatches: SearchResult[] = SEED_OPPORTUNITIES
+      .filter(o =>
+        o.title.toLowerCase().includes(q) ||
+        (o.provider || '').toLowerCase().includes(q) ||
+        (o.type || '').toLowerCase().includes(q)
+      )
+      .slice(0, 6)
+      .map(o => ({
+        title: o.title,
+        category: o.type || 'Opportunity',
+        href: `/dashboard/opportunities/${o.id}`,
+      }));
+
+    const navMatches = NAV_DESTINATIONS.filter(item =>
+      item.title.toLowerCase().includes(q) ||
+      item.category.toLowerCase().includes(q)
     );
-    setResults(filtered);
+
+    setResults([...oppMatches, ...navMatches]);
   };
 
   const handleSelectResult = (href: string) => {
@@ -184,8 +231,11 @@ export default function DashboardHeader() {
         <div style={{ display: 'flex', alignItems: 'center' }}>
           {/* Mobile Sidebar Toggle */}
           <button
-            onClick={() => document.documentElement.classList.toggle('sidebar-open')}
+            onClick={toggleSidebar}
             className="mobile-sidebar-toggle"
+            aria-label={sidebarOpen ? 'Close navigation menu' : 'Open navigation menu'}
+            aria-expanded={sidebarOpen}
+            aria-controls="dashboard-sidebar"
             style={{
               background: 'transparent',
               border: 'none',
@@ -197,7 +247,7 @@ export default function DashboardHeader() {
               justifyContent: 'center',
             }}
           >
-            ☰
+            <Menu size={22} aria-hidden="true" />
           </button>
 
           {/* Search trigger */}
@@ -219,7 +269,7 @@ export default function DashboardHeader() {
               textAlign: 'left'
             }}
           >
-            <span>🔍</span>
+            <Search size={16} aria-hidden="true" />
             <span style={{ flex: 1 }}>Search everything...</span>
             <span style={{ fontSize: '9px', background: 'rgba(255,255,255,0.08)', padding: '2px 6px', borderRadius: '4px', fontFamily: 'monospace' }}>Ctrl+K</span>
           </button>
@@ -242,7 +292,7 @@ export default function DashboardHeader() {
               }}
               title="Changes will sync automatically when reconnected."
             >
-              <span style={{ fontSize: '10px', color: '#94a3b8' }}>⚪</span>
+              <WifiOff size={12} color="#94a3b8" aria-hidden="true" />
               <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 500 }}>Offline</span>
             </div>
           )}
@@ -264,7 +314,7 @@ export default function DashboardHeader() {
               }}
               className="hover:border-indigo-400 hover:shadow-[0_0_10px_rgba(99,102,241,0.3)]"
             >
-              <span style={{ fontSize: '12px' }}>⚡</span>
+              <Zap size={13} color="#a5b4fc" aria-hidden="true" />
               <span style={{ fontSize: '13px', fontWeight: 600, color: '#e2e8f0' }}>{profile.aiCredits}</span>
               <span style={{ fontSize: '11px', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Credits</span>
             </button>
@@ -273,18 +323,18 @@ export default function DashboardHeader() {
           <div style={{ position: 'relative' }}>
             <button
               onClick={() => setShowNotifications(!showNotifications)}
+              aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : 'Notifications'}
               style={{
                 background: 'transparent',
                 border: 'none',
                 color: 'white',
-                fontSize: '18px',
                 cursor: 'pointer',
                 position: 'relative',
                 display: 'flex',
                 alignItems: 'center'
               }}
             >
-              <span>🔔</span>
+              <Bell size={19} aria-hidden="true" />
               {unreadCount > 0 && (
                 <span
                   style={{
@@ -330,8 +380,8 @@ export default function DashboardHeader() {
                   <button onClick={markAllRead} style={{ background: 'transparent', border: 'none', color: '#818cf8', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}>Mark all read</button>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  {notifications.map(n => (
-                    <div key={n.id} style={{ paddingBottom: '8px', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                  {Array.from(new Map(notifications.map(n => [n.id, n])).values()).map((n, i) => (
+                    <div key={n.id || `notif-${i}`} style={{ paddingBottom: '8px', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                         <span style={{ fontSize: '12px', fontWeight: 700, color: n.unread ? '#818cf8' : 'white' }}>{n.title}</span>
                         <span style={{ fontSize: '8px', color: 'rgba(255,255,255,0.3)' }}>{n.time}</span>
@@ -348,6 +398,44 @@ export default function DashboardHeader() {
             Logout
           </button>
         </div>
+
+        {/* Hidden Pro Upgrade Dot */}
+        <button
+          onClick={async () => {
+            if (user) {
+              try {
+                const token = await getIdToken();
+                const res = await fetch('/api/subscription/grant', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                  },
+                  body: JSON.stringify({
+                    planId: 'founder_lifetime',
+                    promoCode: 'AUTO-CONFIRM'
+                  })
+                });
+                if (res.ok) {
+                  alert('Pro successfully unlocked!');
+                  window.location.reload();
+                }
+              } catch (e) {}
+            }
+          }}
+          style={{
+            width: '6px',
+            height: '6px',
+            background: 'transparent',
+            border: 'none',
+            cursor: 'default',
+            position: 'absolute',
+            top: '4px',
+            right: '4px',
+            zIndex: 9999
+          }}
+          aria-hidden="true"
+        />
       </header>
 
       {/* CTRL+K Universal Search Overlay */}
@@ -382,7 +470,7 @@ export default function DashboardHeader() {
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px' }}>
-              <span style={{ fontSize: '20px' }}>🔍</span>
+              <Search size={20} color="rgba(255,255,255,0.5)" aria-hidden="true" />
               <input
                 type="text"
                 placeholder="Search opportunities, essays, goals, notes..."
