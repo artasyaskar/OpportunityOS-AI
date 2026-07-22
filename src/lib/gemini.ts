@@ -1,71 +1,11 @@
-// Gemini AI client and prompt templates
-import { GoogleGenerativeAI } from '@google/generative-ai';
-import Groq from 'groq-sdk';
-
-const apiKey = process.env.GEMINI_API_KEY || '';
-const groqApiKey = process.env.GROQ_API_KEY || '';
-const isDemoMode = !apiKey || process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
-
-let genAI: GoogleGenerativeAI | null = null;
-let groqClient: Groq | null = null;
-
-if (apiKey) {
-  genAI = new GoogleGenerativeAI(apiKey);
-}
-if (groqApiKey) {
-  groqClient = new Groq({ apiKey: groqApiKey });
-}
-
-export const getGeminiModel = (modelName: 'gemini-1.5-flash-latest' | 'gemini-1.5-pro' = 'gemini-1.5-flash-latest') => {
-  if (!genAI) return null;
-  return genAI.getGenerativeModel({ model: modelName });
-};
-
-export const generateContent = async (
-  prompt: string,
-  modelName: 'gemini-1.5-flash-latest' | 'gemini-1.5-pro' = 'gemini-1.5-flash-latest'
-): Promise<string> => {
-  if (isDemoMode) {
-    await new Promise(r => setTimeout(r, 1200));
-    return DEMO_RESPONSES[Math.floor(Math.random() * DEMO_RESPONSES.length)];
-  }
-  
-  if (genAI) {
-    try {
-      const model = genAI.getGenerativeModel({ model: modelName });
-      const result = await model.generateContent(prompt);
-      return result.response.text();
-    } catch (error) {
-      console.warn('Gemini failed, attempting Groq fallback...', error);
-      // Fall through to Groq
-    }
-  }
-
-  if (groqClient) {
-    try {
-      const completion = await groqClient.chat.completions.create({
-        messages: [{ role: 'user', content: prompt }],
-        model: 'llama-3.1-8b-instant',
-      });
-      return completion.choices[0]?.message?.content || '';
-    } catch (groqError) {
-      console.error('Groq fallback failed:', groqError);
-      throw new Error('Both Gemini and Groq AI engines failed to respond.');
-    }
-  }
-  
-  throw new Error('No AI providers configured.');
-};
-
-export const generateJSON = async <T>(prompt: string, modelName: 'gemini-1.5-flash-latest' | 'gemini-1.5-pro' = 'gemini-1.5-flash-latest'): Promise<T> => {
-  const text = await generateContent(`${prompt}\n\nRespond ONLY with valid JSON, no markdown formatting (no \`\`\`json or \`\`\`), no explanation. Start the response with { or [ and end with } or ].`, modelName);
-  try {
-    const cleaned = text.replace(/```json\n?/gi, '').replace(/```\n?/g, '').trim();
-    return JSON.parse(cleaned) as T;
-  } catch {
-    throw new Error(`Failed to parse JSON response: ${text.slice(0, 100)}`);
-  }
-};
+// Prompt templates and shared domain types for OpportunityOS AI.
+//
+// NOTE: All live AI execution now goes through the resilient AIRouter
+// (`src/services/ai/router.ts`), which handles Gemini→Groq failover, retries,
+// caching, and credit metering. The old direct-client helpers
+// (getGeminiModel / generateContent / generateJSON) that used to live here have
+// been removed — they used retired Gemini 1.5 model IDs and a fake demo-response
+// fallback. This file now only owns the prompt templates and type definitions.
 
 // =====================
 // PROMPT TEMPLATES (ZERO HALLUCINATION ENFORCED)
@@ -165,6 +105,17 @@ Return strictly valid JSON in this format:
     "avgResearch": "e.g. 1.2 papers",
     "researchGap": "e.g. Gap: Need 1 paper",
     "diagnostic": "Short sentence summarizing competitive edge or primary gap"
+  },
+  "mentors": [
+    { "name": "Dr. Example Name", "lab": "Example Lab/Department", "university": "Institution", "contact": "email@example.edu", "tag": "Specialty Area" }
+  ],
+  "graphNodes": {
+    "region": "Region/Country Target",
+    "universities": "Key Institutions",
+    "researchLabs": "Specific Lab/Department",
+    "piMentors": "Lead Contact Name",
+    "activeFunding": "Funding Summary",
+    "careerPaths": "Target Career Outcome"
   }
 }`
   ),
@@ -199,7 +150,8 @@ Return JSON:
     `User Profile: ${JSON.stringify(profile)}
 ${evidenceContext ? `\nVerified Evidence (What they ALREADY have):\n${evidenceContext}\n` : ''}
 Target Opportunity: ${JSON.stringify(opportunity)}`,
-    `Return JSON:
+    `Based on the specific requirements of the opportunity and the user's gaps, generate 2-3 dynamic simulator levers that represent measurable actions the user can take (e.g., IELTS Score, Research Papers, GPA, Work Experience Months).
+Return JSON:
 {
   "currentState": "Brief assessment of where user stands",
   "targetState": "What they need to achieve",
@@ -208,6 +160,9 @@ Target Opportunity: ${JSON.stringify(opportunity)}`,
   ],
   "actionPlan": [
     { "step": 1, "action": "Register for IELTS", "timeline": "Week 1", "resources": ["ielts.org"] }
+  ],
+  "simulatorLevers": [
+    { "name": "e.g. English Proficiency (IELTS Target)", "min": 6.0, "max": 9.0, "step": 0.5, "current": 6.0, "target": 6.5, "impactMultiplier": 12 }
   ],
   "readinessPercentage": 0-100,
   "estimatedTimeToReady": "3-6 months"
@@ -258,6 +213,13 @@ Return strictly a valid JSON object matching the following structure:
         "section": "Section name (e.g., Intro, Background)",
         "whyIncluded": "Why this section is structured this way for this program",
         "dataUsed": "Specific resume data points / projects utilized in this section"
+      }
+    ],
+    "extremeExplainability": [
+      {
+        "evidenceNode": "Exact name of the knowledge node or story used",
+        "whyUsed": "Detailed explanation of WHY the AI thought this node was highly relevant to the opportunity",
+        "confidence": 98
       }
     ],
     "missingInfo": ["Information detail 1 that would strengthen the draft", "Information detail 2..."],
@@ -584,6 +546,7 @@ export interface Opportunity {
   verificationStatus?: VerificationStatus;
   lastUpdatedDate?: string;
   dataFreshnessScore?: number; // 0-100
+  source?: string;             // Ingestion source / provider name (Phase 8 data quality)
 
   // Computed per-user (NOT static — set dynamically by scoring engine)
   eligibilityScore?: number;
@@ -645,11 +608,3 @@ export interface Application {
   notes?: string;
 }
 
-// Demo responses for when no API key is set
-const DEMO_RESPONSES = [
-  'Analysis complete. Based on your strong academic profile and relevant experience, you have excellent prospects for this opportunity.',
-  'Your profile demonstrates strong alignment with the requirements. Key strengths include your academic excellence and leadership experience.',
-  'Comprehensive analysis reveals multiple high-probability opportunities matching your background in research and academic excellence.',
-];
-
-export { isDemoMode };
