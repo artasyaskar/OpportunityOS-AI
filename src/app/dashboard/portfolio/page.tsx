@@ -10,8 +10,9 @@ import { useAuth } from '@/components/auth/AuthProvider';
 import { useSubscription } from '@/components/auth/SubscriptionContext';
 import { EvidenceRepository, EvidenceDocument, DocumentStatus } from '@/lib/repositories/EvidenceRepository';
 import Link from 'next/link';
+import { Lock, Dna, Briefcase, GraduationCap, Microscope, Handshake, Laptop, Brain, Target, FileText, UploadCloud, Activity, Check } from 'lucide-react';
 
-const STATUS_STYLES: Record<string, { color: string; label: string; bg: string }> = {
+const STATUS_STYLES: Record<string, { color: string; label: any; bg: string }> = {
   wishlist: { color: '#94a3b8', label: 'Wishlist', bg: 'rgba(148,163,184,0.1)' },
   draft: { color: '#f59e0b', label: 'Drafts', bg: 'rgba(245,158,11,0.1)' },
   preparing: { color: '#f59e0b', label: 'Preparing', bg: 'rgba(245,158,11,0.1)' },
@@ -20,7 +21,7 @@ const STATUS_STYLES: Record<string, { color: string; label: string; bg: string }
   interview: { color: '#8b5cf6', label: 'Interview', bg: 'rgba(139,92,246,0.1)' },
   accepted: { color: '#10b981', label: 'Accepted', bg: 'rgba(16,185,129,0.1)' },
   visa: { color: '#06b6d4', label: 'Visa / Travel', bg: 'rgba(6,182,212,0.1)' },
-  enrolled: { color: '#10b981', label: '✓ Enrolled', bg: 'rgba(16,185,129,0.1)' },
+  enrolled: { color: '#10b981', label: <><Check size={14} className="inline mr-1" /> Enrolled</>, bg: 'rgba(16,185,129,0.1)' },
   rejected: { color: '#f43f5e', label: 'Rejected', bg: 'rgba(244,63,94,0.1)' },
 };
 
@@ -81,7 +82,7 @@ export default function PortfolioPage() {
     if (isFree) {
       return (
         <div className="card-magnetic glow-border" style={{ padding: '32px', textAlign: 'center', background: 'rgba(99,102,241,0.05)' }}>
-          <h3 style={{ fontSize: '18px', fontWeight: 800, color: 'white', marginBottom: '12px' }}>🔒 Premium AI Portfolio Insights</h3>
+          <h3 style={{ fontSize: '18px', fontWeight: 800, color: 'white', marginBottom: '12px' }}><Lock size={18} className="inline mr-2 text-indigo-400" /> Premium AI Portfolio Insights</h3>
           <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.7)', marginBottom: '24px', maxWidth: '400px', margin: '0 auto 24px' }}>
             Upgrade to Pro to unlock advanced Monte Carlo simulation, expected scholarship value calculations, and deep risk analysis for your portfolio.
           </p>
@@ -234,7 +235,7 @@ export default function PortfolioPage() {
     <div>
       <div style={{ marginBottom: '32px' }}>
         <h1 style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '28px', fontWeight: 800, color: 'white', marginBottom: '8px' }}>
-          🧬 Profile DNA & Portfolio
+          <Dna size={28} className="inline mr-2 text-indigo-400" /> Profile DNA & Portfolio
         </h1>
         <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '14px' }}>
           Manage your economic mobility coordinates. View your Opportunity DNA model and track active applications.
@@ -244,29 +245,19 @@ export default function PortfolioPage() {
       {/* Tabs Selector */}
       <div style={{ display: 'flex', gap: '8px', marginBottom: '28px', borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '12px' }}>
         <button
-          onClick={() => setActiveTab('dna')}
-          style={{
-            padding: '8px 16px', borderRadius: '8px',
-            border: activeTab === 'dna' ? '1px solid rgba(99,102,241,0.4)' : '1px solid transparent',
-            background: activeTab === 'dna' ? 'rgba(99,102,241,0.1)' : 'transparent',
-            color: activeTab === 'dna' ? '#818cf8' : 'rgba(255,255,255,0.5)',
-            fontSize: '13px', fontWeight: 700, cursor: 'pointer'
-          }}
-        >
-          🧬 Opportunity DNA Profile
-        </button>
+            onClick={() => setActiveTab('dna')}
+            className="tab-button"
+            style={{ padding: '12px 24px', background: 'transparent', border: 'none', color: activeTab === 'dna' ? 'white' : 'rgba(255,255,255,0.5)', borderBottom: activeTab === 'dna' ? '2px solid #6366f1' : '2px solid transparent', fontSize: '14px', fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s' }}
+          >
+            <Dna size={14} className="inline mr-2 text-indigo-400" /> Opportunity DNA Profile
+          </button>
         <button
-          onClick={() => setActiveTab('portfolio')}
-          style={{
-            padding: '8px 16px', borderRadius: '8px',
-            border: activeTab === 'portfolio' ? '1px solid rgba(99,102,241,0.4)' : '1px solid transparent',
-            background: activeTab === 'portfolio' ? 'rgba(99,102,241,0.1)' : 'transparent',
-            color: activeTab === 'portfolio' ? '#818cf8' : 'rgba(255,255,255,0.5)',
-            fontSize: '13px', fontWeight: 700, cursor: 'pointer'
-          }}
-        >
-          💼 Applications Portfolio
-        </button>
+            onClick={() => setActiveTab('portfolio')}
+            className="tab-button"
+            style={{ padding: '12px 24px', background: 'transparent', border: 'none', color: activeTab === 'portfolio' ? 'white' : 'rgba(255,255,255,0.5)', borderBottom: activeTab === 'portfolio' ? '2px solid #6366f1' : '2px solid transparent', fontSize: '14px', fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s' }}
+          >
+            <Briefcase size={14} className="inline mr-2 text-indigo-400" /> Applications Portfolio
+          </button>
       </div>
 
       {activeTab === 'dna' ? (
@@ -307,9 +298,9 @@ export default function PortfolioPage() {
           <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '24px' }}>
             {/* Dynamic Advantage Grid */}
             <div className="card" style={{ padding: '24px' }}>
-              <h3 style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '16px', fontWeight: 700, color: 'white', marginBottom: '16px' }}>
-                🧬 Dynamic Advantage Engine
-              </h3>
+              <h2 style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '16px', fontWeight: 700, color: 'white', marginBottom: '16px' }}>
+                <Dna size={16} className="inline mr-2 text-indigo-400" /> Dynamic Advantage Engine
+              </h2>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 {hasAcademicAdv && (
                   <div className="glass-sm" style={{ padding: '14px', borderRadius: '10px', border: '1px solid rgba(129,140,248,0.2)' }}>
@@ -360,9 +351,9 @@ export default function PortfolioPage() {
 
             {/* AI Memory Panel */}
             <div className="card-magnetic glow-border page-transition" style={{ padding: '24px' }}>
-              <h3 style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '16px', fontWeight: 700, color: 'white', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span>🧠</span> Your AI Memory Coordinates
-              </h3>
+              <h2 style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '16px', fontWeight: 700, color: 'white', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Brain size={16} className="text-indigo-400" /> Your AI Memory Coordinates
+              </h2>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                 <div>
                   <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)', fontWeight: 600 }}>CAREER GOAL</div>
@@ -395,9 +386,9 @@ export default function PortfolioPage() {
 
             {/* APPLICATION READINESS DASHBOARD */}
             <div className="card-magnetic glow-border" style={{ padding: '24px' }}>
-              <h3 style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '16px', fontWeight: 700, color: 'white', marginBottom: '16px' }}>
-                🎯 Application Readiness Dashboard
-              </h3>
+              <h2 style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '16px', fontWeight: 700, color: 'white', marginBottom: '16px' }}>
+                <Target size={16} className="inline mr-2 text-indigo-400" /> Application Readiness Dashboard
+              </h2>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 {[
                   { label: 'Documentation Credentials', value: docCredScore, color: '#3b82f6' },
@@ -421,18 +412,17 @@ export default function PortfolioPage() {
 
             {/* RESUME EVOLUTION TIMELINE */}
             <div className="card-magnetic glow-border" style={{ padding: '24px' }}>
-              <h3 style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '16px', fontWeight: 700, color: 'white', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span>📄 Resume Evolution Timeline</span>
-                <span style={{ fontSize: '9px', background: 'rgba(99,102,241,0.2)', padding: '3px 8px', borderRadius: '8px', color: '#818cf8', fontWeight: 700 }}>V3 ACTIVE</span>
-              </h3>
+              <h3 style={{ fontSize: '16px', fontWeight: 700, color: 'white', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '24px' }}>
+                <span><FileText size={16} className="text-indigo-400" /> Resume Evolution Timeline</span>
+              </h3>  <span style={{ fontSize: '9px', background: 'rgba(99,102,241,0.2)', padding: '3px 8px', borderRadius: '8px', color: '#818cf8', fontWeight: 700 }}>V3 ACTIVE</span>
               
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', position: 'relative' }}>
                 <div style={{ position: 'absolute', top: '10px', bottom: '10px', left: '15px', width: '2px', background: 'rgba(255,255,255,0.06)' }} />
                 
                 {resumeDocs.length > 0 ? resumeDocs.map((doc, idx) => (
                   <div key={doc.id} style={{ display: 'flex', gap: '12px', position: 'relative' }}>
-                    <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: idx === 0 ? '#818cf8' : 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', zIndex: 1, border: idx === 0 ? 'none' : '1px solid rgba(255,255,255,0.1)', color: idx === 0 ? 'white' : 'rgba(255,255,255,0.4)' }}>
-                      {resumeDocs.length - idx}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', borderRadius: '8px', background: hasAcademicAdv ? 'rgba(16,185,129,0.1)' : 'rgba(255,255,255,0.05)', color: hasAcademicAdv ? '#10b981' : 'rgba(255,255,255,0.4)', flexShrink: 0 }}>
+                      <span style={{ fontSize: '16px' }}><GraduationCap size={16} /></span>
                     </div>
                     <div>
                       <div style={{ fontSize: '13px', fontWeight: 700, color: idx === 0 ? 'white' : 'rgba(255,255,255,0.6)' }}>{doc.fileName}</div>
@@ -454,12 +444,8 @@ export default function PortfolioPage() {
                 onChange={handleUploadNewResume} 
                 accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
               />
-              <button 
-                onClick={() => fileInputRef.current?.click()}
-                className="btn btn-ghost" 
-                style={{ width: '100%', marginTop: '16px', justifyContent: 'center', fontSize: '12px', padding: '8px' }}
-              >
-                📤 Upload New Version
+              <button className="btn btn-primary" onClick={() => fileInputRef.current?.click()}>
+                <UploadCloud size={14} className="inline mr-2" /> Upload New Version
               </button>
             </div>
           </div>
@@ -469,8 +455,8 @@ export default function PortfolioPage() {
           {/* Portfolio Overview */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '28px' }}>
         {[
-          { label: 'Portfolio Health', value: `${healthScore}`, unit: '/100', color: healthLabel.color, icon: '💪' },
-          { label: 'Potential Value', value: portfolioStats.potentialValue, unit: '', color: '#10b981', icon: '💰' },
+          { label: 'Portfolio Health', value: `${healthScore}`, unit: '/100', color: healthLabel.color, icon: <Activity size={18} /> },
+          { label: 'Expected Value', value: portfolioStats.potentialValue, unit: '', color: '#10b981', icon: <Target size={18} /> },
           { label: 'Active Applications', value: `${portfolioStats.applied + portfolioStats.interview}`, unit: '', color: '#6366f1', icon: '📋' },
           { label: 'Success Rate', value: '14%', unit: '', color: '#8b5cf6', icon: '🎯' },
         ].map(metric => (
