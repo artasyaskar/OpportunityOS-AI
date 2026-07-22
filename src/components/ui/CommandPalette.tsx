@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { SEED_OPPORTUNITIES } from '@/lib/opportunities';
+import { Home, BarChart, Globe, Archive, Settings, Target, Rocket, GraduationCap, Search } from 'lucide-react';
 
 export function CommandPalette() {
   const [isOpen, setIsOpen] = useState(false);
@@ -39,13 +40,13 @@ export function CommandPalette() {
 
   // Static routes index
   const staticRoutes = [
-    { label: 'Dashboard Home', url: '/dashboard', type: 'Route', icon: '🏠' },
-    { label: 'My Applications Pipeline', url: '/dashboard/applications', type: 'Route', icon: '📊' },
-    { label: 'Opportunity Database', url: '/dashboard/opportunities', type: 'Route', icon: '🌍' },
-    { label: 'Evidence Vault', url: '/dashboard/settings/vault', type: 'Route', icon: '🗄️' },
-    { label: 'Settings', url: '/dashboard/settings', type: 'Route', icon: '⚙️' },
-    { label: 'Personal Preferences', url: '/dashboard/settings/preferences', type: 'Route', icon: '🎯' },
-    { label: 'AI Builder', url: '/dashboard/builder', type: 'Route', icon: '🚀' },
+    { label: 'Dashboard Home', url: '/dashboard', type: 'Route', icon: <Home size={18} /> },
+    { label: 'My Applications Pipeline', url: '/dashboard/applications', type: 'Route', icon: <BarChart size={18} /> },
+    { label: 'Opportunity Database', url: '/dashboard/opportunities', type: 'Route', icon: <Globe size={18} /> },
+    { label: 'Evidence Vault', url: '/dashboard/vault', type: 'Route', icon: <Archive size={18} /> },
+    { label: 'Settings', url: '/dashboard/settings', type: 'Route', icon: <Settings size={18} /> },
+    { label: 'Personal Preferences', url: '/dashboard/settings/preferences', type: 'Route', icon: <Target size={18} /> },
+    { label: 'AI Builder', url: '/dashboard/builder', type: 'Route', icon: <Rocket size={18} /> },
   ];
 
   const opportunityResults = SEED_OPPORTUNITIES
@@ -54,7 +55,7 @@ export function CommandPalette() {
       label: opp.title,
       url: `/dashboard/opportunities/${opp.id}/workspace`,
       type: 'Opportunity',
-      icon: '🎓'
+      icon: <GraduationCap size={18} />
     }));
 
   const routeResults = staticRoutes.filter(route => 
@@ -79,7 +80,7 @@ export function CommandPalette() {
       {/* Palette */}
       <div className="card-magnetic glow-border" style={{ position: 'relative', width: '100%', maxWidth: '640px', background: '#0a0c10', borderRadius: '16px', overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)' }}>
         <div style={{ padding: '16px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <span style={{ fontSize: '18px', color: 'rgba(255,255,255,0.4)' }}>🔍</span>
+          <span style={{ color: 'rgba(255,255,255,0.4)', display: 'flex', alignItems: 'center' }}><Search size={18} /></span>
           <input
             ref={inputRef}
             type="text"
@@ -102,7 +103,7 @@ export function CommandPalette() {
                   onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(99,102,241,0.1)'}
                   onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                 >
-                  <span style={{ fontSize: '18px' }}>{result.icon}</span>
+                  <span style={{ display: 'flex', alignItems: 'center', color: 'rgba(255,255,255,0.8)' }}>{result.icon}</span>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: '14px', fontWeight: 600, color: 'white' }}>{result.label}</div>
                   </div>
