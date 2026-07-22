@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { Sparkles, AlertTriangle, X } from 'lucide-react';
 
 export type ToastType = 'success' | 'error';
 
@@ -54,8 +55,8 @@ export default function Toast({ message, type, onClose }: ToastProps) {
         maxWidth: '350px',
       }}
     >
-      <span style={{ fontSize: '20px' }}>
-        {type === 'success' ? '✨' : '⚠️'}
+      <span style={{ display: 'flex', alignItems: 'center' }}>
+        {type === 'success' ? <Sparkles size={20} /> : <AlertTriangle size={20} />}
       </span>
       {message}
       <button 
@@ -68,7 +69,7 @@ export default function Toast({ message, type, onClose }: ToastProps) {
           marginLeft: 'auto', fontSize: '18px', display: 'flex', alignItems: 'center'
         }}
       >
-        ×
+        <X size={18} />
       </button>
     </div>
   );
