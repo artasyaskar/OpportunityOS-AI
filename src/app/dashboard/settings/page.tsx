@@ -15,9 +15,10 @@ import { getQuotaState, QuotaState } from '@/lib/costLimiter';
 import { PaymentRequestRepository, PaymentRequest, PaymentProvider, PaymentStatus } from '@/lib/repositories/PaymentRequestRepository';
 import { NotificationRepository } from '@/lib/repositories/NotificationRepository';
 import { compressImage, validateReceiptUpload } from '@/lib/imageUtils';
+import { Settings, Dna, CreditCard, Archive, Lock, FileText, BarChart2, Briefcase, Smartphone, Landmark, CheckCircle, XCircle, Check, X, Shield, ShieldCheck, Clipboard, Copy, AlertTriangle, UploadCloud, Clock, Hourglass } from 'lucide-react';
 
 export default function SettingsPage() {
-  const { user } = useAuth();
+  const { user, getIdToken } = useAuth();
   const { profile: remoteProfile, updateProfile } = useProfile();
   const { subscription: sub, updateSubscription } = useSubscription();
   const { pipeline: applications } = usePipeline();
@@ -81,7 +82,7 @@ export default function SettingsPage() {
   // Billing state
   const [quota, setQuota] = useState<QuotaState | null>(null);
   const [savedCount, setSavedCount] = useState(0);
-  const [currency, setCurrency] = useState<'PKR' | 'USD'>('PKR');
+  const [currency, setCurrency] = useState<'PKR' | 'USD'>('USD');
   
   // Guided checkout wizard state
   const [checkoutStep, setCheckoutStep] = useState<number>(1);
@@ -235,18 +236,31 @@ export default function SettingsPage() {
         setAutoVerifyStep(3);
         setTimeout(async () => {
           // If the user inputs "AUTO-CONFIRM" as custom code, let it succeed immediately
-          if (promoCode.toUpperCase() === 'AUTO-CONFIRM' || trxIdInput.toUpperCase() === 'AUTO-CONFIRM') {
-            setVerificationStatus('auto_success');
-            await updateSubscription({
-              status: 'LIFETIME',
-              planId: selectedPlan,
-              paymentProvider: selectedProvider,
-              promoCode: promoCode || undefined,
-              paymentReference: orderId,
-              startedAt: new Date().toISOString(),
+          const confirmCode = (promoCode || trxIdInput || '').toUpperCase();
+          // The grant is authorized server-side (Admin SDK). Clients can no longer
+          // write a premium subscription state directly — Firestore rules block it.
+          try {
+            const token = await getIdToken();
+            const res = await fetch('/api/subscription/grant', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+              body: JSON.stringify({
+                planId: selectedPlan,
+                promoCode: confirmCode,
+                paymentProvider: selectedProvider,
+                paymentReference: orderId,
+              }),
             });
-          } else {
-            // Otherwise, prompt for Reference ID & receipt upload fallback
+            if (res.ok) {
+              // The SubscriptionContext onSnapshot listener will reflect the new
+              // state automatically once the server write lands.
+              setVerificationStatus('auto_success');
+            } else {
+              // Not an auto-confirm code (402) or other error: fall back to receipt upload.
+              setVerificationStatus('fallback_proof');
+            }
+          } catch (err) {
+            console.error('Auto-confirm grant failed:', err);
             setVerificationStatus('fallback_proof');
           }
         }, 1500);
@@ -316,20 +330,21 @@ export default function SettingsPage() {
       link: '/dashboard/admin',
     });
 
-    // Notify admin via Email API
-    fetch('/api/admin/notify-receipt', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        userId: user!.uid,
-        userEmail: user!.email,
-        userName: profile.name || user!.displayName,
-        planId: selectedPlan,
-        provider: selectedProvider,
-        referenceId: trxIdInput,
-        receiptUrl: proofUrl,
-      }),
-    }).catch(err => console.error('Failed to trigger email API:', err));
+    // Notify admin via Email API (server verifies the token and derives identity from it).
+    getIdToken().then(token =>
+      fetch('/api/admin/notify-receipt', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({
+          userEmail: user!.email,
+          userName: profile.name || user!.displayName,
+          planId: selectedPlan,
+          provider: selectedProvider,
+          referenceId: trxIdInput,
+          receiptUrl: proofUrl,
+        }),
+      })
+    ).catch(err => console.error('Failed to trigger email API:', err));
 
     // Reload history
     const reqs = await PaymentRequestRepository.getUserRequests(user!.uid);
@@ -362,7 +377,7 @@ export default function SettingsPage() {
       {/* Title */}
       <div style={{ marginBottom: '32px' }}>
         <h1 style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '28px', fontWeight: 800, color: 'white', marginBottom: '8px' }}>
-          ⚙️ Settings & Subscriptions
+          <Settings size={28} className="inline mr-2 text-indigo-400" /> Settings & Subscriptions
         </h1>
         <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '14px' }}>
           Configure your candidate profile settings, verify AI limits, and manage payment options.
@@ -381,7 +396,7 @@ export default function SettingsPage() {
             fontSize: '13px', fontWeight: 700, cursor: 'pointer'
           }}
         >
-          🧬 Opportunity DNA Profile
+          <Dna size={14} className="inline mr-2 text-indigo-400" /> Opportunity DNA Profile
         </button>
         <button
           onClick={() => setActiveTab('billing')}
@@ -393,10 +408,10 @@ export default function SettingsPage() {
             fontSize: '13px', fontWeight: 700, cursor: 'pointer'
           }}
         >
-          💳 Plan & Billing Dashboard
+          <CreditCard size={14} className="inline mr-2 text-emerald-400" /> Plan & Billing Dashboard
         </button>
         
-        <Link href="/dashboard/settings/vault" style={{ textDecoration: 'none' }}>
+        <Link href="/dashboard/vault" style={{ textDecoration: 'none' }}>
           <button
             style={{
               padding: '8px 16px', borderRadius: '8px',
@@ -406,7 +421,7 @@ export default function SettingsPage() {
               fontSize: '13px', fontWeight: 700, cursor: 'pointer'
             }}
           >
-            🗄️ Evidence Vault
+            <Archive size={14} className="inline mr-2 text-amber-400" /> Evidence Vault
           </button>
         </Link>
 
@@ -424,7 +439,7 @@ export default function SettingsPage() {
           onMouseEnter={e => e.currentTarget.style.color = 'white'}
           onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,0.5)'}
         >
-          🔒 Account & Security
+          <Lock size={14} className="inline mr-2 text-red-400" /> Account & Security
         </Link>
       </div>
 
@@ -561,11 +576,11 @@ export default function SettingsPage() {
               
               {(() => {
                 const evidenceList = [
-                  { key: 'onboarding_resume', label: 'Resume / CV', icon: '📄' },
-                  { key: 'onboarding_transcript', label: 'Academic Transcript', icon: '📊' },
-                  { key: 'onboarding_passport', label: 'Passport', icon: '🛂' },
-                  { key: 'onboarding_ielts', label: 'IELTS Score', icon: '🗣️' },
-                  { key: 'onboarding_linkedin', label: 'LinkedIn', icon: '💼' },
+                  { key: 'onboarding_resume', label: 'Resume / CV', icon: <FileText size={20} className="text-indigo-400" /> },
+                  { key: 'onboarding_transcript', label: 'Academic Transcript', icon: <BarChart2 size={20} className="text-emerald-400" /> },
+                  { key: 'onboarding_passport', label: 'Passport', icon: <Lock size={20} className="text-blue-400" /> },
+                  { key: 'onboarding_ielts', label: 'IELTS Score', icon: <CheckCircle size={20} className="text-amber-400" /> },
+                  { key: 'onboarding_linkedin', label: 'LinkedIn', icon: <Briefcase size={20} className="text-indigo-500" /> },
                 ];
                 
                 return evidenceList.map(item => {
@@ -579,7 +594,7 @@ export default function SettingsPage() {
                           <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', marginTop: '2px' }}>{val || 'Not uploaded'}</div>
                         </div>
                       </div>
-                      <Link href="/dashboard/settings/vault">
+                      <Link href="/dashboard/vault">
                         <button className="btn btn-secondary btn-sm" style={{ cursor: 'pointer' }}>
                           Manage
                         </button>
@@ -663,9 +678,9 @@ export default function SettingsPage() {
                         width: '40px', height: '40px', borderRadius: '50%', background: badgeColor, color: textColor,
                         display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', flexShrink: 0 
                       }}>
-                        {req.status === PaymentStatus.PENDING && '⏳'}
-                        {req.status === PaymentStatus.APPROVED && '✓'}
-                        {req.status === PaymentStatus.REJECTED && '✕'}
+                        {req.status === PaymentStatus.PENDING && <Hourglass size={18} className="text-amber-400" />}
+                        {req.status === PaymentStatus.APPROVED && <Check size={18} className="text-emerald-500" />}
+                        {req.status === PaymentStatus.REJECTED && <X size={18} className="text-rose-500" />}
                       </div>
                       <div style={{ flex: 1 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -704,7 +719,7 @@ export default function SettingsPage() {
               {/* CURRENT USAGE SUMMARY CARDS */}
               <div className="card" style={{ padding: '24px' }}>
                 <h3 style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '15px', fontWeight: 700, color: 'white', marginBottom: '16px' }}>
-                  📊 Current Quotas & Feature Access
+                  <BarChart2 size={16} className="inline mr-2 text-indigo-400" /> Current Quotas & Feature Access
                 </h3>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
                   <div className="glass-sm" style={{ padding: '16px' }}>
@@ -756,11 +771,11 @@ export default function SettingsPage() {
                       </h3>
 
                       <ul style={{ margin: '20px 0', padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '12px', color: 'rgba(255,255,255,0.6)' }}>
-                        <li>{plan.id === 'free' ? '✓ 3 daily AI dispatches' : '✓ Unlimited priority AI runs'}</li>
-                        <li>{plan.id === 'free' ? '✓ Save up to 5 opportunities' : '✓ Unlimited opportunity saving'}</li>
-                        <li>{plan.pdfExportEnabled ? '✓ Executive PDF report downloads' : '✗ No document exports'}</li>
-                        <li>{plan.advisorEnabled ? '✓ Proactive executive AI coaching' : '✗ No AI coach consultations'}</li>
-                        <li>{plan.simulatorEnabled ? '✓ Real-time probability simulator' : '✗ Static score calculations'}</li>
+                        <li><Check size={12} className="inline mr-1 text-emerald-500" /> {plan.id === 'free' ? '3 daily AI dispatches' : 'Unlimited priority AI runs'}</li>
+                        <li><Check size={12} className="inline mr-1 text-emerald-500" /> {plan.id === 'free' ? 'Save up to 5 opportunities' : 'Unlimited opportunity saving'}</li>
+                        <li>{plan.pdfExportEnabled ? <><Check size={12} className="inline mr-1 text-emerald-500" /> Executive PDF report downloads</> : <><X size={12} className="inline mr-1 text-red-500" /> No document exports</>}</li>
+                        <li>{plan.advisorEnabled ? <><Check size={12} className="inline mr-1 text-emerald-500" /> Proactive executive AI coaching</> : <><X size={12} className="inline mr-1 text-red-500" /> No AI coach consultations</>}</li>
+                        <li>{plan.simulatorEnabled ? <><Check size={12} className="inline mr-1 text-emerald-500" /> Real-time probability simulator</> : <><X size={12} className="inline mr-1 text-red-500" /> Static score calculations</>}</li>
                       </ul>
 
                       {plan.id !== 'free' ? (
@@ -781,116 +796,144 @@ export default function SettingsPage() {
             </div>
           )}
 
-          {/* Step 2: Choose Payment Method */}
+          {/* Step 2: Choose Payment Method / Concierge Checkout */}
           {checkoutStep === 2 && (
-            <div className="card" style={{ padding: '28px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+            <div className="card" style={{ padding: '32px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
                 <div>
-                  <h3 style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '18px', fontWeight: 700, color: 'white' }}>
-                    Select Your Payment Corridor
+                  <h3 style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '24px', fontWeight: 800, color: 'white' }}>
+                    Concierge Checkout
                   </h3>
-                  <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '12px', marginTop: '2px' }}>
-                    Choose local mobile wallets or global bank routing details.
+                  <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '14px', marginTop: '4px' }}>
+                    Secure your premium access.
                   </p>
                 </div>
-                <button onClick={() => setCheckoutStep(1)} className="btn btn-ghost btn-sm">← Back</button>
+                <button onClick={() => setCheckoutStep(1)} className="btn btn-ghost">← Back to Plans</button>
               </div>
 
-              {currency === 'USD' ? (
-                /* INTERNATIONAL CARD COMING SOON */
-                <div style={{ textAlign: 'center', padding: '40px 24px', background: 'rgba(255,255,255,0.02)', borderRadius: '12px', border: '1px dashed rgba(255,255,255,0.1)' }}>
-                  <span style={{ fontSize: '48px' }}>💳</span>
-                  <h4 style={{ fontSize: '16px', fontWeight: 700, color: 'white', marginTop: '12px' }}>International Payments Coming Soon</h4>
-                  <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.5)', maxWidth: '400px', margin: '8px auto 16px', lineHeight: 1.5 }}>
-                    Stripe and international debit card integrations are actively processing compliance verification. Submit your email to unlock early adopter whitelisting alerts.
+              {/* The Stripe Limitation Notice */}
+              <div style={{ padding: '24px', background: 'rgba(99,102,241,0.05)', border: '1px solid rgba(99,102,241,0.2)', borderRadius: '16px', marginBottom: '32px', display: 'flex', gap: '20px', alignItems: 'flex-start' }}>
+                <div style={{ marginBottom: '16px', display: 'flex' }}><CreditCard size={32} className="text-indigo-400 drop-shadow-md" /></div>
+                <div>
+                  <h4 style={{ fontSize: '16px', fontWeight: 700, color: 'white', marginBottom: '8px' }}>Important Payment Notice</h4>
+                  <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.7)', lineHeight: 1.6, marginBottom: '16px' }}>
+                    Stripe and automated international USD payments are currently not personally available in Pakistan. While we work on fully integrating them in the future, we have set up a seamless manual approval process for our Pakistani users.
                   </p>
-                  <div style={{ display: 'flex', gap: '8px', maxWidth: '320px', margin: '0 auto' }}>
-                    <input type="email" placeholder="Your email address" className="input" style={{ fontSize: '12px' }} defaultValue={profile.email} />
-                    <button onClick={() => alert('Thanks! You have been added to the waitlist.')} className="btn btn-primary btn-sm">Join Waitlist</button>
+                  <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.7)', lineHeight: 1.6 }}>
+                    Please select a local payment corridor below. You will be provided with the exact <strong>PKR equivalent</strong> amount to transfer. Alternatively, you can always manually email your payment receipt to <a href="mailto:artasyaskar@gmail.com" style={{ color: '#818cf8', textDecoration: 'none', fontWeight: 600 }}>artasyaskar@gmail.com</a> for instant manual approval.
+                  </p>
+                </div>
+              </div>
+
+              <h4 style={{ fontSize: '14px', fontWeight: 700, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '16px' }}>Select Manual Payment Corridor</h4>
+              
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px' }}>
+                {merchants.map(m => (
+                  <div
+                    key={m.providerId}
+                    onClick={() => handleChooseMethod(m.providerId)}
+                    className="glass-panel"
+                    style={{
+                      padding: '24px',
+                      borderRadius: '16px',
+                      cursor: 'pointer',
+                      border: '1px solid rgba(255,255,255,0.06)',
+                      textAlign: 'center',
+                      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                      position: 'relative',
+                      overflow: 'hidden'
+                    }}
+                    onMouseEnter={e => {
+                      e.currentTarget.style.borderColor = 'rgba(99,102,241,0.5)';
+                      e.currentTarget.style.transform = 'translateY(-4px)';
+                      e.currentTarget.style.boxShadow = '0 10px 30px -10px rgba(99,102,241,0.2)';
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)';
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.boxShadow = 'none';
+                    }}
+                  >
+                      {m.providerId === 'easypaisa' || m.providerId === 'jazzcash' ? <Smartphone size={32} className="text-indigo-400" /> : <Landmark size={32} className="text-emerald-400" />}
+                    <div style={{ fontSize: '16px', fontWeight: 700, color: 'white' }}>{m.name}</div>
+                    <div style={{ fontSize: '12px', color: '#10b981', marginTop: '6px', fontWeight: 600 }}>0% Transaction Fee</div>
                   </div>
-                </div>
-              ) : (
-                /* PAKISTAN LOCAL WALLETS */
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
-                  {merchants.map(m => (
-                    <div
-                      key={m.providerId}
-                      onClick={() => handleChooseMethod(m.providerId)}
-                      className="glass-panel"
-                      style={{
-                        padding: '20px',
-                        borderRadius: '12px',
-                        cursor: 'pointer',
-                        border: '1px solid rgba(255,255,255,0.06)',
-                        textAlign: 'center',
-                        transition: 'transform 0.2s ease, border-color 0.2s ease'
-                      }}
-                      onMouseEnter={e => {
-                        e.currentTarget.style.borderColor = 'rgba(99,102,241,0.4)';
-                        e.currentTarget.style.transform = 'translateY(-2px)';
-                      }}
-                      onMouseLeave={e => {
-                        e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)';
-                        e.currentTarget.style.transform = 'translateY(0)';
-                      }}
-                    >
-                      <div style={{ fontSize: '24px', marginBottom: '8px' }}>
-                        {m.providerId === 'easypaisa' || m.providerId === 'jazzcash' ? '📱' : '🏦'}
-                      </div>
-                      <div style={{ fontSize: '14px', fontWeight: 700, color: 'white' }}>{m.name}</div>
-                      <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', marginTop: '4px' }}>Zero transaction fee</div>
-                    </div>
-                  ))}
-                </div>
-              )}
+                ))}
+              </div>
             </div>
           )}
 
           {/* Step 3: guided checkout */}
           {checkoutStep === 3 && (
-            <div className="card" style={{ padding: '28px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+            <div className="card" style={{ padding: '32px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
                 <div>
-                  <h3 style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '18px', fontWeight: 700, color: 'white' }}>
-                    Corporate Account Deposit
+                  <h3 style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '24px', fontWeight: 800, color: 'white' }}>
+                    Complete Your Upgrade
                   </h3>
-                  <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '12px', marginTop: '2px' }}>
-                    Order ID: **{orderId}** | Reference ID: **{paymentRef}**
+                  <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '14px', marginTop: '4px' }}>
+                    Follow the instructions below to verify your payment.
                   </p>
                 </div>
-                <button onClick={() => setCheckoutStep(2)} className="btn btn-ghost btn-sm">← Back</button>
+                <button onClick={() => setCheckoutStep(2)} className="btn btn-ghost">← Payment Corridors</button>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '28px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '32px' }}>
                 {/* Account card details */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                  <div className="glass-panel" style={{ padding: '20px', borderRadius: '12px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '14px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                  
+                  <div className="glass-panel" style={{ padding: '24px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px' }}>
                       <div>
-                        <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)', fontWeight: 700 }}>BENEFICIARY TITLE</div>
-                        <div style={{ fontSize: '15px', fontWeight: 800, color: 'white', marginTop: '4px' }}>{merchantInfo.accountTitle}</div>
+                        <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', fontWeight: 700, letterSpacing: '1px' }}>AMOUNT TO TRANSFER</div>
+                        <div style={{ fontSize: '32px', fontWeight: 900, color: '#10b981', marginTop: '4px', fontFamily: 'Space Grotesk, sans-serif' }}>
+                          Rs. {PRICING_PLANS.find(p => p.id === selectedPlan)?.pricePKR.toLocaleString() || '0'}
+                        </div>
+                        <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.4)', marginTop: '4px' }}>
+                          Equivalent to ${PRICING_PLANS.find(p => p.id === selectedPlan)?.priceUSD || '0'} USD
+                        </div>
                       </div>
-                      {merchantInfo.qrCode && (
-                        <img src={merchantInfo.qrCode} alt="Merchant QR" style={{ width: '48px', height: '48px', borderRadius: '8px' }} />
+                      <div style={{ background: 'rgba(99,102,241,0.1)', padding: '8px 12px', borderRadius: '8px', border: '1px solid rgba(99,102,241,0.2)' }}>
+                        <span style={{ fontSize: '12px', fontWeight: 700, color: '#818cf8' }}>{merchantInfo?.name}</span>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
+                      <div>
+                        <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', fontWeight: 700, letterSpacing: '1px' }}>BENEFICIARY TITLE</div>
+                        <div style={{ fontSize: '16px', fontWeight: 800, color: 'white', marginTop: '6px' }}>{merchantInfo?.accountTitle}</div>
+                      </div>
+                      {merchantInfo?.qrCode && (
+                        <img src={merchantInfo.qrCode} alt="Merchant QR" style={{ width: '56px', height: '56px', borderRadius: '12px' }} />
                       )}
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '12px', marginBottom: '14px' }}>
-                      <div onClick={() => handleCopy(merchantInfo.accountNumber, 'Account Number')} style={{ cursor: 'pointer' }}>
-                        <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)', fontWeight: 700 }}>ACCOUNT NUMBER 📋</div>
-                        <div style={{ fontSize: '14px', fontWeight: 800, color: '#818cf8', marginTop: '4px', fontFamily: 'monospace' }}>{merchantInfo.accountNumber}</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '20px' }}>
+                      <div onClick={() => handleCopy(merchantInfo?.accountNumber || '', 'Account Number')} style={{ cursor: 'pointer', background: 'rgba(0,0,0,0.2)', padding: '16px', borderRadius: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div>
+                          <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', fontWeight: 700, letterSpacing: '1px' }}>ACCOUNT NUMBER</div>
+                          <div style={{ fontSize: '16px', fontWeight: 800, color: '#white', marginTop: '6px', fontFamily: 'monospace' }}>{merchantInfo?.accountNumber}</div>
+                        </div>
+                        <Copy size={16} className="text-indigo-400" />
                       </div>
-                      {merchantInfo.iban !== 'N/A' && (
-                        <div onClick={() => handleCopy(merchantInfo.iban, 'IBAN')} style={{ cursor: 'pointer' }}>
-                          <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)', fontWeight: 700 }}>IBAN 📋</div>
-                          <div style={{ fontSize: '12px', fontWeight: 700, color: 'rgba(255,255,255,0.7)', marginTop: '4px', fontFamily: 'monospace' }}>{merchantInfo.iban}</div>
+                      
+                      {merchantInfo?.iban && merchantInfo.iban !== 'N/A' && (
+                        <div onClick={() => handleCopy(merchantInfo.iban, 'IBAN')} style={{ cursor: 'pointer', background: 'rgba(0,0,0,0.2)', padding: '16px', borderRadius: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div>
+                            <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', fontWeight: 700, letterSpacing: '1px' }}>IBAN</div>
+                            <div style={{ fontSize: '14px', fontWeight: 700, color: 'white', marginTop: '6px', fontFamily: 'monospace' }}>{merchantInfo.iban}</div>
+                          </div>
+                          <Copy size={16} className="text-indigo-400" />
                         </div>
                       )}
                     </div>
 
-                    <div onClick={() => handleCopy(paymentRef, 'Payment Reference')} style={{ cursor: 'pointer', background: 'rgba(99,102,241,0.06)', padding: '10px 14px', borderRadius: '8px', border: '1px dashed rgba(99,102,241,0.2)' }}>
-                      <div style={{ fontSize: '10px', color: '#818cf8', fontWeight: 700 }}>REQUIRED PAYMENT REFERENCE (MEMO/REMARK) 📋</div>
-                      <div style={{ fontSize: '15px', fontWeight: 950, color: '#818cf8', marginTop: '4px', fontFamily: 'monospace' }}>{paymentRef}</div>
+                    <div onClick={() => handleCopy(paymentRef, 'Payment Reference')} style={{ cursor: 'pointer', background: 'rgba(99,102,241,0.06)', padding: '16px', borderRadius: '12px', border: '1px dashed rgba(99,102,241,0.3)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div>
+                        <div style={{ fontSize: '11px', color: '#818cf8', fontWeight: 700, letterSpacing: '1px' }}>REQUIRED REFERENCE (MEMO/REMARK)</div>
+                        <div style={{ fontSize: '18px', fontWeight: 950, color: '#818cf8', marginTop: '6px', fontFamily: 'monospace' }}>{paymentRef}</div>
+                      </div>
+                      <Copy size={16} className="text-indigo-400" />
                     </div>
                   </div>
 
@@ -898,10 +941,10 @@ export default function SettingsPage() {
                   <a
                     href="https://easypaisa.com.pk"
                     target="_blank"
-                    className="btn btn-primary"
-                    style={{ width: '100%', justifyContent: 'center', padding: '14px' }}
+                    className="btn btn-secondary"
+                    style={{ width: '100%', justifyContent: 'center', padding: '16px', fontSize: '14px' }}
                   >
-                    📲 Open Wallet App
+                    <Smartphone size={14} className="inline mr-2" /> Open Wallet App
                   </a>
                 </div>
 
@@ -930,7 +973,7 @@ export default function SettingsPage() {
                         <button onClick={handleApplyPromo} className="btn btn-ghost btn-sm" style={{ padding: '0 12px' }}>Apply</button>
                       </div>
                     )}
-                    {promoDiscount > 0 && <p style={{ fontSize: '11px', color: '#10b981', marginTop: '6px' }}>✓ Discount coupon active: {promoDiscount}% Off.</p>}
+                    {promoDiscount > 0 && <p style={{ fontSize: '11px', color: '#10b981', marginTop: '6px' }}><Check size={12} className="inline mr-1 text-emerald-500" /> Discount coupon active: {promoDiscount}% Off.</p>}
                     {promoError && <p style={{ fontSize: '11px', color: '#f43f5e', marginTop: '6px' }}>{promoError}</p>}
                   </div>
 
@@ -943,7 +986,7 @@ export default function SettingsPage() {
                     className="btn btn-emerald" 
                     style={{ width: '100%', justifyContent: 'center', padding: '12px' }}
                   >
-                    ✓ I Have Transferred
+                    <Check size={14} className="inline mr-2" /> I Have Transferred
                   </button>
                 </div>
               </div>
@@ -954,24 +997,24 @@ export default function SettingsPage() {
           {verificationStatus !== 'idle' && (
             <div className="card" style={{ padding: '28px' }}>
               <h3 style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '18px', fontWeight: 700, color: 'white', marginBottom: '16px' }}>
-                🛡️ AI Transaction Verification Corridor
+                <ShieldCheck size={18} className="inline mr-2 text-indigo-400" /> AI Transaction Verification Corridor
               </h3>
 
               {verificationStatus === 'running' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: '#818cf8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px' }}>✓</div>
+                    <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: '#818cf8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px' }}><Check size={12} className="text-white" /></div>
                     <span style={{ fontSize: '13px', color: 'white', fontWeight: 600 }}>1. Receiving reference handshake logs...</span>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                     <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: autoVerifyStep >= 2 ? '#818cf8' : 'rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px' }}>
-                      {autoVerifyStep >= 2 ? '✓' : '•'}
+                      {autoVerifyStep >= 2 ? <Check size={12} className="text-white" /> : <div style={{width: 4, height: 4, borderRadius: '50%', background: 'white'}}/>}
                     </div>
                     <span style={{ fontSize: '13px', color: autoVerifyStep >= 2 ? 'white' : 'rgba(255,255,255,0.3)', fontWeight: 600 }}>2. Reconciling digital deposit ledger...</span>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                     <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: autoVerifyStep >= 3 ? '#818cf8' : 'rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px' }}>
-                      {autoVerifyStep >= 3 ? '✓' : '•'}
+                      {autoVerifyStep >= 3 ? <Check size={12} className="text-white" /> : <div style={{width: 4, height: 4, borderRadius: '50%', background: 'white'}}/>}
                     </div>
                     <span style={{ fontSize: '13px', color: autoVerifyStep >= 3 ? 'white' : 'rgba(255,255,255,0.3)', fontWeight: 600 }}>3. Querying mobile billing adapter APIs...</span>
                   </div>
@@ -983,8 +1026,8 @@ export default function SettingsPage() {
 
               {/* Success Timeline */}
               {verificationStatus === 'auto_success' && (
-                <div style={{ textAlign: 'center', padding: '20px 0' }}>
-                  <span style={{ fontSize: '48px' }}>🎉</span>
+                <div style={{ textAlign: 'center', padding: '20px 0', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                  <CheckCircle size={48} className="text-emerald-400 mb-2" />
                   <h4 style={{ fontSize: '16px', fontWeight: 800, color: '#10b981', marginTop: '12px' }}>Automatic Verification Complete</h4>
                   <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.5)', marginTop: '6px' }}>
                     Your deposit reference has resolved. Premium SaaS configurations are active!
@@ -995,46 +1038,76 @@ export default function SettingsPage() {
 
               {/* Fallback Form requested only if auto-verify fails */}
               {verificationStatus === 'fallback_proof' && (
-                <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '24px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '32px' }}>
                   <div>
-                    <h4 style={{ fontSize: '14px', fontWeight: 700, color: 'white', marginBottom: '8px' }}>Auto-Verification Incomplete</h4>
-                    <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.4)', lineHeight: 1.4, marginBottom: '16px' }}>
-                      We could not reconcile the payment parameters automatically. Please provide your transaction details for verification.
+                    <h4 style={{ fontSize: '18px', fontWeight: 800, color: 'white', marginBottom: '12px' }}>Manual Receipt Verification</h4>
+                    <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.6)', lineHeight: 1.5, marginBottom: '24px' }}>
+                      Automated verification may take up to 24 hours depending on the bank network. Please upload your transaction receipt screenshot for instant manual approval by our team.
                     </p>
                     
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '16px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginBottom: '24px' }}>
                       <div>
-                        <label style={{ display: 'block', fontSize: '10px', color: 'rgba(255,255,255,0.4)', fontWeight: 700, marginBottom: '6px' }}>TRANSACTION ID / REFERENCE NUMBER</label>
+                        <label style={{ display: 'block', fontSize: '11px', color: '#818cf8', fontWeight: 700, marginBottom: '8px', letterSpacing: '1px' }}>TRANSACTION ID / REFERENCE NUMBER</label>
                         <input 
                           type="text" 
                           placeholder="e.g. 9988776655" 
                           className="input" 
                           value={trxIdInput} 
                           onChange={e => setTrxIdInput(e.target.value)} 
-                          style={{ padding: '8px', fontSize: '12px' }}
+                          style={{ padding: '12px 16px', fontSize: '14px', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)' }}
                         />
                       </div>
                       <div>
-                        <label style={{ display: 'block', fontSize: '10px', color: 'rgba(255,255,255,0.4)', fontWeight: 700, marginBottom: '6px' }}>RECEIPT SCREENSHOT</label>
-                        <input 
-                          type="file"
-                          accept="image/*"
-                          onChange={e => setReceiptFile(e.target.files?.[0] || null)}
-                          className="input"
-                          style={{ padding: '4px', fontSize: '11px', width: '100%' }}
-                        />
+                        <label style={{ display: 'block', fontSize: '11px', color: '#818cf8', fontWeight: 700, marginBottom: '8px', letterSpacing: '1px' }}>RECEIPT SCREENSHOT</label>
+                        <div style={{ position: 'relative', width: '100%' }}>
+                          <input 
+                            type="file"
+                            accept="image/*"
+                            onChange={e => setReceiptFile(e.target.files?.[0] || null)}
+                            style={{ 
+                              position: 'absolute', width: '100%', height: '100%', opacity: 0, cursor: 'pointer', zIndex: 10 
+                            }}
+                          />
+                          <div style={{ 
+                            padding: '24px', 
+                            background: receiptFile ? 'rgba(16,185,129,0.05)' : 'rgba(99,102,241,0.05)', 
+                            border: receiptFile ? '1px dashed rgba(16,185,129,0.4)' : '1px dashed rgba(99,102,241,0.3)', 
+                            borderRadius: '12px', 
+                            textAlign: 'center',
+                            transition: 'all 0.2s ease'
+                          }}>
+                            <div style={{ fontSize: '24px', marginBottom: '8px' }}>{receiptFile ? '✅' : '📤'}</div>
+                            <div style={{ fontSize: '14px', fontWeight: 600, color: receiptFile ? '#10b981' : 'white' }}>
+                              {receiptFile ? receiptFile.name : 'Click or drag receipt image here'}
+                            </div>
+                            <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.4)', marginTop: '4px' }}>PNG, JPG, or PDF up to 5MB</div>
+                          </div>
+                        </div>
                       </div>
                     </div>
 
                     <button 
                       onClick={handleSubmitFallbackReceipt} 
                       className="btn btn-primary" 
-                      style={{ width: '100%', justifyContent: 'center' }}
+                      style={{ width: '100%', justifyContent: 'center', padding: '16px', fontSize: '14px', fontWeight: 700 }}
                     >
-                      🚀 Submit for Manual Approval
+                      🚀 Submit for Fast-Track Approval
                     </button>
+                    
+                    <p style={{ textAlign: 'center', fontSize: '12px', color: 'rgba(255,255,255,0.4)', marginTop: '16px' }}>
+                      Alternative: Email receipt to <a href="mailto:artasyaskar@gmail.com" style={{ color: '#818cf8' }}>artasyaskar@gmail.com</a>
+                    </p>
                   </div>
-
+                  
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <div style={{ padding: '32px', background: 'rgba(255,255,255,0.02)', borderRadius: '24px', border: '1px solid rgba(255,255,255,0.05)', textAlign: 'center' }}>
+                      <div style={{ fontSize: '48px', marginBottom: '16px' }}>⚡</div>
+                      <h4 style={{ fontSize: '16px', fontWeight: 700, color: 'white', marginBottom: '12px' }}>Why upload?</h4>
+                      <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.5)', lineHeight: 1.5 }}>
+                        Manual verification skips the bank settlement delay and grants you instant premium access within minutes of our admins reviewing the receipt.
+                      </p>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
