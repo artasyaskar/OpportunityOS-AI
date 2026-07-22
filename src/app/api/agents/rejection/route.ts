@@ -1,18 +1,15 @@
-import { checkRateLimit } from '@/lib/rateLimiter';
 import { NextRequest, NextResponse } from 'next/server';
 import { runRejectionLearningAgent } from '@/services/ai/agents/rejectionLearningAgent';
 import { type UserProfile, type Opportunity } from '@/lib/gemini';
+import { guardAgentRoute } from '@/lib/auth/agentGuard';
 
 export async function POST(req: NextRequest) {
-  const rateLimit = checkRateLimit(req);
-  if (!rateLimit.success) {
-    return NextResponse.json(
-      { error: 'Rate limit exceeded' },
-      { status: 429, headers: rateLimit.headers }
-    );
-  }
+  const guard = await guardAgentRoute(req);
+  if (guard instanceof NextResponse) return guard;
+  const { uid } = guard;
   try {
     const { rejection, profile, opportunity } = await req.json() as { rejection: string; profile: UserProfile; opportunity: Opportunity };
+    if (profile) profile.userId = uid;
     const result = await runRejectionLearningAgent(rejection, profile, opportunity);
     return NextResponse.json(result);
   } catch (error: any) {
