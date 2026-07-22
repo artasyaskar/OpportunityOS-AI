@@ -8,6 +8,15 @@ export interface GapAnalysisResult {
   actionPlan: Array<{ step: number; action: string; timeline: string; resources: string[] }>;
   readinessPercentage: number;
   estimatedTimeToReady: string;
+  simulatorLevers?: Array<{
+    name: string;
+    min: number;
+    max: number;
+    step: number;
+    current: number;
+    target: number;
+    impactMultiplier: number;
+  }>;
 }
 
 export async function runGapAnalysisAgent(
