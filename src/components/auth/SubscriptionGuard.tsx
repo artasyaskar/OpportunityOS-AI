@@ -3,6 +3,7 @@
 import React from 'react';
 import { useSubscription } from './SubscriptionContext';
 import Link from 'next/link';
+import { Lock } from 'lucide-react';
 
 interface SubscriptionGuardProps {
   children: React.ReactNode;
@@ -26,7 +27,7 @@ export function SubscriptionGuard({ children, fallback, requiredPlan }: Subscrip
     return (
       <div className="card-magnetic glow-border" style={{ padding: '32px', textAlign: 'center', background: 'rgba(99,102,241,0.05)', border: '1px solid rgba(99,102,241,0.2)' }}>
         <h3 style={{ fontSize: '18px', fontWeight: 800, color: 'white', marginBottom: '12px' }}>
-          🔒 Premium Feature Locked
+          <Lock size={18} className="inline mr-2" /> Premium Feature Locked
         </h3>
         <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.7)', marginBottom: '24px', maxWidth: '400px', margin: '0 auto 24px' }}>
           Upgrade to OpportunityOS Pro to unlock the AI Application Builder, advanced analytics, and unlimited opportunity tracking.
