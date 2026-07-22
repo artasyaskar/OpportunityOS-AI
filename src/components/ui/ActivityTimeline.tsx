@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { ActivityLogger, ActivityEvent } from '@/lib/services/ActivityLogger';
+import { Clock, FileText, Bot, Star, User, RefreshCw, MapPin } from 'lucide-react';
 
 export function ActivityTimeline() {
   const [events, setEvents] = useState<ActivityEvent[]>([]);
@@ -20,7 +21,7 @@ export function ActivityTimeline() {
   if (events.length === 0) {
     return (
       <div className="card" style={{ padding: '32px', textAlign: 'center' }}>
-        <div style={{ fontSize: '32px', marginBottom: '16px', opacity: 0.5 }}>🕰️</div>
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px', opacity: 0.5 }}><Clock size={32} /></div>
         <div style={{ fontSize: '14px', color: 'rgba(255,255,255,0.6)', marginBottom: '8px' }}>No Activity Logged Yet</div>
         <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.4)' }}>
           Start uploading documents or generating applications to build your timeline.
@@ -31,12 +32,12 @@ export function ActivityTimeline() {
 
   const getIcon = (type: string) => {
     switch (type) {
-      case 'UPLOAD': return '📄';
-      case 'DOCUMENT_GENERATED': return '🤖';
-      case 'OPPORTUNITY_SAVED': return '⭐';
-      case 'PROFILE_UPDATED': return '👤';
-      case 'STATUS_CHANGED': return '🔄';
-      default: return '📍';
+      case 'UPLOAD': return <FileText size={16} />;
+      case 'DOCUMENT_GENERATED': return <Bot size={16} />;
+      case 'OPPORTUNITY_SAVED': return <Star size={16} />;
+      case 'PROFILE_UPDATED': return <User size={16} />;
+      case 'STATUS_CHANGED': return <RefreshCw size={16} />;
+      default: return <MapPin size={16} />;
     }
   };
 
@@ -63,7 +64,7 @@ export function ActivityTimeline() {
     <div className="card" style={{ padding: '24px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
         <h3 style={{ fontSize: '16px', fontWeight: 700, color: 'white', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span>🕰️</span> Platform Activity Timeline
+          <span style={{ display: 'flex', alignItems: 'center' }}><Clock size={16} /></span> Platform Activity Timeline
         </h3>
         <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', background: 'rgba(255,255,255,0.05)', padding: '2px 8px', borderRadius: '12px' }}>
           Last {events.length} events
@@ -85,7 +86,7 @@ export function ActivityTimeline() {
               <div className="glass-panel" style={{ flex: 1, padding: '16px', borderRadius: '12px', background: 'rgba(255,255,255,0.02)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ fontSize: '16px' }}>{getIcon(ev.type)}</span>
+                    <span style={{ display: 'flex', alignItems: 'center', color: getColor(ev.type) }}>{getIcon(ev.type)}</span>
                     <span style={{ fontSize: '14px', fontWeight: 600, color: 'white' }}>{ev.title}</span>
                   </div>
                   <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)' }}>{getTimeAgo(ev.timestamp)}</span>
