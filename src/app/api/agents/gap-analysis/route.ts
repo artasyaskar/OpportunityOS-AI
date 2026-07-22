@@ -1,4 +1,4 @@
-import { checkRateLimit } from '@/lib/rateLimiter';
+import { guardAgentRoute } from '@/lib/auth/agentGuard';
 import { NextRequest, NextResponse } from 'next/server';
 import { runGapAnalysisAgent } from '@/services/ai/agents/gapAnalysisAgent';
 import { type UserProfile, type Opportunity } from '@/lib/gemini';
@@ -6,18 +6,20 @@ import { type UserProfile, type Opportunity } from '@/lib/gemini';
 
 
 export async function POST(req: NextRequest) {
-  const rateLimit = checkRateLimit(req);
-  if (!rateLimit.success) {
-    return NextResponse.json(
-      { error: 'Rate limit exceeded' },
-      { status: 429, headers: rateLimit.headers }
-    );
-  }
+  const guard = await guardAgentRoute(req);
+  if ('status' in guard) return guard;
+  const { uid } = guard;
   try {
     const body = await req.json();
     const profile = body.profile as UserProfile;
-    profile.userId = body.userId;
-    const opportunity = body.opportunity;
+    if (!profile) {
+      return NextResponse.json({ error: 'Missing profile' }, { status: 400 });
+    }
+    profile.userId = uid;
+    const opportunity = body.opportunity as Opportunity | undefined;
+    if (!opportunity?.id) {
+      return NextResponse.json({ error: 'Missing or invalid opportunity' }, { status: 400 });
+    }
     const evidenceContext = body.evidenceContext as string | undefined;
 
     const result = await runGapAnalysisAgent(profile, opportunity, evidenceContext);
