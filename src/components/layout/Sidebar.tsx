@@ -5,24 +5,41 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { useProfile } from '@/components/auth/ProfileContext';
+import { useSubscription } from '@/components/auth/SubscriptionContext';
+import { navIcons } from '@/lib/uiIcons';
+import { Crown, Settings } from 'lucide-react';
+
+// Maps the real subscription state to a short, human label for the user card.
+const PLAN_LABELS: Record<string, string> = {
+  FREE: 'Free Plan',
+  PENDING_PAYMENT: 'Payment Pending',
+  UNDER_REVIEW: 'Under Review',
+  ACTIVE: 'Pro Plan',
+  EXPIRED: 'Expired',
+  CANCELLED: 'Cancelled',
+  LIFETIME: 'Lifetime',
+  ENTERPRISE: 'Enterprise',
+};
 
 const NAV_ITEMS = [
-  { icon: '⊞', label: 'Mission Control', href: '/dashboard' },
-  { icon: '🔭', label: 'Opportunities', href: '/dashboard/opportunities' },
-  { icon: '📋', label: 'Applications', href: '/dashboard/applications' },
-  { icon: '✍️', label: 'Application Studio', href: '/dashboard/builder' },
-  { icon: '🗄️', label: 'Evidence Vault', href: '/dashboard/vault' },
-  { icon: '🗺️', label: 'Execution Plan', href: '/dashboard/roadmap' },
-  { icon: '💼', label: 'Opportunity Portfolio', href: '/dashboard/portfolio' },
-  { icon: '🧠', label: 'AI Chief Officer', href: '/dashboard/agents' },
-  { icon: '🧬', label: 'Opportunity DNA', href: '/dashboard/settings' },
+  { label: 'Mission Control', href: '/dashboard' },
+  { label: 'Opportunities', href: '/dashboard/opportunities' },
+  { label: 'Applications', href: '/dashboard/applications' },
+  { label: 'Application Studio', href: '/dashboard/builder' },
+  { label: 'Evidence Vault', href: '/dashboard/vault' },
+  { label: 'Execution Plan', href: '/dashboard/roadmap' },
+  { label: 'Opportunity Portfolio', href: '/dashboard/portfolio' },
+  { label: 'AI Chief Officer', href: '/dashboard/agents' },
+  { label: 'Opportunity DNA', href: '/dashboard/settings' },
 ];
 
 export default function Sidebar() {
   const pathname = usePathname();
   const { user } = useAuth();
   const { profile } = useProfile();
-  
+  const { subscription } = useSubscription();
+  const planLabel = PLAN_LABELS[subscription?.status ?? 'FREE'] ?? 'Free Plan';
+
   const [userName, setUserName] = useState('User Profile');
   const [userInitial, setUserInitial] = useState('U');
 
@@ -46,8 +63,8 @@ export default function Sidebar() {
 
   return (
     <>
-      <div className="sidebar-backdrop" onClick={closeSidebar} />
-      <aside className="sidebar">
+      <div className="sidebar-backdrop" onClick={closeSidebar} aria-hidden="true" />
+      <aside className="sidebar" id="dashboard-sidebar" aria-label="Primary navigation">
         {/* Logo */}
       <div
         style={{
@@ -104,6 +121,7 @@ export default function Sidebar() {
         </div>
         {NAV_ITEMS.map(item => {
           const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href));
+          const Icon = navIcons[item.href];
           return (
             <Link
               key={item.href}
@@ -112,7 +130,9 @@ export default function Sidebar() {
               style={{ marginBottom: '2px' }}
               onClick={closeSidebar}
             >
-              <span style={{ fontSize: '16px', width: '20px', textAlign: 'center' }}>{item.icon}</span>
+              <span style={{ width: '20px', display: 'inline-flex', justifyContent: 'center', flexShrink: 0 }}>
+                {Icon && <Icon size={18} aria-hidden="true" />}
+              </span>
               <span>{item.label}</span>
               {isActive && (
                 <span
@@ -137,7 +157,9 @@ export default function Sidebar() {
             style={{ marginBottom: '2px', border: '1px solid rgba(239,68,68,0.2)' }}
             onClick={closeSidebar}
           >
-            <span style={{ fontSize: '16px', width: '20px', textAlign: 'center', color: '#ef4444' }}>👑</span>
+            <span style={{ width: '20px', display: 'inline-flex', justifyContent: 'center', flexShrink: 0, color: '#ef4444' }}>
+              <Crown size={18} aria-hidden="true" />
+            </span>
             <span style={{ color: '#fca5a5' }}>Admin Dashboard</span>
             {pathname.startsWith('/dashboard/admin') && (
               <span
@@ -169,10 +191,10 @@ export default function Sidebar() {
         </div>
 
         {[
-          { label: 'Discovery', status: 'active' },
-          { label: 'Probability Engine', status: 'active' },
-          { label: 'Gap Analysis', status: 'idle' },
-          { label: 'Application Builder', status: 'idle' },
+          { label: 'Discovery' },
+          { label: 'Probability Engine' },
+          { label: 'Gap Analysis' },
+          { label: 'Application Builder' },
         ].map(agent => (
           <div
             key={agent.label}
@@ -185,7 +207,8 @@ export default function Sidebar() {
               marginBottom: '2px',
             }}
           >
-            <span className={`agent-status-dot ${agent.status === 'active' ? 'running' : 'idle'}`} />
+            {/* Availability indicator — agents run on-demand from your evidence, not a live background feed. */}
+            <span className="agent-status-dot idle" title="Ready" />
             <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.45)', fontWeight: 500 }}>
               {agent.label}
             </span>
@@ -230,9 +253,11 @@ export default function Sidebar() {
             <div style={{ fontSize: '13px', fontWeight: 600, color: 'white', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
               {userName}
             </div>
-            <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)' }}>Pro Plan</div>
+            <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)' }}>{planLabel}</div>
           </div>
-          <Link href="/dashboard/settings" style={{ color: 'rgba(255,255,255,0.4)', fontSize: '16px', textDecoration: 'none' }} onClick={closeSidebar}>⚙</Link>
+          <Link href="/dashboard/settings" style={{ color: 'rgba(255,255,255,0.4)', display: 'inline-flex', textDecoration: 'none' }} onClick={closeSidebar} aria-label="Settings">
+            <Settings size={16} aria-hidden="true" />
+          </Link>
         </div>
       </div>
       </aside>
