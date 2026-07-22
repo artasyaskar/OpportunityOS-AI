@@ -1,5 +1,5 @@
 import { db } from '../firebase';
-import { collection, doc, getDocs, setDoc, query, where } from 'firebase/firestore';
+import { collection, doc, getDocs, setDoc, deleteDoc, query, where } from 'firebase/firestore';
 
 export type EvidenceType =
   | "resume"
@@ -22,6 +22,16 @@ export type EvidenceType =
   | "financial_statement"
   | "visa"
   | "linkedin"
+  | "research_memory"
+  | "interview_memory"
+  | "project_memory"
+  | "leadership_memory"
+  | "hackathon_memory"
+  | "volunteer_memory"
+  | "patent_memory"
+  | "startup_memory"
+  | "github_memory"
+  | "blog_memory"
   | "other";
 
 export enum DocumentStatus {
@@ -98,12 +108,24 @@ export interface EvidenceDocument {
   versionHistory?: { version: number; action: string; timestamp: string; note?: string }[];
   fileHash?: string;
   fileUrl?: string;
-  
+
+  // Personal Intelligence Vault (Knowledge Graph)
+  nodeType?: string;
+  metrics?: {
+    importance: number;
+    confidence: number;
+    relevance?: number;
+    lastUsed?: string;
+    usageCount: number;
+  };
+  extractedInsights?: Record<string, any>;
   // Auditing and lifecycle tracking (Phase 1 MVP Architecture)
   parserUsed?: string;
   extractionVersion?: string;
   whoVerified?: "AI" | "User" | "Admin";
-}
+} // trigger hot reload
+
+export type KnowledgeNode = EvidenceDocument;
 
 export class EvidenceRepository {
   /**
@@ -153,6 +175,14 @@ export class EvidenceRepository {
   static async saveEvidence(userId: string, docData: EvidenceDocument): Promise<void> {
     const docRef = doc(db, 'evidence', docData.id);
     await setDoc(docRef, docData, { merge: true });
+  }
+
+  /**
+   * Deletes a specific evidence document.
+   */
+  static async deleteEvidence(docId: string): Promise<void> {
+    const docRef = doc(db, 'evidence', docId);
+    await deleteDoc(docRef);
   }
 
   /**
