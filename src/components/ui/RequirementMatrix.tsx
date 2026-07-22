@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { useProfile } from '../auth/ProfileContext';
+import { StatusIcon } from '@/lib/uiIcons';
 
 interface Requirement {
   type: 'gpa' | 'ielts' | 'toefl' | 'degree' | 'country';
@@ -60,7 +61,7 @@ export function RequirementMatrix({ requirements }: { requirements: Requirement[
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
         <div>
           <h3 style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '16px', fontWeight: 700, color: 'white', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span>{allPass ? '✅' : '⚠️'}</span> Requirement Verification Matrix
+            <StatusIcon status={allPass ? 'success' : 'warning'} size={20} /> Requirement Verification Matrix
           </h3>
           <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)', marginTop: '4px' }}>
             Strict evaluation against your verified Evidence Vault.
@@ -82,9 +83,9 @@ export function RequirementMatrix({ requirements }: { requirements: Requirement[
               </div>
             </div>
             {res.pass ? (
-              <span style={{ fontSize: '12px', fontWeight: 800, color: '#10b981', background: 'rgba(16,185,129,0.1)', padding: '6px 12px', borderRadius: '20px' }}>PASS ✓</span>
+              <span style={{ fontSize: '12px', fontWeight: 800, color: '#10b981', background: 'rgba(16,185,129,0.1)', padding: '6px 12px', borderRadius: '20px', display: 'flex', alignItems: 'center', gap: '4px' }}>PASS <StatusIcon status="success" size={14} /></span>
             ) : (
-              <span style={{ fontSize: '12px', fontWeight: 800, color: '#f43f5e', background: 'rgba(244,63,94,0.1)', padding: '6px 12px', borderRadius: '20px' }}>MISSING ✕</span>
+              <span style={{ fontSize: '12px', fontWeight: 800, color: '#f43f5e', background: 'rgba(244,63,94,0.1)', padding: '6px 12px', borderRadius: '20px', display: 'flex', alignItems: 'center', gap: '4px' }}>MISSING <StatusIcon status="error" size={14} /></span>
             )}
           </div>
         ))}
