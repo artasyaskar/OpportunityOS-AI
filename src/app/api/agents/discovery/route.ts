@@ -1,21 +1,17 @@
-import { checkRateLimit } from '@/lib/rateLimiter';
 import { NextRequest, NextResponse } from 'next/server';
+import { guardAgentRoute } from '@/lib/auth/agentGuard';
 import { runDiscoveryAgent } from '@/services/ai/agents/discoveryAgent';
 import { type UserProfile } from '@/lib/gemini';
 import { SEED_OPPORTUNITIES } from '@/lib/opportunities';
 
 export async function POST(req: NextRequest) {
-  const rateLimit = checkRateLimit(req);
-  if (!rateLimit.success) {
-    return NextResponse.json(
-      { error: 'Rate limit exceeded' },
-      { status: 429, headers: rateLimit.headers }
-    );
-  }
+  const guard = await guardAgentRoute(req);
+  if (guard instanceof NextResponse) return guard;
+  const { uid } = guard;
   try {
     const body = await req.json();
     const profile = body.profile as UserProfile;
-    profile.userId = body.userId;
+    profile.userId = uid;
     const evidenceContext = body.evidenceContext as string | undefined;
 
     const opportunities = await runDiscoveryAgent(profile, evidenceContext);
