@@ -7,6 +7,7 @@ import { SEED_OPPORTUNITIES } from '@/lib/opportunities';
 import { RequirementMatrix } from '@/components/ui/RequirementMatrix';
 import { ReadinessScore } from '@/components/ui/ReadinessScore';
 import { usePipeline } from '@/components/auth/PipelineContext';
+import { Building2, MapPin, DollarSign, Rocket, BarChart3, CheckSquare, FileText, PenLine, File, Mail, GraduationCap } from 'lucide-react';
 
 export default function WorkspacePage() {
   const { id } = useParams();
@@ -51,16 +52,16 @@ export default function WorkspacePage() {
               {opportunity.title}
             </h1>
             <div style={{ fontSize: '14px', color: 'rgba(255,255,255,0.6)', display: 'flex', gap: '16px', alignItems: 'center' }}>
-              <span>🏢 {opportunity.provider}</span>
-              <span>📍 {opportunity.country}</span>
-              <span style={{ color: '#10b981', fontWeight: 600 }}>💰 {opportunity.fundingLevel}</span>
+              <span><Building2 size={14} className="inline mr-1 text-indigo-400" /> {opportunity.provider}</span>
+              <span><MapPin size={14} className="inline mr-1 text-rose-400" /> {opportunity.country}</span>
+              <span style={{ color: '#10b981', fontWeight: 600 }}><DollarSign size={14} className="inline mr-1" /> {opportunity.fundingLevel}</span>
             </div>
           </div>
           <div style={{ textAlign: 'right' }}>
             <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', fontWeight: 700, marginBottom: '4px' }}>DEADLINE</div>
             <div style={{ fontSize: '20px', fontWeight: 800, color: '#f43f5e' }}>{opportunity.deadline}</div>
             <Link href="/dashboard/builder" className="btn btn-primary" style={{ marginTop: '16px' }}>
-              🚀 Launch AI Builder
+              <Rocket size={14} className="inline mr-2" /> Launch AI Builder
             </Link>
           </div>
         </div>
@@ -72,9 +73,9 @@ export default function WorkspacePage() {
         {/* Sidebar Navigation */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           {[
-            { id: 'overview', label: '📊 Overview' },
-            { id: 'requirements', label: '✅ Requirements Matrix' },
-            { id: 'documents', label: '📄 Application Documents' },
+            { id: 'overview', label: <><BarChart3 size={14} className="inline mr-1" /> Overview</> },
+            { id: 'requirements', label: <><CheckSquare size={14} className="inline mr-1" /> Requirements Matrix</> },
+            { id: 'documents', label: <><FileText size={14} className="inline mr-1" /> Application Documents</> },
             { id: 'timeline', label: '⏰ Timeline & Tasks' }
           ].map(tab => (
             <button
@@ -148,10 +149,10 @@ export default function WorkspacePage() {
             <div className="animate-slide-up">
               <div style={{ display: 'grid', gap: '16px' }}>
                 {[
-                  { name: 'Statement of Purpose', status: 'Drafting in Builder', color: '#f59e0b', icon: '📝' },
-                  { name: 'Curriculum Vitae (CV)', status: 'Generated & Linked', color: '#10b981', icon: '📄' },
-                  { name: 'Letter of Recommendation 1', status: 'Missing', color: '#f43f5e', icon: '✉️' },
-                  { name: 'Official Transcripts', status: 'Linked from Vault', color: '#10b981', icon: '🎓' }
+                  { name: 'Statement of Purpose', status: 'Drafting in Builder', color: '#f59e0b', icon: <PenLine size={16} className="text-amber-500" /> },
+                  { name: 'Curriculum Vitae (CV)', status: 'Generated & Linked', color: '#10b981', icon: <File size={16} className="text-emerald-500" /> },
+                  { name: 'Letter of Recommendation 1', status: 'Missing', color: '#f43f5e', icon: <Mail size={16} className="text-rose-500" /> },
+                  { name: 'Official Transcripts', status: 'Linked from Vault', color: '#10b981', icon: <GraduationCap size={16} className="text-emerald-500" /> }
                 ].map((doc, i) => (
                   <div key={i} className="card" style={{ padding: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
