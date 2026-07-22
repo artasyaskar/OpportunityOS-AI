@@ -1,13 +1,8 @@
 // Firebase configuration and initialization
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { getFirestore, setLogLevel } from 'firebase/firestore';
+import { initializeFirestore, getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
-
-// Enable debug logs temporarily for hackathon troubleshooting
-if (typeof window !== 'undefined') {
-  setLogLevel('debug');
-}
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || 'demo-api-key',
@@ -19,9 +14,20 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase (avoid duplicate initialization)
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+const isNewApp = getApps().length === 0;
+const app = isNewApp ? initializeApp(firebaseConfig) : getApp();
 
 export const auth = getAuth(app);
-export const db = getFirestore(app);
+
+// Initialize Firestore with auto-detected long-polling. The default WebChannel
+// transport fails on many networks (corporate proxies, VPNs, some mobile carriers)
+// with "WebChannelConnection RPC 'Listen' stream transport errored". Auto-detecting
+// long-polling lets the SDK fall back gracefully instead of erroring out.
+// initializeFirestore must run before any getFirestore() call, so it is guarded to
+// the first app initialization; subsequent imports reuse the existing instance.
+export const db = isNewApp
+  ? initializeFirestore(app, { experimentalAutoDetectLongPolling: true })
+  : getFirestore(app);
+
 export const storage = getStorage(app);
 export default app;
