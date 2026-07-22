@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { EvidenceDocument, DocumentStatus } from '@/lib/repositories/EvidenceRepository';
+import { Search, Check, Edit2, X } from 'lucide-react';
 
 interface EvidenceReviewProps {
   document: EvidenceDocument;
@@ -39,7 +40,7 @@ export function EvidenceReview({ document, onAccept, onReject }: EvidenceReviewP
       <div className="flex items-center justify-between mb-4">
         <div>
           <h3 className="text-lg font-bold text-white flex items-center gap-2">
-            <span className="text-xl">🔍</span> Review Extracted Evidence
+            <span className="flex items-center"><Search size={20} /></span> Review Extracted Evidence
           </h3>
           <p className="text-sm text-white/50">
             {document.parserUsed || 'AI'} extracted the following facts from {document.fileName}. Please verify them before they are added to your Canonical Profile.
@@ -85,7 +86,7 @@ export function EvidenceReview({ document, onAccept, onReject }: EvidenceReviewP
           disabled={isSubmitting}
           className="btn btn-primary btn-sm px-6"
         >
-          {isSubmitting ? 'Saving...' : (isEditing ? 'Save & Accept' : '✓ Accept All')}
+          {isSubmitting ? 'Saving...' : (isEditing ? 'Save & Accept' : <><Check size={14} className="mr-1 inline" /> Accept All</>)}
         </button>
         
         {!isEditing && (
@@ -94,7 +95,7 @@ export function EvidenceReview({ document, onAccept, onReject }: EvidenceReviewP
             disabled={isSubmitting}
             className="btn btn-secondary btn-sm px-6"
           >
-            ✎ Edit
+            <Edit2 size={14} className="mr-1 inline" /> Edit
           </button>
         )}
 
@@ -116,7 +117,7 @@ export function EvidenceReview({ document, onAccept, onReject }: EvidenceReviewP
           disabled={isSubmitting}
           className="btn border border-rose-500/30 text-rose-400 hover:bg-rose-500/10 btn-sm ml-auto px-6"
         >
-          ✕ Reject
+          <X size={14} className="mr-1 inline" /> Reject
         </button>
       </div>
     </div>
