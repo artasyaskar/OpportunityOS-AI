@@ -7,22 +7,47 @@ service cloud.firestore {
       return request.auth != null && request.auth.token.email == 'artasyaskar@gmail.com';
     }
     
+    // Subscription states that unlock premium features. These may only be set by
+    // the admin (via approval) or the server (Admin SDK bypasses rules entirely).
+    // Clients must never be able to grant themselves a paid tier.
+    function isPrivilegedSub(data) {
+      return data.get('status', 'FREE') in ['ACTIVE', 'APPROVED', 'LIFETIME', 'ENTERPRISE']
+          || data.get('state', 'FREE') in ['ACTIVE', 'APPROVED', 'LIFETIME', 'ENTERPRISE'];
+    }
+
     // Strict tenant isolation for user profiles/data
     match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read: if request.auth != null && (request.auth.uid == userId || isAdmin());
+      // aiCredits is server-managed (Admin SDK); clients may never write it.
+      allow create: if request.auth != null && request.auth.uid == userId
+                    && !request.resource.data.keys().hasAny(['aiCredits']);
+      allow update: if request.auth != null && request.auth.uid == userId
+                    && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['aiCredits']);
+      allow write: if isAdmin();
     }
-    
+
     match /profiles/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read: if request.auth != null && (request.auth.uid == userId || isAdmin());
+      // aiCredits is server-managed (Admin SDK / CreditManager); clients may never write it.
+      allow create: if request.auth != null && request.auth.uid == userId
+                    && !request.resource.data.keys().hasAny(['aiCredits']);
+      allow update: if request.auth != null && request.auth.uid == userId
+                    && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['aiCredits']);
+      allow write: if isAdmin();
     }
-    
+
     match /pipelines/{userId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
-    
-    // Subscriptions can be read/written by the user OR the admin (for approvals)
+
+    // Subscriptions: readable by owner/admin. The admin may write (approvals) and
+    // the server (Admin SDK) bypasses rules. A user may only write their own doc to
+    // a NON-privileged state (e.g. FREE, TRIAL) — never grant themselves premium.
     match /subscriptions/{userId} {
-      allow read, write: if request.auth != null && (request.auth.uid == userId || isAdmin());
+      allow read: if request.auth != null && (request.auth.uid == userId || isAdmin());
+      allow write: if isAdmin();
+      allow write: if request.auth != null && request.auth.uid == userId
+                   && !isPrivilegedSub(request.resource.data);
     }
 
     // Strict tenant isolation for evidence vault
@@ -67,10 +92,16 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Payment requests: a user may create their OWN request in PENDING state and
+    // read their own requests, but may never mutate status/planId (approval is
+    // admin-only). The admin has full control (approvals/rejections run from the
+    // admin console via the client SDK, so isAdmin() write access is required).
     match /payment_requests/{requestId} {
-      allow read, write: if request.auth != null && request.auth.uid == resource.data.uid;
-      allow create: if request.auth != null && request.auth.uid == request.resource.data.uid;
-      allow read, write: if isAdmin();
+      allow read: if request.auth != null && (request.auth.uid == resource.data.uid || isAdmin());
+      allow create: if request.auth != null
+                    && request.auth.uid == request.resource.data.uid
+                    && request.resource.data.status == 'PENDING';
+      allow write: if isAdmin();
     }
 
     match /notifications/{notifId} {
