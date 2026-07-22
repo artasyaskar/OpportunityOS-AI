@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { useProfile } from '@/components/auth/ProfileContext';
 import AuthModal from '@/components/auth/AuthModal';
+import { Rocket } from 'lucide-react';
 import Toast, { ToastType } from '@/components/auth/Toast';
 
 export default function LoginPage() {
@@ -175,7 +176,7 @@ export default function LoginPage() {
               </div>
 
               <button className="btn-primary-3d" type="submit" disabled={loading}>
-                <span className="rocket-prop" style={{ animation: loading ? 'rocket-pulse 0.5s ease-in-out infinite alternate' : 'none' }}>🚀</span>
+                <span className="rocket-prop" style={{ display: 'flex', alignItems: 'center', animation: loading ? 'rocket-pulse 0.5s ease-in-out infinite alternate' : 'none' }}><Rocket size={18} /></span>
                 {loading ? 'Authenticating...' : 'Sign In'}
               </button>
             </form>
