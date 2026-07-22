@@ -2,8 +2,6 @@
 
 import React from 'react';
 import { PRICING_PLANS } from '@/lib/pricing';
-import { useProfile } from '@/components/auth/ProfileContext';
-import { CreditManager } from '@/lib/services/CreditManager';
 
 interface UpgradeModalProps {
   isOpen: boolean;
@@ -11,95 +9,106 @@ interface UpgradeModalProps {
 }
 
 export default function UpgradeModal({ isOpen, onClose }: UpgradeModalProps) {
-  const { profile, updateProfile } = useProfile();
-
   if (!isOpen) return null;
 
-  const handleDemoRefill = async () => {
-    try {
-      await updateProfile({ aiCredits: 1000 });
-      alert('1000 Demo AI Credits Added! (Hackathon Mode)');
-      onClose();
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm transition-opacity">
-      <div className="relative w-full max-w-4xl bg-gray-900 border border-gray-700 rounded-3xl shadow-2xl p-8 overflow-hidden">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-black/80 backdrop-blur-md transition-opacity duration-300">
+      <div className="relative w-full max-w-4xl bg-[#0f111a] border border-gray-800 rounded-[2rem] shadow-2xl p-8 sm:p-12 overflow-hidden flex flex-col">
         
-        {/* Glow Effects */}
-        <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-600 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse"></div>
-        <div className="absolute bottom-0 left-0 w-64 h-64 bg-purple-600 rounded-full mix-blend-multiply filter blur-3xl opacity-20"></div>
+        {/* Dynamic Premium Background Glows */}
+        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-indigo-600/20 rounded-full blur-[120px] pointer-events-none -translate-y-1/2 translate-x-1/3"></div>
+        <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-fuchsia-600/20 rounded-full blur-[120px] pointer-events-none translate-y-1/3 -translate-x-1/3"></div>
 
         <button 
           onClick={onClose}
-          className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors"
+          className="absolute top-6 right-6 p-2 bg-gray-800/50 hover:bg-gray-700 text-gray-400 hover:text-white rounded-full transition-all z-20"
         >
-          <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
           </svg>
         </button>
 
-        <div className="text-center mb-10 relative z-10">
-          <div className="inline-block p-3 rounded-full bg-indigo-500/20 mb-4">
+        <div className="text-center mb-12 relative z-10">
+          <div className="inline-flex items-center justify-center p-4 rounded-2xl bg-gradient-to-br from-indigo-500/20 to-purple-500/20 border border-indigo-500/30 mb-6 shadow-lg shadow-indigo-500/10">
             <svg className="w-8 h-8 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
             </svg>
           </div>
-          <h2 className="text-3xl font-bold text-white mb-2">Out of AI Credits</h2>
-          <p className="text-gray-300 max-w-lg mx-auto">
-            You've run out of your free AI processing credits. Upgrade to OpportunityOS Pro to unlock unlimited applications, deep strategy insights, and advanced AI matching.
+          <h2 className="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-400 mb-4 tracking-tight">
+            Unlock Unlimited AI Intelligence
+          </h2>
+          <p className="text-lg text-gray-400 max-w-2xl mx-auto leading-relaxed">
+            You've reached the limit of your free AI processing credits. Upgrade to OpportunityOS Pro to unlock the full power of your AI Chief Opportunity Officer.
           </p>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-6 relative z-10">
-          {PRICING_PLANS.filter(p => p.id === 'free' || p.id === 'professional_monthly').map(plan => (
-            <div key={plan.id} className={`rounded-2xl p-6 border ${plan.id === 'professional_monthly' ? 'border-indigo-500 bg-indigo-900/20' : 'border-gray-700 bg-gray-800/50'} relative overflow-hidden`}>
-              {plan.id === 'professional_monthly' && (
-                <div className="absolute top-0 right-0 bg-indigo-500 text-white text-xs font-bold px-3 py-1 rounded-bl-lg">
-                  RECOMMENDED
+        <div className="grid md:grid-cols-2 gap-8 relative z-10">
+          {PRICING_PLANS.filter(p => p.id === 'free' || p.id === 'professional_monthly').map(plan => {
+            const isPro = plan.id === 'professional_monthly';
+            return (
+              <div 
+                key={plan.id} 
+                className={`relative flex flex-col rounded-[1.5rem] p-8 transition-all duration-300 ${
+                  isPro 
+                    ? 'bg-gradient-to-b from-[#1c1f33] to-[#131524] border-2 border-indigo-500/50 shadow-2xl shadow-indigo-500/20 scale-100 md:scale-105 z-10' 
+                    : 'bg-[#151822] border border-gray-800 hover:border-gray-700 opacity-90 hover:opacity-100'
+                }`}
+              >
+                {isPro && (
+                  <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-gradient-to-r from-indigo-500 to-purple-500 text-white text-xs font-bold px-4 py-1.5 rounded-full shadow-lg whitespace-nowrap tracking-wider uppercase">
+                    Most Popular
+                  </div>
+                )}
+                
+                <div className="mb-8">
+                  <h3 className={`text-2xl font-bold mb-2 ${isPro ? 'text-white' : 'text-gray-300'}`}>{plan.name}</h3>
+                  <div className="flex items-baseline gap-1">
+                    <span className={`text-5xl font-black ${isPro ? 'text-white' : 'text-gray-400'}`}>${plan.priceUSD}</span>
+                    <span className="text-gray-500 font-medium">/month</span>
+                  </div>
                 </div>
-              )}
-              <h3 className="text-xl font-bold text-white mb-2">{plan.name}</h3>
-              <div className="mb-4">
-                <span className="text-3xl font-extrabold text-white">${plan.priceUSD}</span>
-                <span className="text-gray-400">/month</span>
+                
+                <ul className="space-y-4 mb-10 flex-grow">
+                  <li className="flex items-start">
+                    <svg className={`w-6 h-6 mr-3 shrink-0 ${isPro ? 'text-indigo-400' : 'text-gray-600'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
+                    <span className={`text-base font-medium ${isPro ? 'text-gray-200' : 'text-gray-400'}`}>
+                      {plan.aiLimitDaily === 999 ? 'Unlimited AI Generations' : '100 Free AI Credits'}
+                    </span>
+                  </li>
+                  <li className="flex items-start">
+                    <svg className={`w-6 h-6 mr-3 shrink-0 ${isPro ? 'text-indigo-400' : 'text-gray-600'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
+                    <span className={`text-base font-medium ${isPro ? 'text-gray-200' : 'text-gray-400'}`}>
+                      {plan.opportunitiesLimit === 999 ? 'Unlimited Opportunity Saves' : 'Save up to 5 Opportunities'}
+                    </span>
+                  </li>
+                  <li className="flex items-start">
+                    <svg className={`w-6 h-6 mr-3 shrink-0 ${plan.advisorEnabled ? 'text-indigo-400' : 'text-gray-700'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
+                    <span className={`text-base font-medium ${!plan.advisorEnabled ? 'text-gray-600 line-through' : (isPro ? 'text-gray-200' : 'text-gray-400')}`}>
+                      AI Strategy Advisor
+                    </span>
+                  </li>
+                  <li className="flex items-start">
+                    <svg className={`w-6 h-6 mr-3 shrink-0 ${plan.simulatorEnabled ? 'text-indigo-400' : 'text-gray-700'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
+                    <span className={`text-base font-medium ${!plan.simulatorEnabled ? 'text-gray-600 line-through' : (isPro ? 'text-gray-200' : 'text-gray-400')}`}>
+                      Interview Simulator
+                    </span>
+                  </li>
+                </ul>
+
+                <button 
+                  className={`w-full py-4 rounded-xl font-bold text-lg transition-all duration-300 ${
+                    isPro 
+                      ? 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 hover:-translate-y-0.5' 
+                      : 'bg-gray-800 hover:bg-gray-700 text-gray-300 cursor-default'
+                  }`}
+                >
+                  {isPro ? 'Upgrade to Pro' : 'Current Plan'}
+                </button>
               </div>
-              
-              <ul className="space-y-3 mb-6">
-                <li className="flex items-center text-gray-300">
-                  <svg className="w-5 h-5 text-green-400 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                  {plan.aiLimitDaily === 999 ? 'Unlimited AI Generations' : '100 Free AI Credits'}
-                </li>
-                <li className="flex items-center text-gray-300">
-                  <svg className="w-5 h-5 text-green-400 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                  {plan.opportunitiesLimit === 999 ? 'Unlimited Opportunity Saved' : 'Save up to 5 Opportunities'}
-                </li>
-                <li className="flex items-center text-gray-300">
-                  <svg className={`w-5 h-5 mr-2 ${plan.advisorEnabled ? 'text-green-400' : 'text-gray-600'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                  <span className={!plan.advisorEnabled ? 'text-gray-500 line-through' : ''}>AI Strategy Advisor</span>
-                </li>
-                <li className="flex items-center text-gray-300">
-                  <svg className={`w-5 h-5 mr-2 ${plan.simulatorEnabled ? 'text-green-400' : 'text-gray-600'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                  <span className={!plan.simulatorEnabled ? 'text-gray-500 line-through' : ''}>Interview Simulator</span>
-                </li>
-              </ul>
-
-              <button className={`w-full py-3 rounded-lg font-bold transition-all ${plan.id === 'professional_monthly' ? 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/30' : 'bg-gray-700 hover:bg-gray-600 text-white'}`}>
-                {plan.id === 'professional_monthly' ? 'Upgrade to Pro' : 'Current Plan'}
-              </button>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
-        {/* Hackathon Demo Refill Button */}
-        <div className="mt-8 text-center relative z-10">
-          <button onClick={handleDemoRefill} className="text-xs text-gray-500 hover:text-indigo-400 border border-gray-700 border-dashed rounded px-3 py-1 transition-colors">
-            🧑‍💻 Hackathon Demo: Refill 1000 Credits
-          </button>
-        </div>
       </div>
     </div>
   );
