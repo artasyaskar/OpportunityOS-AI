@@ -11,29 +11,29 @@ export default function sitemap(): MetadataRoute.Sitemap {
 
   // Static marketing / legal pages
   const staticRoutes: MetadataRoute.Sitemap = [
-    { url: SITE_URL, changeFrequency: 'daily', priority: 1 },
-    { url: `${SITE_URL}/opportunities`, changeFrequency: 'daily', priority: 0.9 },
-    { url: `${SITE_URL}/about`, changeFrequency: 'monthly', priority: 0.7 },
-    { url: `${SITE_URL}/pricing`, changeFrequency: 'monthly', priority: 0.7 },
-    { url: `${SITE_URL}/faq`, changeFrequency: 'monthly', priority: 0.6 },
-    { url: `${SITE_URL}/signup`, changeFrequency: 'monthly', priority: 0.6 },
-    { url: `${SITE_URL}/login`, changeFrequency: 'yearly', priority: 0.3 },
-    { url: `${SITE_URL}/privacy`, changeFrequency: 'yearly', priority: 0.3 },
-    { url: `${SITE_URL}/terms`, changeFrequency: 'yearly', priority: 0.3 },
+    { url: SITE_URL, changeFrequency: 'daily' as const, priority: 1 },
+    { url: `${SITE_URL}/opportunities`, changeFrequency: 'daily' as const, priority: 0.9 },
+    { url: `${SITE_URL}/about`, changeFrequency: 'monthly' as const, priority: 0.7 },
+    { url: `${SITE_URL}/pricing`, changeFrequency: 'monthly' as const, priority: 0.7 },
+    { url: `${SITE_URL}/faq`, changeFrequency: 'monthly' as const, priority: 0.6 },
+    { url: `${SITE_URL}/signup`, changeFrequency: 'monthly' as const, priority: 0.6 },
+    { url: `${SITE_URL}/login`, changeFrequency: 'yearly' as const, priority: 0.3 },
+    { url: `${SITE_URL}/privacy`, changeFrequency: 'yearly' as const, priority: 0.3 },
+    { url: `${SITE_URL}/terms`, changeFrequency: 'yearly' as const, priority: 0.3 },
   ].map((r) => ({ ...r, lastModified: now }));
 
   // Programmatic category & country hub pages
   const categoryRoutes: MetadataRoute.Sitemap = categoryFacets().map((f) => ({
     url: `${SITE_URL}/opportunities/category/${f.slug}`,
     lastModified: now,
-    changeFrequency: 'weekly',
+    changeFrequency: 'weekly' as const,
     priority: 0.8,
   }));
 
   const countryRoutes: MetadataRoute.Sitemap = countryFacets().map((f) => ({
     url: `${SITE_URL}/opportunities/country/${f.slug}`,
     lastModified: now,
-    changeFrequency: 'weekly',
+    changeFrequency: 'weekly' as const,
     priority: 0.7,
   }));
 
