@@ -38,18 +38,28 @@ export class NotificationRepository {
   }
 
   static subscribeToUserNotifications(userId: string, callback: (notifications: AppNotification[]) => void): () => void {
+    const lastWeek = new Date();
+    lastWeek.setDate(lastWeek.getDate() - 7);
     const q = query(collection(db, 'notifications'), where('userId', '==', userId));
+    
     return onSnapshot(q, (snap) => {
-      const notifs = snap.docs.map(d => d.data() as AppNotification);
+      let notifs = snap.docs.map(d => d.data() as AppNotification);
+      // Filter in memory to avoid Firestore composite index requirement
+      notifs = notifs.filter(n => new Date(n.createdAt) >= lastWeek);
       notifs.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
       callback(notifs);
     });
   }
   
   static subscribeToAdminNotifications(callback: (notifications: AppNotification[]) => void): () => void {
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
     const q = query(collection(db, 'notifications'), where('userId', '==', 'admin'));
+    
     return onSnapshot(q, (snap) => {
-      const notifs = snap.docs.map(d => d.data() as AppNotification);
+      let notifs = snap.docs.map(d => d.data() as AppNotification);
+      // Filter in memory to avoid Firestore composite index requirement
+      notifs = notifs.filter(n => new Date(n.createdAt) >= yesterday);
       notifs.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
       callback(notifs);
     });
