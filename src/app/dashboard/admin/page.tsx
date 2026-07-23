@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useDialog } from '@/components/ui/DialogProvider';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { PaymentMerchantConfig } from '@/lib/paymentAdapter';
 import { SubscriptionRecord } from '@/lib/subscription';
@@ -11,6 +12,7 @@ import { GLOBAL_OPPORTUNITIES } from '@/lib/opportunities-data';
 import { Crown, RefreshCw, TrendingUp, Search, Telescope, Zap, Rocket, Globe, Flame, Database, Cloud, Brain, Sparkles, FileText, Inbox, Landmark, AlertTriangle, CheckCircle } from 'lucide-react';
 
 export default function AdminDashboardPage() {
+  const { toast, confirm, prompt, showAILoading, hideAILoading } = useDialog();
   const { user, getIdToken } = useAuth();
   
   // Security
@@ -52,11 +54,11 @@ export default function AdminDashboardPage() {
     setProcessingIds(prev => new Set(prev).add(reqId));
     try {
       await PaymentRequestRepository.approvePaymentRequest(reqId);
-      alert('Subscription approved!');
+      toast('Subscription approved!');
       fetchData(); // refresh telemetry
     } catch (e: any) {
       // e.g. the request was already approved/rejected in another tab or a prior click
-      alert(`Could not approve payment: ${e?.message || 'Unknown error'}`);
+      toast(`Could not approve payment: ${e?.message || 'Unknown error'}`);
     } finally {
       const updatedQueue = await PaymentRequestRepository.getPendingRequests();
       setPendingQueue(updatedQueue);
@@ -70,13 +72,13 @@ export default function AdminDashboardPage() {
 
   const handleReject = async (reqId: string) => {
     if (processingIds.has(reqId)) return; // guard against double-clicks
-    const reason = prompt('Reason for rejection? (e.g. Invalid receipt, Amount mismatch)') || 'Invalid receipt';
+    const reason = await prompt('Reason for rejection? (e.g. Invalid receipt, Amount mismatch)') || 'Invalid receipt';
     setProcessingIds(prev => new Set(prev).add(reqId));
     try {
       await PaymentRequestRepository.rejectPaymentRequest(reqId, reason);
-      alert('Payment proof rejected. Notification sent to user.');
+      toast('Payment proof rejected. Notification sent to user.');
     } catch (e: any) {
-      alert(`Could not reject payment: ${e?.message || 'Unknown error'}`);
+      toast(`Could not reject payment: ${e?.message || 'Unknown error'}`);
     } finally {
       const updatedQueue = await PaymentRequestRepository.getPendingRequests();
       setPendingQueue(updatedQueue);
@@ -99,15 +101,15 @@ export default function AdminDashboardPage() {
   };
 
   const handleSeedDatabase = async () => {
-    if (!confirm(`Are you sure you want to seed ${GLOBAL_OPPORTUNITIES.length} opportunities into Firestore? Existing records with the same ID will be overwritten.`)) return;
+    if (!await confirm(`Are you sure you want to seed ${GLOBAL_OPPORTUNITIES.length} opportunities into Firestore? Existing records with the same ID will be overwritten.`)) return;
     setSeeding(true);
     try {
       await OpportunityRepository.seedOpportunitiesToFirestore(GLOBAL_OPPORTUNITIES);
-      alert('Seeding complete!');
+      toast('Seeding complete!');
       const opps = await OpportunityRepository.getAllOpportunities(true);
       setDbCount(opps.length);
     } catch (e: any) {
-      alert(`Seeding failed: ${e.message}`);
+      toast(`Seeding failed: ${e.message}`);
     }
     setSeeding(false);
   };
@@ -184,7 +186,7 @@ export default function AdminDashboardPage() {
   const handleGrantPro = async (userId: string, userEmail: string, userName: string, planId: string) => {
     try {
       const token = await getIdToken();
-      if (!token) return alert('Session expired.');
+      if (!token) return toast('Session expired.');
 
       const res = await fetch('/api/admin/grant-plan', {
         method: 'POST',
@@ -205,7 +207,7 @@ export default function AdminDashboardPage() {
       
       fetchData(); // Refresh metrics and directory
     } catch (err: any) {
-      alert(err.message);
+      toast(err.message);
     }
   };
 
