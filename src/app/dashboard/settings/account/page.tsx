@@ -181,28 +181,7 @@ export default function AccountCenterPage() {
           </div>
         </div>
 
-        {/* Danger Zone */}
-        <div className="card" style={{ padding: '24px', border: '1px solid rgba(244, 63, 94, 0.2)', background: 'rgba(244, 63, 94, 0.02)' }}>
-          <h2 style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '18px', fontWeight: 700, color: '#f43f5e', marginBottom: '16px' }}>
-            Danger Zone
-          </h2>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div>
-              <div style={{ fontSize: '14px', fontWeight: 600, color: 'white' }}>Delete Account</div>
-              <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.4)', marginTop: '4px', maxWidth: '400px', lineHeight: 1.5 }}>
-                Permanently delete your account, wipe all AI settings, and erase all saved data. This action is irreversible.
-              </div>
-            </div>
-            <button
-              onClick={handleDeleteAccount}
-              disabled={loading}
-              className="btn btn-ghost"
-              style={{ padding: '8px 16px', fontSize: '13px', color: '#f43f5e', borderColor: 'rgba(244,63,94,0.3)' }}
-            >
-              Delete Account
-            </button>
-          </div>
-        </div>
+
 
       </div>
     </div>
