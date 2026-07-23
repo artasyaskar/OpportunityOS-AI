@@ -3,8 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { runGapAnalysisAgent } from '@/services/ai/agents/gapAnalysisAgent';
 import { type UserProfile, type Opportunity } from '@/lib/gemini';
 
-
-
+export const maxDuration = 300; // Vercel maximum execution time in seconds
 export async function POST(req: NextRequest) {
   const guard = await guardAgentRoute(req);
   if ('status' in guard) return guard;
