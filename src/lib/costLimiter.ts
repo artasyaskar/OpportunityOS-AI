@@ -1,14 +1,14 @@
 export interface QuotaState {
-  dailyRequests: number;
-  monthlyRequests: number;
+  dailyCredits: number;
+  monthlyCredits: number;
   lastRequestTime: number;
   totalTokensUsed: number;
   estimatedCostUSD: number;
 }
 
 const DEFAULT_QUOTA: QuotaState = {
-  dailyRequests: 0,
-  monthlyRequests: 0,
+  dailyCredits: 1000,
+  monthlyCredits: 30000,
   lastRequestTime: 0,
   totalTokensUsed: 0,
   estimatedCostUSD: 0,
@@ -17,7 +17,7 @@ const DEFAULT_QUOTA: QuotaState = {
 export function getQuotaState(): QuotaState {
   if (typeof window === 'undefined') return DEFAULT_QUOTA;
   try {
-    const stored = localStorage.getItem('ai_quota_usage');
+    const stored = localStorage.getItem('ai_quota_usage_v2');
     if (stored) return JSON.parse(stored);
   } catch (e) {}
   return DEFAULT_QUOTA;
@@ -26,30 +26,37 @@ export function getQuotaState(): QuotaState {
 export function saveQuotaState(state: QuotaState) {
   if (typeof window === 'undefined') return;
   try {
-    localStorage.setItem('ai_quota_usage', JSON.stringify(state));
+    localStorage.setItem('ai_quota_usage_v2', JSON.stringify(state));
   } catch (e) {}
+}
+
+export class OutOfCreditsError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'OutOfCreditsError';
+  }
 }
 
 export function recordAiRequest(tokensUsed: number = 2000, modelType: 'groq' | 'gemini' = 'groq'): boolean {
   const state = getQuotaState();
   const now = Date.now();
   
-  // Rate limiting cooldown (minimum 2 seconds between requests)
+  if (state.dailyCredits < 250) {
+    throw new OutOfCreditsError('You have completely exhausted your 1000 daily AI credits.');
+  }
+
   if (now - state.lastRequestTime < 2000) {
     console.warn('AI request blocked by rate limiter: Cooldown active');
     return false;
   }
 
-  // Token Cost Estimation
-  // Groq Llama-3 cost: ~$0.15 per million tokens
-  // Gemini 1.5 Pro: ~$1.25 per million tokens
   const tokenCost = modelType === 'gemini' 
     ? (tokensUsed / 1000000) * 1.25 
     : (tokensUsed / 1000000) * 0.15;
 
   const nextState: QuotaState = {
-    dailyRequests: state.dailyRequests + 1,
-    monthlyRequests: state.monthlyRequests + 1,
+    dailyCredits: Math.max(0, state.dailyCredits - 250),
+    monthlyCredits: Math.max(0, state.monthlyCredits - 250),
     lastRequestTime: now,
     totalTokensUsed: state.totalTokensUsed + tokensUsed,
     estimatedCostUSD: parseFloat((state.estimatedCostUSD + tokenCost).toFixed(6)),
@@ -63,6 +70,6 @@ export function resetDailyQuotas() {
   const state = getQuotaState();
   saveQuotaState({
     ...state,
-    dailyRequests: 0,
+    dailyCredits: 1000,
   });
 }
