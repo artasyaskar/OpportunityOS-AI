@@ -27,6 +27,7 @@ export class PersonalizationEngine {
     If any field is missing or ambiguous, omit it or use the closest sensible default. Do NOT hallucinate.`;
 
     try {
+      const cacheKey = Buffer.from(rawInputText).toString('base64');
       const response = await aiRouter.runWithRetry<any>(
         'PersonalizationEngine',
         async (provider) => {
@@ -35,7 +36,7 @@ export class PersonalizationEngine {
             'You are a strict data extraction system designed to parse user goals and preferences.'
           );
         },
-        { format: 'json' }
+        { format: 'json', cacheKey }
       );
 
       const data = response.content;
