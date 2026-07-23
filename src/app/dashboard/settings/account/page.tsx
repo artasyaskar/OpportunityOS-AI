@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useDialog } from '@/components/ui/DialogProvider';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { auth, db } from '@/lib/firebase';
@@ -8,6 +9,7 @@ import { sendPasswordResetEmail, deleteUser, signOut } from 'firebase/auth';
 import { doc, deleteDoc, getDoc } from 'firebase/firestore';
 
 export default function AccountCenterPage() {
+  const { toast, confirm, prompt, showAILoading, hideAILoading } = useDialog();
   const { user } = useAuth();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -20,6 +22,7 @@ export default function AccountCenterPage() {
     setLoading(true);
     try {
       await sendPasswordResetEmail(auth, user.email);
+      toast(`A secure password reset link has been sent to ${user.email}. Please check your inbox and your spam/junk folder.`);
       setAlert({ type: 'success', message: `Password reset link sent to ${user.email}` });
     } catch (err: any) {
       setAlert({ type: 'error', message: err.message || 'Failed to send reset email.' });
@@ -63,10 +66,10 @@ export default function AccountCenterPage() {
   };
 
   const handleDeleteAccount = async () => {
-    const confirm1 = window.confirm('Are you absolutely sure you want to delete your account? This action cannot be undone and will permanently erase all your data, saved opportunities, and subscription status.');
+    const confirm1 = await confirm('Are you absolutely sure you want to delete your account? This action cannot be undone and will permanently erase all your data, saved opportunities, and subscription status.');
     if (!confirm1) return;
 
-    const confirm2 = window.prompt('Type "DELETE" to confirm account deletion:');
+    const confirm2 = await prompt('Type "DELETE" to confirm account deletion:');
     if (confirm2 !== 'DELETE') return;
 
     setLoading(true);
