@@ -3,6 +3,7 @@
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
+import { useDialog } from '@/components/ui/DialogProvider';
 import { SEED_OPPORTUNITIES } from '@/lib/opportunities';
 import { type ApplicationStatus, APPLICATION_STAGES, type Opportunity } from '@/lib/gemini';
 import { useProfile } from '@/components/auth/ProfileContext';
@@ -19,6 +20,7 @@ interface WorkspaceDoc {
 }
 
 export default function ApplicationWorkspacePage() {
+  const { toast, confirm, prompt, showAILoading, hideAILoading } = useDialog();
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   
@@ -445,7 +447,7 @@ export default function ApplicationWorkspacePage() {
                         };
                         const { EvidenceRepository } = await import('@/lib/repositories/EvidenceRepository');
                         await EvidenceRepository.saveEvidence(user.uid, newDoc as any);
-                        alert("Mock interview securely saved to your Personal Intelligence Vault!");
+                        toast("Mock interview securely saved to your Personal Intelligence Vault!");
                       } catch(e) { console.error(e); }
                     }}
                     className="btn btn-ghost btn-sm"
