@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import Navbar from '@/components/layout/Navbar';
 import { useScrollReveal } from '@/hooks/useScrollReveal';
+import Image from 'next/image';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { useProfile } from '@/components/auth/ProfileContext';
 import WalkthroughModal from '@/components/layout/WalkthroughModal';
@@ -102,13 +103,15 @@ const TRUSTED_SOURCES = [
 const BETA_FEEDBACK = [
   {
     name: 'Khuram Iqbal',
+    linkedin: 'https://www.linkedin.com/in/khuram-iqbal',
     role: 'Computer Science Student',
     quote: '"I found three scholarships I had never heard about. The AI Opportunity Match explanation was surprisingly useful."',
   },
   {
     name: 'Nayab Raza',
-    role: 'Startup Founder',
-    quote: '"The AI explanation of why I matched a grant was extremely helpful. It gave me exactly what I needed to improve my application."',
+    linkedin: 'https://www.linkedin.com/in/nayab-raza-34873bab/',
+    role: 'Chemistry PhD Scholar, Brazil',
+    quote: '"OpportunityOS was incredibly helpful in my journey. The AI matching gave me the exact insights I needed to secure a fully funded PhD scholarship in Belgium!"',
   },
   {
     name: 'Professor Suneel Salamat',
@@ -464,7 +467,7 @@ export default function Home() {
                 </div>
                 <div style={{ fontSize: '28px', fontWeight: 800, color: opp.color, fontFamily: 'Space Grotesk, sans-serif' }}>
                   <AnimatedCounter value={
-                    opp.type === 'Jobs & Internships' 
+                    opp.type === 'Jobs & Internships'
                       ? (categoryCounts['Remote Jobs'] || 0) + (categoryCounts['Internships'] || 0)
                       : (categoryCounts[opp.type] || 0)
                   } />
@@ -538,83 +541,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ======================== HOW OPPORTUNITYOS MAKES DECISIONS ======================== */}
-      <section className="reveal-on-scroll" style={{ padding: '80px 24px', position: 'relative', zIndex: 10 }}>
-        <div className="page-container">
-          <div style={{ textAlign: 'center', marginBottom: '60px' }}>
-            <div className="badge badge-cyan" style={{ marginBottom: '16px' }}>Transparent AI</div>
-            <h2 className="text-section-title" style={{ color: 'white' }}>
-              How OpportunityOS <span className="gradient-text-cyan">Makes Decisions</span>
-            </h2>
-            <p style={{ color: 'rgba(255,255,255,0.5)', maxWidth: '520px', margin: '16px auto 0', fontSize: '16px' }}>
-              Every recommendation is based on a verifiable evidence graph. No black boxes.
-            </p>
-          </div>
-
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: '16px',
-              maxWidth: '600px',
-              margin: '0 auto'
-            }}
-          >
-            {[
-              { title: 'Data Ingestion', desc: 'Resume • Skills • GPA • Experience • Leadership', Icon: FileText, color: '#10b981' },
-              { title: 'AI Evidence Graph', desc: 'Parsing context & mapping to opportunity requirements', Icon: Network, color: '#6366f1' },
-              { title: 'Opportunity Match', desc: 'Ranking 100,000+ opportunities for absolute fit', Icon: Target, color: '#f59e0b' },
-              { title: 'Win Probability', desc: 'Predicting your odds based on historical data', Icon: TrendingUp, color: '#ec4899' },
-              { title: 'Daily Mission', desc: 'Generating a step-by-step execution timeline', Icon: Clock, color: '#06b6d4' },
-            ].map((step, i) => (
-              <div key={step.title} style={{ width: '100%', textAlign: 'center' }}>
-                <div
-                  className="card-premium card-magnetic glow-border"
-                  style={{
-                    padding: '24px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '24px',
-                    textAlign: 'left',
-                    background: 'rgba(15,23,42,0.6)'
-                  }}
-                >
-                  <div
-                    style={{
-                      width: '48px',
-                      height: '48px',
-                      borderRadius: '12px',
-                      background: `${step.color}15`,
-                      border: `1px solid ${step.color}30`,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      flexShrink: 0
-                    }}
-                  >
-                    <step.Icon size={24} color={step.color} aria-hidden="true" />
-                  </div>
-                  <div>
-                    <h3 style={{ fontSize: '18px', fontWeight: 700, color: 'white', marginBottom: '4px' }}>
-                      {step.title}
-                    </h3>
-                    <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '14px', margin: 0 }}>
-                      {step.desc}
-                    </p>
-                  </div>
-                </div>
-                {i < 4 && (
-                  <div style={{ padding: '16px 0', opacity: 0.5 }}>
-                    <ArrowDown size={24} color="white" />
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* ======================== BETA FEEDBACK ======================== */}
       <section className="reveal-on-scroll" style={{ padding: '80px 24px', position: 'relative', zIndex: 10 }}>
         <div className="page-container">
@@ -641,7 +567,16 @@ export default function Home() {
                   <MessageSquareQuote size={32} color="#8b5cf6" />
                 </div>
                 <div style={{ marginBottom: '20px' }}>
-                  <div style={{ fontSize: '16px', fontWeight: 700, color: 'white' }}>{feedback.name}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    {feedback.linkedin && (
+                      <a href={feedback.linkedin} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', color: '#0a66c2', transition: 'opacity 0.2s', opacity: 0.8 }} onMouseOver={e => e.currentTarget.style.opacity = '1'} onMouseOut={e => e.currentTarget.style.opacity = '0.8'}>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/>
+                        </svg>
+                      </a>
+                    )}
+                    <div style={{ fontSize: '16px', fontWeight: 700, color: 'white' }}>{feedback.name}</div>
+                  </div>
                   <div style={{ fontSize: '13px', color: '#10b981', fontWeight: 500 }}>{feedback.role}</div>
                 </div>
                 <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '15px', lineHeight: 1.6, margin: 0, fontStyle: 'italic' }}>
@@ -808,7 +743,7 @@ export default function Home() {
           <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '14px', marginBottom: '32px' }}>
             Designed & Developed by <strong style={{ color: 'white' }}>Artas Yaskar</strong>
           </div>
-          
+
           <div style={{ display: 'flex', gap: '24px', justifyContent: 'center', marginBottom: '32px' }}>
             <button onClick={() => setPrivacyOpen(true)} style={{ color: 'rgba(255,255,255,0.4)', textDecoration: 'none', fontSize: '14px', background: 'none', border: 'none', cursor: 'pointer' }}>Privacy Policy</button>
             <button onClick={() => setTermsOpen(true)} style={{ color: 'rgba(255,255,255,0.4)', textDecoration: 'none', fontSize: '14px', background: 'none', border: 'none', cursor: 'pointer' }}>Terms of Service</button>
@@ -872,17 +807,17 @@ export default function Home() {
         <div className="modal-overlay" style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0, 0, 0, 0.75)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999, padding: '24px' }}>
           <div className="modal-content glass-panel" style={{ maxWidth: '400px', width: '90%', textAlign: 'center' }}>
             <button className="modal-close" onClick={() => setContactOpen(false)}><X size={20} /></button>
-            
+
             <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '24px', marginTop: '16px' }}>
-              <div style={{ width: '120px', height: '120px', borderRadius: '50%', overflow: 'hidden', border: '3px solid #6366f1', boxShadow: '0 0 20px rgba(99,102,241,0.4)', background: 'rgba(255,255,255,0.05)' }}>
-                {/* Place your image in public/founder.jpg and the app will load it here automatically */}
-                <img src="/founder.jpg" alt="Artas Yaskar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+              <div style={{ width: '120px', height: '120px', borderRadius: '50%', overflow: 'hidden', border: '3px solid #6366f1', boxShadow: '0 0 20px rgba(99,102,241,0.4)', background: 'rgba(255,255,255,0.05)', position: 'relative' }}>
+                <Image src="/founder.jpg" alt="Artas Yaskar" width={400} height={400} style={{ width: '100%', height: 'auto', objectFit: 'cover', display: 'block' }} priority sizes="(max-width: 768px) 100vw, 400px" />
+                <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, #020408, transparent 40%)' }} />
               </div>
             </div>
 
             <h2 style={{ fontSize: '24px', color: 'white', marginBottom: '4px' }}>Artas Yaskar</h2>
             <div style={{ fontSize: '14px', color: '#10b981', fontWeight: 600, marginBottom: '24px' }}>Founder & Lead Developer</div>
-            
+
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <a href="https://wa.me/923491609796" target="_blank" rel="noreferrer" className="btn btn-secondary" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', background: 'rgba(37, 211, 102, 0.1)', borderColor: 'rgba(37, 211, 102, 0.3)', color: '#25D366' }}>
                 <MessageCircle size={20} />
