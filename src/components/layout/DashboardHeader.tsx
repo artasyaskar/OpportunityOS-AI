@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/components/auth/AuthProvider';
@@ -10,6 +10,7 @@ import { useProfile } from '@/components/auth/ProfileContext';
 import { usePipeline } from '@/components/auth/PipelineContext';
 import { SEED_OPPORTUNITIES } from '@/lib/opportunities';
 import { NotificationRepository, AppNotification } from '@/lib/repositories/NotificationRepository';
+import { EvidenceRepository } from '@/lib/repositories/EvidenceRepository';
 import { Menu, Search, Bell, Zap, WifiOff } from 'lucide-react';
 interface SearchResult {
   title: string;
@@ -39,8 +40,10 @@ export default function DashboardHeader() {
   const [results, setResults] = useState<SearchResult[]>([]);
   
   // Notification States
+  const notificationRef = useRef<HTMLDivElement>(null);
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState<any[]>([]);
+  const [documents, setDocuments] = useState<any[]>([]);
 
   // Mirror the shared `sidebar-open` class into React state so the toggle button
   // can expose accurate aria-expanded regardless of which control changed it.
@@ -70,6 +73,22 @@ export default function DashboardHeader() {
     const isOpen = document.documentElement.classList.toggle('sidebar-open');
     setSidebarOpen(isOpen);
   };
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (notificationRef.current && !notificationRef.current.contains(event.target as Node)) {
+        setShowNotifications(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    if (user?.uid) {
+      EvidenceRepository.getDocuments(user.uid).then(docs => setDocuments(docs)).catch(console.error);
+    }
+  }, [user?.uid]);
 
   useEffect(() => {
     let unsubUser: () => void;
@@ -115,7 +134,8 @@ export default function DashboardHeader() {
       const proactive = NotificationService.generateProactiveNotifications(
         profile as any, 
         SEED_OPPORTUNITIES as any, 
-        applications || []
+        applications || [],
+        documents
       );
       const proactiveMapped = proactive.map(n => ({ 
         id: n.id, 
@@ -135,7 +155,7 @@ export default function DashboardHeader() {
       if (unsubUser) unsubUser();
       if (unsubAdmin) unsubAdmin();
     };
-  }, [user, profile, applications, isAdmin]);
+  }, [user, profile, applications, isAdmin, documents]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -199,6 +219,7 @@ export default function DashboardHeader() {
       }
     }
     setNotifications(notifications.map(n => ({ ...n, unread: false })));
+    setShowNotifications(false);
   };
 
   const unreadCount = notifications.filter(n => n.unread).length;
@@ -320,7 +341,7 @@ export default function DashboardHeader() {
             </button>
           )}
 
-          <div style={{ position: 'relative' }}>
+          <div style={{ position: 'relative' }} ref={notificationRef}>
             <button
               onClick={() => setShowNotifications(!showNotifications)}
               aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : 'Notifications'}

@@ -22,23 +22,51 @@ export class NotificationService {
   static generateProactiveNotifications(
     profile: Partial<UserProfile>,
     opportunities: Opportunity[],
-    activeApplications: any[]
+    activeApplications: any[],
+    documents: any[] = []
   ): AppNotification[] {
     const notifications: AppNotification[] = [];
     const now = new Date();
 
     // 1. Missing Critical Evidence Alert
-    if (!profile.toeflScore && profile.targetOpportunities && profile.targetOpportunities.includes('Scholarships')) {
+    const hasResume = documents.some(doc => doc.type === 'resume' || doc.type === 'cv');
+    const hasTranscript = documents.some(doc => doc.type === 'transcript');
+    
+    if (documents.length === 0) {
       notifications.push({
-        id: `alert-ielts-${now.getTime()}`,
+        id: `alert-nodocs-${now.getTime()}`,
         type: 'alert',
-        title: 'Missing English Proficiency Score',
-        message: 'Many of your target scholarships require verified IELTS/TOEFL scores. Upload your certificate to unlock more matches.',
+        title: 'Missing Core Documents',
+        message: 'Your Vault is empty! Upload your Resume/CV and Transcripts so the AI can start matching you to opportunities.',
         timestamp: now.toISOString(),
         read: false,
-        actionLink: '/dashboard/onboarding',
-        actionText: 'Update Profile',
-        channels: ['in_app', 'email']
+        actionLink: '/dashboard/vault',
+        actionText: 'Go to Vault',
+        channels: ['in_app']
+      });
+    } else if (!hasResume) {
+      notifications.push({
+        id: `alert-noresume-${now.getTime()}`,
+        type: 'alert',
+        title: 'Missing Resume/CV',
+        message: 'Most applications require a Resume/CV. Upload one to the Vault to unlock 1-click apply.',
+        timestamp: now.toISOString(),
+        read: false,
+        actionLink: '/dashboard/vault',
+        actionText: 'Upload Resume',
+        channels: ['in_app']
+      });
+    } else if (!hasTranscript) {
+      notifications.push({
+        id: `alert-notranscript-${now.getTime()}`,
+        type: 'alert',
+        title: 'Missing Academic Transcript',
+        message: 'Scholarships require academic transcripts. Upload your latest transcript to the Vault.',
+        timestamp: now.toISOString(),
+        read: false,
+        actionLink: '/dashboard/vault',
+        actionText: 'Upload Transcript',
+        channels: ['in_app']
       });
     }
 
