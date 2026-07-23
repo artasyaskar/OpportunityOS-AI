@@ -10,7 +10,7 @@ import { SemanticSearchService } from '@/lib/services/SemanticSearchService';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { useSubscription } from '@/components/auth/SubscriptionContext';
 import { UserProfile } from '@/lib/gemini';
-import { GraduationCap, Landmark, DollarSign, Laptop, Briefcase, Rocket, Trophy, Flame, Bot, Globe, Mic, Lightbulb, Plane, Heart, Wrench, Star, Target, Clock, Folder, Search, AlertTriangle, Inbox, Check, X, Info, Telescope, Brain, Sparkles, MapPin, Shield, Lock, Microscope } from 'lucide-react';
+import { Loader2, GraduationCap, Landmark, DollarSign, Laptop, Briefcase, Rocket, Trophy, Flame, Bot, Globe, Mic, Lightbulb, Plane, Heart, Wrench, Star, Target, Clock, Folder, Search, AlertTriangle, Inbox, Check, X, Info, Telescope, Brain, Sparkles, MapPin, Shield, Lock, Microscope } from 'lucide-react';
 
 const TYPE_ICONS: Record<string, React.ReactNode> = {
   'scholarships': <GraduationCap size={16} />, 'fellowships': <Landmark size={16} />, 'grants': <DollarSign size={16} />,
@@ -44,11 +44,19 @@ const FEED_TABS = [
   { id: 'allRanked', label: <><Folder size={14} className="inline mr-2 text-indigo-400" /> All Opportunities</>, desc: 'Ranked by AI compatibility' },
 ];
 
+const CATEGORY_TABS = [
+  { id: 'scholarships', label: <><GraduationCap size={14} className="inline mr-2 text-indigo-400" /> Scholarships</>, desc: 'Academic funding' },
+  { id: 'jobs', label: <><Briefcase size={14} className="inline mr-2 text-emerald-400" /> Jobs & Internships</>, desc: 'Work opportunities' },
+  { id: 'hackathons', label: <><Laptop size={14} className="inline mr-2 text-pink-400" /> Hackathons</>, desc: 'Coding & tech events' },
+  { id: 'accelerators', label: <><Rocket size={14} className="inline mr-2 text-amber-400" /> Accelerators</>, desc: 'Startup programs' },
+];
+
+
 export default function OpportunitiesPage() {
   const { user } = useAuth();
   const { subscription } = useSubscription();
   const [feed, setFeed] = useState<CategorizedFeed | null>(null);
-  const [activeTab, setActiveTab] = useState<keyof CategorizedFeed>('recommended');
+  const [activeTab, setActiveTab] = useState<keyof CategorizedFeed | string>('recommended');
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
@@ -80,7 +88,22 @@ export default function OpportunitiesPage() {
     setExpandedExplain(prev => ({ ...prev, [id]: !prev[id] }));
   };
 
-  const currentOpportunities = feed ? feed[activeTab] : [];
+  
+  const isCategoryTab = CATEGORY_TABS.some(t => t.id === activeTab);
+  
+  const currentOpportunities = feed 
+    ? (isCategoryTab 
+        ? feed.allRanked.filter(opp => {
+            const t = (opp.type || '').toLowerCase();
+            if (activeTab === 'scholarships') return t.includes('scholarship') || t.includes('fellowship') || t.includes('grant');
+            if (activeTab === 'jobs') return t.includes('job') || t.includes('internship');
+            if (activeTab === 'hackathons') return t.includes('hackathon') || t.includes('competition') || t.includes('challenge');
+            if (activeTab === 'accelerators') return t.includes('accelerator') || t.includes('incubator') || t.includes('startup');
+            return t === activeTab;
+          })
+        : feed[activeTab as keyof CategorizedFeed] || [])
+    : [];
+
 
   // Search behaviour:
   //  - Empty query  → show the personalized, ranked feed for the active tab.
@@ -155,6 +178,31 @@ export default function OpportunitiesPage() {
         ))}
       </div>
 
+      
+      {/* Category Tabs */}
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '24px', flexWrap: 'wrap', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '16px' }}>
+        {CATEGORY_TABS.map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id as any)}
+            style={{
+              padding: '8px 16px',
+              background: activeTab === tab.id ? 'rgba(255,255,255,0.1)' : 'transparent',
+              border: '1px solid',
+              borderColor: activeTab === tab.id ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.05)',
+              borderRadius: '20px',
+              color: activeTab === tab.id ? '#fff' : 'rgba(255,255,255,0.6)',
+              fontSize: '13px',
+              fontWeight: 500,
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+            }}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
       {/* Semantic / Natural-Language Search */}
       <div style={{ marginBottom: '24px' }}>
         <input
@@ -171,13 +219,23 @@ export default function OpportunitiesPage() {
         )}
       </div>
 
+      
       {loading ? (
-        <div className="two-col-grid" style={{ gap: '16px' }}>
-          {[1, 2, 3, 4].map(i => (
-            <div key={i} className="card" style={{ padding: '24px', height: '180px', background: 'rgba(255,255,255,0.02)', borderColor: 'rgba(255,255,255,0.05)', animation: 'pulse 2s infinite' }} />
-          ))}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '64px 20px', background: 'rgba(255,255,255,0.02)', borderRadius: '24px', border: '1px dashed rgba(255,255,255,0.1)', animation: 'pulse 2s infinite' }}>
+          <div style={{ position: 'relative', width: '80px', height: '80px', marginBottom: '24px' }}>
+            <Loader2 size={80} className="text-indigo-500 animate-spin" style={{ position: 'absolute', opacity: 0.2 }} />
+            <Loader2 size={80} className="text-indigo-400 animate-spin" style={{ position: 'absolute', animationDuration: '3s' }} />
+            <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Sparkles size={32} className="text-emerald-400" />
+            </div>
+          </div>
+          <h3 style={{ fontSize: '20px', fontWeight: 700, color: 'white', marginBottom: '8px' }}>AI is Analyzing Opportunities</h3>
+          <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '14px', maxWidth: '400px', textAlign: 'center' }}>
+            Running your unique Evidence Graph against thousands of global scholarships, jobs, and programs...
+          </p>
         </div>
       ) : loadError ? (
+
         <div className="card" style={{ padding: '40px', textAlign: 'center', background: 'rgba(255,255,255,0.02)', border: '1px dashed rgba(239,68,68,0.3)' }}>
           <div style={{ fontSize: '32px', marginBottom: '16px', display: 'flex', justifyContent: 'center' }}><AlertTriangle size={32} className="text-yellow-400" /></div>
           <h3 style={{ color: 'white', marginBottom: '8px' }}>Couldn't load opportunities</h3>
@@ -243,12 +301,24 @@ export default function OpportunitiesPage() {
                   </div>
                   <div>
                     <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
+                      
                       <span
                         className="badge"
                         style={{ background: `${typeColor}18`, color: typeColor, border: `1px solid ${typeColor}30`, textTransform: 'capitalize', fontSize: '10px', padding: '2px 8px' }}
                       >
                         {opp.type || 'Opportunity'}
                       </span>
+                      {opp.educationLevel && opp.educationLevel.map((lvl: string) => (
+                        <span key={lvl} className="badge" style={{ background: 'rgba(99,102,241,0.1)', color: '#818cf8', border: '1px solid rgba(99,102,241,0.2)', textTransform: 'capitalize', fontSize: '10px', padding: '2px 8px' }}>
+                          {lvl}
+                        </span>
+                      ))}
+                      {opp.tags && opp.tags.slice(0, 2).map((tag: string) => (
+                        <span key={tag} className="badge" style={{ background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.7)', border: '1px solid rgba(255,255,255,0.1)', fontSize: '10px', padding: '2px 8px' }}>
+                          {tag}
+                        </span>
+                      ))}
+
                       {opp.region && (
                         <span className="badge" style={{ fontSize: '10px', background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.6)' }}>
                           <Globe size={10} className="inline mr-1" /> {opp.region}
