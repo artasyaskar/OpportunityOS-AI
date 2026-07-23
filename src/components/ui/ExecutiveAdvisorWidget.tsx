@@ -143,8 +143,29 @@ export default function ExecutiveAdvisorWidget() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isTyping]);
 
+  const [toastMsg, setToastMsg] = useState<string | null>(null);
+
   const handleSendMessage = async (text: string) => {
     if (!text.trim()) return;
+
+    try {
+      // Deduct credits before sending request
+      const { recordAiRequest, OutOfCreditsError } = await import('@/lib/costLimiter');
+      try {
+        recordAiRequest(500, 'groq');
+      } catch (err: any) {
+        if (err.name === 'OutOfCreditsError') {
+          setToastMsg("The AI servers run in the backend and you've completed your 1000 credits for today. Buy a Pro plan to continue growing your professional journey.");
+          setTimeout(() => {
+            window.location.href = '/dashboard/settings?tab=billing';
+          }, 3500);
+          return;
+        }
+        throw err;
+      }
+    } catch (e) {
+      console.error('Credit check failed', e);
+    }
 
     const updatedMessages = [...messages, { sender: 'user', text } as Message];
     setMessages(updatedMessages);
@@ -198,9 +219,18 @@ export default function ExecutiveAdvisorWidget() {
         right: '24px',
         zIndex: 99999,
         ...widgetTransform,
-        cursor: isDragging ? 'grabbing' : 'auto'
       }}
     >
+      {/* Toast Notification Layer */}
+      {toastMsg && (
+        <div style={{ position: 'absolute', bottom: '100%', right: '0', marginBottom: '16px', background: 'rgba(239, 68, 68, 0.95)', border: '1px solid #ef4444', color: 'white', padding: '16px 24px', borderRadius: '12px', width: '320px', boxShadow: '0 10px 40px rgba(239,68,68,0.3)', backdropFilter: 'blur(10px)', animation: 'slideUp 0.3s ease-out' }}>
+          <div style={{ fontSize: '13px', fontWeight: 600, lineHeight: 1.5 }}>
+            {toastMsg}
+          </div>
+        </div>
+      )}
+
+      {/* Trigger Button */}
       {!isOpen ? (
         <div
           onMouseDown={handleMouseDown}
