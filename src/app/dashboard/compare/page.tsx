@@ -221,7 +221,7 @@ export default function ComparePage() {
               
               <div className="glass-sm" style={{ padding: '10px', borderRadius: '8px', display: 'flex', justifyItems: 'center', justifyContent: 'space-between', fontSize: '11px', color: 'rgba(255,255,255,0.4)', marginBottom: '20px' }}>
                 <span>Free Daily AI Quota Remaining:</span>
-                <span style={{ fontWeight: 700, color: 'white' }}>{3 - (quota?.dailyRequests || 0)} / 3 Requests</span>
+                <span style={{ fontWeight: 700, color: 'white' }}>{quota?.dailyCredits ?? 1000} / 1000 Credits</span>
               </div>
 
               <Link href="/dashboard/settings" className="btn btn-primary" style={{ display: 'flex', justifyContent: 'center', padding: '12px' }}>
