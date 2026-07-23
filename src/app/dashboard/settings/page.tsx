@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useDialog } from '@/components/ui/DialogProvider';
 import Link from 'next/link';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { useProfile } from '@/components/auth/ProfileContext';
@@ -18,6 +19,7 @@ import { compressImage, validateReceiptUpload } from '@/lib/imageUtils';
 import { Settings, Dna, CreditCard, Archive, Lock, FileText, BarChart2, Briefcase, Smartphone, Landmark, CheckCircle, XCircle, Check, X, Shield, ShieldCheck, Clipboard, Copy, AlertTriangle, UploadCloud, Clock, Hourglass } from 'lucide-react';
 
 export default function SettingsPage() {
+  const { toast, confirm, prompt, showAILoading, hideAILoading } = useDialog();
   const { user, getIdToken } = useAuth();
   const { profile: remoteProfile, updateProfile } = useProfile();
   const { subscription: sub, updateSubscription } = useSubscription();
@@ -270,14 +272,14 @@ export default function SettingsPage() {
 
   const handleSubmitFallbackReceipt = async () => {
     if (!trxIdInput) {
-      alert('Please enter your transaction ID or Reference Number.');
+      toast('Please enter your transaction ID or Reference Number.');
       return;
     }
     
     // Prevent duplicate upload if already pending
     const hasPending = paymentRequests.some(req => req.status === PaymentStatus.PENDING);
     if (hasPending) {
-      alert('You already have a payment waiting for review.');
+      toast('You already have a payment waiting for review.');
       return;
     }
 
@@ -289,7 +291,7 @@ export default function SettingsPage() {
     if (receiptFile && user?.uid) {
       const validation = validateReceiptUpload(receiptFile);
       if (!validation.valid) {
-        alert(validation.error);
+        toast(validation.error || 'Validation error');
         setVerificationStatus('fallback_proof');
         return;
       }
@@ -299,12 +301,12 @@ export default function SettingsPage() {
         proofUrl = await uploadPaymentReceipt(user.uid, compressedFile);
       } catch (err) {
         console.error('Failed to upload receipt:', err);
-        alert('Failed to upload receipt. Please try again.');
+        toast('Failed to upload receipt. Please try again.');
         setVerificationStatus('fallback_proof');
         return;
       }
     } else {
-      alert('Please attach your payment receipt screenshot.');
+      toast('Please attach your payment receipt screenshot.');
       setVerificationStatus('fallback_proof');
       return;
     }
@@ -355,7 +357,7 @@ export default function SettingsPage() {
   };
 
   const handleResetToFree = async () => {
-    if (confirm('Revert account to Free tier?')) {
+    if (await confirm('Revert account to Free tier?')) {
       await updateSubscription({ status: 'FREE', planId: 'free', expiresAt: undefined });
       setVerificationStatus('idle');
     }
@@ -724,7 +726,7 @@ export default function SettingsPage() {
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
                   <div className="glass-sm" style={{ padding: '16px' }}>
                     <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)', fontWeight: 700 }}>DAILY AI DISPATCHES</div>
-                    <div style={{ fontSize: '20px', fontWeight: 900, color: 'white', marginTop: '4px' }}>{quota?.dailyRequests || 0} / 3</div>
+                    <div style={{ fontSize: '20px', fontWeight: 900, color: 'white', marginTop: '4px' }}>{quota?.dailyCredits || 0} / 3</div>
                     <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', marginTop: '4px' }}>Resets in 24 hours.</p>
                   </div>
                   <div className="glass-sm" style={{ padding: '16px' }}>
