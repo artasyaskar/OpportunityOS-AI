@@ -88,7 +88,19 @@ export default function OpportunityDetailPage() {
     });
   };
 
-  if (loading) return <div style={{ color: 'white', padding: '40px', textAlign: 'center' }}>Loading...</div>;
+  if (loading) return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
+      <div style={{ position: 'relative', width: '80px', height: '80px', marginBottom: '24px' }}>
+        <div style={{ width: '80px', height: '80px', border: '3px solid rgba(99,102,241,0.2)', borderTop: '3px solid #6366f1', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <Zap size={24} className="text-yellow-400" />
+        </div>
+      </div>
+      <h3 style={{ fontSize: '20px', fontWeight: 700, color: 'white', marginBottom: '8px' }}>Accessing Opportunity...</h3>
+      <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '14px' }}>Fetching deep intelligence from the global database</p>
+      <style dangerouslySetInnerHTML={{ __html: '@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }' }} />
+    </div>
+  );
   if (loadError) return (
     <div style={{ color: 'white', padding: '40px', textAlign: 'center' }}>
       <p style={{ marginBottom: '16px', color: 'rgba(255,255,255,0.7)' }}>{loadError}</p>
@@ -166,9 +178,16 @@ export default function OpportunityDetailPage() {
             <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', fontWeight: 700, marginTop: '4px', letterSpacing: '0.5px' }}>
               OPPORTUNITY SCORE
             </div>
-            <button onClick={handleStartApplication} className="btn btn-primary" style={{ width: '100%', marginTop: '16px', justifyContent: 'center' }}>
-              <Zap size={14} className="inline mr-2" /> Launch Document Workshop
-            </button>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '16px' }}>
+              <button onClick={handleStartApplication} className="btn btn-primary" style={{ width: '100%', justifyContent: 'center' }}>
+                <Zap size={14} className="inline mr-2" /> Launch Document Workshop
+              </button>
+              {opp.url && (
+                <a href={opp.url} target="_blank" rel="noreferrer" className="btn btn-secondary" style={{ width: '100%', justifyContent: 'center' }}>
+                  <Globe size={14} className="inline mr-2" /> Official Site ↗
+                </a>
+              )}
+            </div>
           </div>
         </div>
       </div>
