@@ -7,7 +7,7 @@ import { useAuth } from '@/components/auth/AuthProvider';
 import { useProfile } from '@/components/auth/ProfileContext';
 import { useSubscription } from '@/components/auth/SubscriptionContext';
 import { navIcons } from '@/lib/uiIcons';
-import { Crown, Settings } from 'lucide-react';
+import { Crown, Settings, X } from 'lucide-react';
 
 // Maps the real subscription state to a short, human label for the user card.
 const PLAN_LABELS: Record<string, string> = {
@@ -70,6 +70,9 @@ export default function Sidebar() {
         style={{
           padding: '24px 20px 20px',
           borderBottom: '1px solid rgba(255,255,255,0.06)',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start'
         }}
       >
         <Link
@@ -112,6 +115,23 @@ export default function Sidebar() {
             </div>
           </div>
         </Link>
+        <button
+          className="mobile-sidebar-close"
+          onClick={closeSidebar}
+          aria-label="Close sidebar"
+          style={{
+            background: 'rgba(255,255,255,0.05)',
+            border: '1px solid rgba(255,255,255,0.1)',
+            borderRadius: '8px',
+            color: 'rgba(255,255,255,0.7)',
+            cursor: 'pointer',
+            padding: '6px',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}
+        >
+          <X size={18} aria-hidden="true" />
+        </button>
       </div>
 
       {/* Navigation */}

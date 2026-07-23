@@ -438,7 +438,7 @@ textarea.input {
   width: 260px;
   background: var(--bg-secondary);
   border-right: 1px solid var(--glass-border);
-  height: 100vh;
+  height: 100dvh;
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
@@ -586,6 +586,19 @@ h1, h2, h3, h4, h5, h6 {
 
 .sidebar-backdrop {
   display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 40;
+}
+
+.mobile-sidebar-close {
+  display: none;
 }
 
 @media (max-width: 1024px) {
@@ -606,6 +619,10 @@ h1, h2, h3, h4, h5, h6 {
   }
 
   .mobile-sidebar-toggle {
+    display: flex !important;
+  }
+
+  .mobile-sidebar-close {
     display: flex !important;
   }
 }
