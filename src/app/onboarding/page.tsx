@@ -9,7 +9,7 @@ import { storageProvider } from '@/lib/storage/StorageManager';
 import { ValidationPipeline } from '@/lib/storage/ValidationPipeline';
 import { EvidenceRepository } from '@/lib/repositories/EvidenceRepository';
 import { motion } from 'framer-motion';
-import { UploadCloud, FileText, BarChart, FlaskConical, BookUser, MessageCircle, Briefcase, Rocket, Download, Check, X } from 'lucide-react';
+import { UploadCloud, FileText, BarChart, FlaskConical, BookUser, MessageCircle, Briefcase, Rocket, Download, Check, X, Info } from 'lucide-react';
 
 const STEPS = [
   { id: 1, title: 'Verify Your Academic Profile', desc: 'Upload Evidence Documents' },
@@ -409,6 +409,27 @@ export default function OnboardingPage() {
               <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '13px', marginBottom: '8px' }}>
                 Upload your resume, transcripts, and LinkedIn profile to construct your Opportunity DNA. All files are parsed securely.
               </p>
+              
+              <div style={{
+                background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(139, 92, 246, 0.08) 100%)',
+                border: '1px solid rgba(99, 102, 241, 0.2)',
+                borderRadius: '12px',
+                padding: '16px',
+                display: 'flex',
+                gap: '12px',
+                alignItems: 'flex-start',
+                marginBottom: '8px'
+              }}>
+                <div style={{ color: '#818cf8', marginTop: '2px', flexShrink: 0 }}>
+                  <Info size={18} />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <h4 style={{ color: '#e0e7ff', fontSize: '13px', fontWeight: 600, marginBottom: '4px' }}>Missing some documents?</h4>
+                  <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '12px', lineHeight: 1.5 }}>
+                    You can safely skip this step and click <strong>Continue</strong>. You will be able to securely upload or update your evidence anytime from the Evidence Vault in your dashboard later.
+                  </p>
+                </div>
+              </div>
               
               {/* Resume Row */}
               <div
