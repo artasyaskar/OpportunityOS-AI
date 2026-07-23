@@ -15,6 +15,7 @@ if (typeof global !== 'undefined') {
 const pdf = require('pdf-parse/lib/pdf-parse.js');
 
 export const runtime = 'nodejs'; // Required for pdf-parse
+export const maxDuration = 300;
 
 export async function POST(req: NextRequest) {
   // 1. Auth Validation
@@ -168,9 +169,9 @@ export async function POST(req: NextRequest) {
     };
     
     // Start background process
-    processDocument();
+    await processDocument();
 
-    return NextResponse.json({ success: true, status: 'PROCESSING' });
+    return NextResponse.json({ success: true, status: 'VERIFIED' });
   } catch (error: any) {
     console.error('Parse setup error:', error);
     return NextResponse.json({ error: 'Parse setup failed' }, { status: 500 });

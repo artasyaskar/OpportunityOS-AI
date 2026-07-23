@@ -35,6 +35,7 @@ export default function AgentsDashboard() {
   const [evidenceContext, setEvidenceContext] = useState('');
   
   const [pipelineOpps, setPipelineOpps] = useState<Opportunity[]>([]);
+  const [allOpps, setAllOpps] = useState<Opportunity[]>([]);
   const [targetOppId, setTargetOppId] = useState<string>('');
 
   const [activeAgent, setActiveAgent] = useState<any>(null);
@@ -42,20 +43,27 @@ export default function AgentsDashboard() {
   const [resultData, setResultData] = useState<any>(null);
 
   useEffect(() => {
+    let isMounted = true;
     async function loadOpps() {
+      const globalOpps = await OpportunityRepository.getAllOpportunities();
+      if (!isMounted) return;
+      setAllOpps(globalOpps);
+
       if (pipeline && pipeline.length > 0) {
-        const opps = await Promise.all(pipeline.map((p: any) => OpportunityRepository.getOpportunityById(p.id)));
-        const validOpps = opps.filter(Boolean) as Opportunity[];
+        const validOpps = pipeline.map((p: any) => globalOpps.find(o => o.id === p.id)).filter(Boolean) as Opportunity[];
         setPipelineOpps(validOpps);
         if (validOpps.length > 0 && !targetOppId) {
           setTargetOppId(validOpps[0].id);
         }
       } else {
-        setPipelineOpps([SEED_OPPORTUNITIES[0]]);
-        setTargetOppId(SEED_OPPORTUNITIES[0].id);
+        setPipelineOpps([]);
+        if (globalOpps.length > 0 && !targetOppId) {
+          setTargetOppId(globalOpps[0].id);
+        }
       }
     }
     loadOpps();
+    return () => { isMounted = false; };
   }, [pipeline, targetOppId]);
 
   useEffect(() => {
@@ -80,7 +88,7 @@ export default function AgentsDashboard() {
     setIsRunning(true);
     setResultData(null);
 
-    const targetOpportunity = pipelineOpps.find(o => o.id === targetOppId) || SEED_OPPORTUNITIES[0];
+    const targetOpportunity = allOpps.find(o => o.id === targetOppId) || allOpps[0];
 
     try {
       // Setup payload based on agent needs
@@ -154,15 +162,24 @@ export default function AgentsDashboard() {
           <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)' }}>The agents are actively reading {documents.length} verified documents from your Vault.</p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          {pipelineOpps.length > 0 && (
+          {allOpps.length > 0 && (
             <select 
               value={targetOppId} 
               onChange={(e) => setTargetOppId(e.target.value)}
-              style={{ background: 'rgba(0,0,0,0.5)', color: 'white', border: '1px solid rgba(255,255,255,0.1)', padding: '6px 12px', borderRadius: '8px', fontSize: '13px', outline: 'none' }}
+              style={{ background: 'rgba(0,0,0,0.5)', color: 'white', border: '1px solid rgba(255,255,255,0.1)', padding: '6px 12px', borderRadius: '8px', fontSize: '13px', outline: 'none', maxWidth: '300px' }}
             >
-              {pipelineOpps.map(opp => (
-                <option key={opp.id} value={opp.id}>{opp.title}</option>
-              ))}
+              {pipelineOpps.length > 0 && (
+                <optgroup label="Your Saved Pipeline">
+                  {pipelineOpps.map(opp => (
+                    <option key={opp.id} value={opp.id}>{opp.title}</option>
+                  ))}
+                </optgroup>
+              )}
+              <optgroup label="All Opportunities">
+                {allOpps.filter(opp => !pipelineOpps.find(p => p.id === opp.id)).map(opp => (
+                  <option key={opp.id} value={opp.id}>{opp.title}</option>
+                ))}
+              </optgroup>
             </select>
           )}
           <div style={{ padding: '6px 12px', background: 'rgba(16, 185, 129, 0.1)', borderRadius: '20px', color: '#10b981', fontSize: '12px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>

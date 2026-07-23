@@ -5,6 +5,8 @@ import { guardAgentRoute } from '@/lib/auth/agentGuard';
 // @ts-ignore
 import pdf from 'pdf-parse';
 
+export const maxDuration = 300;
+
 export async function POST(req: NextRequest) {
   const guard = await guardAgentRoute(req);
   if (guard instanceof NextResponse) return guard;

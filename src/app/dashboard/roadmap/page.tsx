@@ -30,6 +30,7 @@ export default function RoadmapPage() {
   const [documents, setDocuments] = useState<EvidenceDocument[]>([]);
 
   const [selectedOppId, setSelectedOppId] = useState<string | null>(null);
+  const [allOpps, setAllOpps] = useState<Opportunity[]>([]);
   const [pipelineOpps, setPipelineOpps] = useState<Opportunity[]>([]);
   const [currentOpp, setCurrentOpp] = useState<Opportunity | null>(null);
 
@@ -37,41 +38,50 @@ export default function RoadmapPage() {
   const [overallReadiness, setOverallReadiness] = useState(0);
 
   const [aiAnalysis, setAiAnalysis] = useState<any>(null);
-  const [isAiLoading, setIsAiLoading] = useState(true);
+  const [analysisStatus, setAnalysisStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [stats, setStats] = useState({ critical: 0, high: 0, medium: 0, complete: 0 });
 
   const profile: any = userProfile || {};
 
   // Initialize selectedOppId and pipelineOpps
   useEffect(() => {
+    let isMounted = true;
     async function load() {
+      const globalOpps = await OpportunityRepository.getAllOpportunities();
+      if (!isMounted) return;
+      setAllOpps(globalOpps);
+
       if (apps && apps.length > 0) {
-        const opps = await Promise.all(apps.map((p: any) => OpportunityRepository.getOpportunityById(p.id)));
-        const valid = opps.filter(Boolean) as Opportunity[];
-        setPipelineOpps(valid);
-        if (!selectedOppId && valid.length > 0) {
-          setSelectedOppId(valid[0].id);
-        }
+        const savedOpps = apps.map((p: any) => globalOpps.find(o => o.id === p.id)).filter(Boolean) as Opportunity[];
+        setPipelineOpps(savedOpps);
       } else {
         setPipelineOpps([]);
-        if (!selectedOppId) {
-          setSelectedOppId(SEED_OPPORTUNITIES[0].id); // Fallback to Chevening just for a safe demo empty state
-        }
       }
     }
     load();
-  }, [apps, selectedOppId]);
+    return () => { isMounted = false; };
+  }, [apps]);
+
+  useEffect(() => {
+    if (!selectedOppId && allOpps.length > 0) {
+      if (pipelineOpps.length > 0) {
+        setSelectedOppId(pipelineOpps[0].id);
+      } else {
+        setSelectedOppId(allOpps[0].id);
+      }
+    }
+  }, [allOpps, pipelineOpps, selectedOppId]);
 
   useEffect(() => {
     if (selectedOppId) {
-      const opp = pipelineOpps.find(o => o.id === selectedOppId);
+      const opp = allOpps.find(o => o.id === selectedOppId);
       if (opp) {
         setCurrentOpp(opp);
       } else {
         OpportunityRepository.getOpportunityById(selectedOppId).then(setCurrentOpp);
       }
     }
-  }, [selectedOppId, pipelineOpps]);
+  }, [selectedOppId, allOpps]);
 
   useEffect(() => {
     if (user?.uid) {
@@ -79,54 +89,50 @@ export default function RoadmapPage() {
     }
   }, [user]);
 
-  useEffect(() => {
+  const runAnalysis = async () => {
     if (!profile || !user?.uid || !selectedOppId || !currentOpp) return;
-    const fetchAnalysis = async () => {
-      try {
-        setIsAiLoading(true);
-        const opportunity = currentOpp;
-        
-        const token = await getIdToken();
-        const res = await fetch('/api/agents/gap-analysis', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-          body: JSON.stringify({
-            userId: user.uid,
-            profile,
-            opportunity,
-            evidenceContext: `User has ${documents.length} verified documents.`
-          })
-        });
-        const data = await res.json();
-        const content = data.content || data;
-        setAiAnalysis(content);
-        
-        if (content?.gaps) {
-          const c = content.gaps.filter((g: any) => g.priority === 'critical').length;
-          const h = content.gaps.filter((g: any) => g.priority === 'high').length;
-          const m = content.gaps.filter((g: any) => g.priority === 'medium').length;
-          setStats({ critical: c, high: h, medium: m, complete: 5 }); // Mock complete
-        }
-        setOverallReadiness(content?.readinessPercentage || 40);
-
-        if (content?.simulatorLevers) {
-          const initialLevers: Record<string, number> = {};
-          content.simulatorLevers.forEach((lever: any) => {
-            initialLevers[lever.name] = lever.current;
-          });
-          setLeverValues(initialLevers);
-        } else {
-          setLeverValues({});
-        }
-
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setIsAiLoading(false);
+    try {
+      setAnalysisStatus('loading');
+      const opportunity = currentOpp;
+      
+      const token = await getIdToken();
+      const res = await fetch('/api/agents/gap-analysis', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({
+          userId: user.uid,
+          profile,
+          opportunity,
+          evidenceContext: `User has ${documents.length} verified documents.`
+        })
+      });
+      const data = await res.json();
+      const content = data.content || data;
+      setAiAnalysis(content);
+      
+      if (content?.gaps) {
+        const c = content.gaps.filter((g: any) => g.priority === 'critical').length;
+        const h = content.gaps.filter((g: any) => g.priority === 'high').length;
+        const m = content.gaps.filter((g: any) => g.priority === 'medium').length;
+        setStats({ critical: c, high: h, medium: m, complete: 5 });
       }
-    };
-    fetchAnalysis();
-  }, [profile, user, documents, selectedOppId, currentOpp]);
+      setOverallReadiness(content?.readinessPercentage || 40);
+
+      if (content?.simulatorLevers) {
+        const initialLevers: Record<string, number> = {};
+        content.simulatorLevers.forEach((lever: any) => {
+          initialLevers[lever.name] = lever.current;
+        });
+        setLeverValues(initialLevers);
+      } else {
+        setLeverValues({});
+      }
+      setAnalysisStatus('success');
+    } catch (err) {
+      console.error(err);
+      setAnalysisStatus('error');
+    }
+  };
 
   const targetTitle = currentOpp?.title || 'Global Executive Target';
 
@@ -159,27 +165,44 @@ export default function RoadmapPage() {
         </div>
         
         {/* Opportunity Selector */}
-        <div style={{ position: 'relative', width: '320px' }}>
-          <select 
-            className="input"
-            style={{ width: '100%', appearance: 'none', background: 'rgba(255,255,255,0.05)', color: 'white', border: '1px solid rgba(255,255,255,0.1)', padding: '12px 40px 12px 16px', borderRadius: '12px', fontSize: '14px', cursor: 'pointer', outline: 'none' }}
-            value={selectedOppId || ''}
-            onChange={(e) => setSelectedOppId(e.target.value)}
-            disabled={isAiLoading || pipelineOpps.length === 0}
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+          <div style={{ position: 'relative', width: '320px' }}>
+            <select 
+              className="input"
+              style={{ width: '100%', appearance: 'none', background: 'rgba(255,255,255,0.05)', color: 'white', border: '1px solid rgba(255,255,255,0.1)', padding: '12px 40px 12px 16px', borderRadius: '12px', fontSize: '14px', cursor: 'pointer', outline: 'none' }}
+              value={selectedOppId || ''}
+              onChange={(e) => {
+                setSelectedOppId(e.target.value);
+                setAnalysisStatus('idle');
+                setAiAnalysis(null);
+              }}
+              disabled={analysisStatus === 'loading' || allOpps.length === 0}
+            >
+              {pipelineOpps.length > 0 && (
+                <optgroup label="Your Saved Pipeline">
+                  {pipelineOpps.map(opp => (
+                    <option key={opp.id} value={opp.id}>{opp.title}</option>
+                  ))}
+                </optgroup>
+              )}
+              {allOpps.length > 0 && (
+                <optgroup label="All Opportunities">
+                  {allOpps.filter(opp => !pipelineOpps.find(p => p.id === opp.id)).map(opp => (
+                    <option key={opp.id} value={opp.id}>{opp.title}</option>
+                  ))}
+                </optgroup>
+              )}
+            </select>
+            <ChevronDown size={18} style={{ position: 'absolute', right: '16px', top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.5)', pointerEvents: 'none' }} />
+          </div>
+          <button 
+            onClick={runAnalysis}
+            disabled={analysisStatus === 'loading' || !selectedOppId}
+            className="btn btn-primary"
+            style={{ padding: '12px 24px', height: '44px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px' }}
           >
-            {pipelineOpps.length > 0 ? (
-              <optgroup label="Your Pipeline">
-                {pipelineOpps.map(opp => (
-                  <option key={opp.id} value={opp.id}>{opp.title}</option>
-                ))}
-              </optgroup>
-            ) : (
-              <optgroup label="Empty Pipeline">
-                <option value={SEED_OPPORTUNITIES[0].id}>Chevening (Demo Mode)</option>
-              </optgroup>
-            )}
-          </select>
-          <ChevronDown size={18} style={{ position: 'absolute', right: '16px', top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.5)', pointerEvents: 'none' }} />
+            <Zap size={16} /> {analysisStatus === 'loading' ? 'Analyzing...' : 'Run AI Analysis'}
+          </button>
         </div>
       </div>
 
@@ -236,7 +259,9 @@ export default function RoadmapPage() {
         </div>
         
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px' }}>
-          {isAiLoading ? (
+          {analysisStatus === 'idle' ? (
+            <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: '14px' }}>Run Analysis to unlock dynamic simulator</div>
+          ) : analysisStatus === 'loading' ? (
             <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: '14px' }}>Generating simulation parameters...</div>
           ) : aiAnalysis?.simulatorLevers && aiAnalysis.simulatorLevers.length > 0 ? (
             aiAnalysis.simulatorLevers.map((lever: any, i: number) => (
@@ -281,7 +306,7 @@ export default function RoadmapPage() {
               <div className="timeline-container" style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
                 <div style={{ fontSize: '11px', color: '#f59e0b', fontWeight: 700 }}>TARGET STATE</div>
                 <div style={{ fontSize: '13px', fontWeight: 600, color: 'white', marginTop: '4px' }}>
-                  {isAiLoading ? 'Analyzing...' : aiAnalysis?.targetState || 'N/A'}
+                  {analysisStatus === 'idle' ? 'Run AI Analysis to view target state' : analysisStatus === 'loading' ? 'Analyzing...' : aiAnalysis?.targetState || 'N/A'}
                 </div>
               </div>
             )}
@@ -303,7 +328,9 @@ export default function RoadmapPage() {
                   Upgrade to Pro
                 </Link>
               </div>
-            ) : isAiLoading ? (
+            ) : analysisStatus === 'idle' ? (
+              <div style={{ color: 'rgba(255,255,255,0.5)', textAlign: 'center', padding: '20px' }}>Run AI Analysis to uncover your critical profile gaps.</div>
+            ) : analysisStatus === 'loading' ? (
               <div style={{ color: 'rgba(255,255,255,0.5)', textAlign: 'center', padding: '20px' }}>Analyzing gaps with AI...</div>
             ) : aiAnalysis?.gaps?.map((gap: any, i: number) => (
               <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
@@ -342,7 +369,9 @@ export default function RoadmapPage() {
           <div style={{ position: 'relative', paddingLeft: '24px' }}>
             <div style={{ position: 'absolute', left: '7px', top: 0, bottom: 0, width: '2px', background: 'linear-gradient(180deg, #6366f1, #06b6d4)', borderRadius: '1px', opacity: 0.3 }} />
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              {isAiLoading ? (
+              {analysisStatus === 'idle' ? (
+                <div style={{ color: 'rgba(255,255,255,0.5)', textAlign: 'center', padding: '20px' }}>Run AI Analysis to generate your step-by-step roadmap.</div>
+              ) : analysisStatus === 'loading' ? (
                 <div style={{ color: 'rgba(255,255,255,0.5)', textAlign: 'center', padding: '20px' }}>Generating AI Action Plan...</div>
               ) : aiAnalysis?.actionPlan?.map((item: any, i: number) => (
                 <div key={i} style={{ display: 'flex', gap: '16px', alignItems: 'flex-start', position: 'relative' }}>

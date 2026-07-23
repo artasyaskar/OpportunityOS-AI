@@ -70,10 +70,16 @@ export async function POST(req: NextRequest) {
       userId: uid,
       type,
       storageKey,
-      filename: safeFilename,
+      fileName: safeFilename,
       status: DocumentStatus.UPLOADED, // Wait for parsing
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+      uploadedAt: new Date().toISOString(),
+      lastUpdatedAt: new Date().toISOString(),
+      size: size,
+      mimeType: contentType,
+      version: 1,
+      source: 'user_upload',
+      usedInApplications: [],
+      aiConfidence: 0
     });
 
     return NextResponse.json({
