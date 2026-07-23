@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
   if (auth instanceof NextResponse) return auth;
   const { uid } = auth;
 
-  const rate = checkRateLimit(req, uid);
+  const rate = await checkRateLimit(req, uid);
   if (!rate.success) {
     return NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429, headers: rate.headers });
   }
@@ -108,6 +108,17 @@ export async function POST(req: NextRequest) {
       message: `${userName} submitted a payment receipt for ${planId}.`,
       type: 'PAYMENT_SUBMITTED',
       link: '/dashboard/admin',
+      createdAt: now,
+      read: false,
+    });
+
+    // Notify the user that their account was upgraded
+    await adminDb.collection('notifications').add({
+      userId: uid,
+      title: 'Pro Plan Unlocked',
+      message: `Your account has been successfully upgraded to the ${plan.name} tier.`,
+      type: 'SYSTEM',
+      link: '/dashboard/settings',
       createdAt: now,
       read: false,
     });
