@@ -48,8 +48,8 @@
   --radius-2xl: 32px;
 
   /* Typography */
-  --font-sans: 'Inter', -apple-system, sans-serif;
-  --font-display: 'Space Grotesk', sans-serif;
+  --font-sans: var(--font-inter), -apple-system, sans-serif;
+  --font-display: var(--font-space-grotesk), sans-serif;
 }
 
 *, *::before, *::after {
