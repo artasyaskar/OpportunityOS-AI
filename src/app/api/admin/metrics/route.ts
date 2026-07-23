@@ -4,7 +4,7 @@ import { checkRateLimit } from '@/lib/rateLimiter';
 import { PRICING_PLANS } from '@/lib/pricing';
 
 export async function GET(req: NextRequest) {
-  const rateLimit = checkRateLimit(req);
+  const rateLimit = await checkRateLimit(req);
   if (!rateLimit.success) {
     return NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429 });
   }
