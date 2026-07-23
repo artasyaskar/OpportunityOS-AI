@@ -18,40 +18,45 @@
   perspective: 1200px; /* Depth of the 3D scene */
   width: 100%;
   max-width: 500px;
+  min-height: 100vh;
   padding: 20px;
   margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* The Tilted Device Chassis */
 .chassis {
+  width: 100%;
   background: linear-gradient(145deg, #2b3036, #1e2226);
   border-radius: 24px;
-  padding: 40px;
+  padding: 24px 32px;
   box-shadow: 
     0 30px 60px rgba(0, 0, 0, 0.8), /* Deep drop shadow */
     inset 0 2px 2px rgba(255, 255, 255, 0.1), /* Top edge highlight */
     inset 0 -2px 5px rgba(0, 0, 0, 0.5); /* Bottom edge shadow */
   
   /* The High-End Angle Transform */
-  transform: rotateX(30deg) rotateY(10deg) rotateZ(-5deg);
+  transform: translateY(-80px) rotateX(30deg) rotateY(10deg) rotateZ(-5deg);
   transition: transform 0.5s ease;
   border: 1px solid #3d444b;
   position: relative;
 }
 
 /* Typography */
-.chassis h1 { text-align: center; font-size: 24px; font-weight: 600; margin-bottom: 24px; text-shadow: 0 2px 4px rgba(0,0,0,0.5); color: #ffffff; }
-.chassis label { display: block; font-size: 12px; color: #94a3b8; margin-bottom: 6px; margin-top: 16px; font-weight: 600; }
+.chassis h1 { text-align: center; font-size: 22px; font-weight: 600; margin-bottom: 16px; text-shadow: 0 2px 4px rgba(0,0,0,0.5); color: #ffffff; }
+.chassis label { display: block; font-size: 11px; color: #94a3b8; margin-bottom: 4px; margin-top: 12px; font-weight: 600; }
 
 /* Google Button - Raised Extrusion */
 .btn-google {
   width: 100%;
   background: #2d333b;
   color: #fff;
-  padding: 12px;
+  padding: 10px;
   border: 1px solid #444c56;
   border-radius: 8px;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
   cursor: pointer;
   display: flex;
@@ -73,8 +78,8 @@
 /* Separator */
 .separator {
   text-align: center;
-  margin: 24px 0;
-  font-size: 12px;
+  margin: 16px 0;
+  font-size: 11px;
   color: #64748b;
   position: relative;
 }
@@ -90,9 +95,9 @@
   background: #1a1d21;
   border: 1px solid #2d333b;
   color: #fff;
-  padding: 14px;
+  padding: 12px;
   border-radius: 8px;
-  font-size: 14px;
+  font-size: 13px;
   /* The inset shadow creates the deep recessed look */
   box-shadow: inset 0 6px 12px rgba(0, 0, 0, 0.7), 0 1px 1px rgba(255,255,255,0.05);
   outline: none;
