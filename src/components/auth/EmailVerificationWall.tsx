@@ -2,10 +2,12 @@
 
 import { useState } from 'react';
 import { useAuth } from '@/components/auth/AuthProvider';
+import { useDialog } from '@/components/ui/DialogProvider';
 import { Mail } from 'lucide-react';
 
 export default function EmailVerificationWall({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
+  const { toast } = useDialog();
   const [isResending, setIsResending] = useState(false);
   const [resendMessage, setResendMessage] = useState('');
 
@@ -16,7 +18,9 @@ export default function EmailVerificationWall({ children }: { children: React.Re
         setIsResending(true);
         setResendMessage('');
         sendEmailVerification(auth.currentUser).then(() => {
-          setResendMessage('Verification email sent! Please check your spam folder.');
+          const msg = 'A secure verification link has been sent to your email. Please check your inbox and your spam/junk folder.';
+          setResendMessage(msg);
+          toast(msg);
           setIsResending(false);
         }).catch((error: any) => {
           if (error.code === 'auth/too-many-requests') {
