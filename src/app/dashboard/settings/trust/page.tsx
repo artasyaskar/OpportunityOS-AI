@@ -1,12 +1,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useDialog } from '@/components/ui/DialogProvider';
 import Link from 'next/link';
 import { getMemoryFacts, MemoryFact } from '@/lib/aiMemory';
 import { getQuotaState, QuotaState } from '@/lib/costLimiter';
 import { Shield, Brain, BarChart } from 'lucide-react';
 
 export default function TransparencyCenter() {
+  const { toast, confirm, prompt, showAILoading, hideAILoading } = useDialog();
   const [facts, setFacts] = useState<MemoryFact[]>([]);
   const [quota, setQuota] = useState<QuotaState | null>(null);
 
@@ -15,11 +17,11 @@ export default function TransparencyCenter() {
     setQuota(getQuotaState());
   }, []);
 
-  const handleClearMemory = () => {
-    if (confirm('Are you sure you want to clear your AI memory coordinates? This cannot be undone.')) {
+  const handleClearMemory = async () => {
+    if (await confirm('Are you sure you want to clear your AI memory coordinates? This cannot be undone.')) {
       localStorage.removeItem('ai_memory_facts');
       setFacts([]);
-      alert('AI Memory cleared successfully.');
+      toast('AI Memory cleared successfully.');
     }
   };
 
@@ -80,7 +82,7 @@ export default function TransparencyCenter() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px', marginBottom: '20px' }}>
             <div className="glass-sm" style={{ padding: '16px' }}>
               <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', fontWeight: 600 }}>DAILY AI RUNS</div>
-              <div style={{ fontSize: '20px', fontWeight: 800, color: 'white', marginTop: '4px' }}>{quota?.dailyRequests || 0} / 3</div>
+              <div style={{ fontSize: '20px', fontWeight: 800, color: 'white', marginTop: '4px' }}>{quota?.dailyCredits || 0} / 3</div>
             </div>
             <div className="glass-sm" style={{ padding: '16px' }}>
               <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', fontWeight: 600 }}>TOKENS CONSUMED</div>
@@ -97,7 +99,7 @@ export default function TransparencyCenter() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
                 <span style={{ color: 'rgba(255,255,255,0.5)' }}>Llama-3.1-70b (via Groq Cloud)</span>
-                <span style={{ color: 'white', fontWeight: 600 }}>82% runs • $0.0007 / 1k tkn</span>
+                <span className="text-white font-medium">{1000 - (quota?.dailyCredits || 0)} / 1000</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
                 <span style={{ color: 'rgba(255,255,255,0.5)' }}>Gemini-1.5-Pro (via Google AI)</span>
