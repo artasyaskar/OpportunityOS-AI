@@ -27,7 +27,7 @@ export async function guardAgentRoute(
   }
   const { uid } = authResult;
 
-  const rateLimit = checkRateLimit(req, uid);
+  const rateLimit = await checkRateLimit(req, uid);
   if (!rateLimit.success) {
     return NextResponse.json(
       { error: 'Rate limit exceeded. Please slow down.' },
