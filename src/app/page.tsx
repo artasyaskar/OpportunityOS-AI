@@ -264,16 +264,16 @@ export default function Home() {
           {/* CTAs */}
           <div
             className="animate-slide-up delay-300"
-            style={{ display: 'flex', gap: '16px', justifyContent: 'center', flexWrap: 'wrap', flexDirection: 'column', alignItems: 'center' }}
+            style={{ display: 'flex', gap: '16px', justifyContent: 'center', flexDirection: 'column', alignItems: 'center', width: '100%' }}
           >
-            <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', flexWrap: 'wrap', width: '100%' }}>
               {hasProfile ? (
-                <Link href="/dashboard" className="btn btn-primary btn-lg" style={{ background: 'linear-gradient(135deg, #10b981, #059669)', border: '1px solid rgba(16,185,129,0.4)' }}>
+                <Link href="/dashboard" className="btn btn-primary btn-lg" style={{ background: 'linear-gradient(135deg, #10b981, #059669)', border: '1px solid rgba(16,185,129,0.4)', flex: '1 1 auto', minWidth: 'min(100%, 250px)' }}>
                   Resume {profileName}'s Session
                   <ArrowRight size={18} aria-hidden="true" />
                 </Link>
               ) : (
-                <Link href="/signup" className="btn btn-primary btn-lg">
+                <Link href="/signup" className="btn btn-primary btn-lg" style={{ flex: '1 1 auto', minWidth: 'min(100%, 250px)' }}>
                   <Rocket size={18} aria-hidden="true" />
                   Enter Mission Control
                 </Link>
@@ -281,10 +281,10 @@ export default function Home() {
               <button
                 onClick={() => setWalkthroughOpen(true)}
                 className="btn btn-secondary btn-lg"
-                style={{ background: 'linear-gradient(135deg, rgba(16,185,129,0.15), rgba(16,185,129,0.05))', border: '1px solid rgba(16,185,129,0.4)', color: '#10b981', display: 'flex', alignItems: 'center', gap: '8px' }}
+                style={{ background: 'linear-gradient(135deg, rgba(16,185,129,0.15), rgba(16,185,129,0.05))', border: '1px solid rgba(16,185,129,0.4)', color: '#10b981', display: 'flex', alignItems: 'center', gap: '8px', flex: '1 1 auto', minWidth: 'min(100%, 300px)', whiteSpace: 'normal', height: 'auto', padding: '12px 24px' }}
               >
-                <PlayCircle size={18} aria-hidden="true" />
-                Start Interactive Judge Walkthrough (4 min)
+                <PlayCircle size={18} aria-hidden="true" style={{ flexShrink: 0 }} />
+                <span>Start Interactive Judge Walkthrough (4 min)</span>
               </button>
             </div>
           </div>

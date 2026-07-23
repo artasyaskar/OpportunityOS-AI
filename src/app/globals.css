@@ -535,7 +535,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .text-hero {
-  font-size: clamp(48px, 8vw, 96px);
+  font-size: clamp(40px, 10vw, 96px);
   font-weight: 900;
   line-height: 1.0;
   letter-spacing: -3px;

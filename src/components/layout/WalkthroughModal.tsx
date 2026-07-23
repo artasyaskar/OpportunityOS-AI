@@ -141,7 +141,7 @@ export default function WalkthroughModal({ isOpen, onClose }: WalkthroughModalPr
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: '20px',
+        padding: '16px', // Smaller padding for mobile
         opacity: 1,
         transition: 'opacity 0.3s ease',
       }}
@@ -155,6 +155,9 @@ export default function WalkthroughModal({ isOpen, onClose }: WalkthroughModalPr
         style={{
           width: '100%',
           maxWidth: '650px',
+          maxHeight: '90vh', // Prevent cutting off on small screens
+          display: 'flex',
+          flexDirection: 'column',
           backgroundColor: 'rgba(15, 23, 42, 0.6)',
           border: '1px solid rgba(255, 255, 255, 0.1)',
           borderRadius: '24px',
@@ -176,7 +179,7 @@ export default function WalkthroughModal({ isOpen, onClose }: WalkthroughModalPr
         </div>
 
         {/* Header Controls */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '24px 32px 0' }}>
+        <div style={{ flexShrink: 0, display: 'flex', justifyContent: 'space-between', padding: '20px 24px 0' }}>
           <div style={{ fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.4)', letterSpacing: '1px' }}>
             STEP {currentStep + 1} OF {STEPS.length}
           </div>
@@ -193,8 +196,9 @@ export default function WalkthroughModal({ isOpen, onClose }: WalkthroughModalPr
         {/* Content Area */}
         <div 
           style={{ 
-            padding: '40px 32px 48px',
-            minHeight: '280px',
+            padding: '24px 24px 32px',
+            overflowY: 'auto', // Allow scrolling on small screens
+            flexGrow: 1,
             display: 'flex',
             flexDirection: 'column',
             justifyContent: 'center',
@@ -206,26 +210,26 @@ export default function WalkthroughModal({ isOpen, onClose }: WalkthroughModalPr
           {(() => {
             const StepIcon = STEPS[currentStep].Icon;
             return (
-              <div style={{ marginBottom: '24px' }}>
-                <div style={{ width: '72px', height: '72px', borderRadius: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, rgba(99,102,241,0.2), rgba(139,92,246,0.2))', border: '1px solid rgba(99,102,241,0.3)' }}>
-                  <StepIcon size={34} color="#a5b4fc" aria-hidden="true" />
+              <div style={{ marginBottom: '20px' }}>
+                <div style={{ width: '60px', height: '60px', borderRadius: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, rgba(99,102,241,0.2), rgba(139,92,246,0.2))', border: '1px solid rgba(99,102,241,0.3)' }}>
+                  <StepIcon size={28} color="#a5b4fc" aria-hidden="true" />
                 </div>
               </div>
             );
           })()}
-          <h2 style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '32px', fontWeight: 800, color: 'white', marginBottom: '8px', lineHeight: 1.2 }}>
+          <h2 style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: 'clamp(24px, 6vw, 32px)', fontWeight: 800, color: 'white', marginBottom: '8px', lineHeight: 1.2 }}>
             {STEPS[currentStep].title}
           </h2>
           <div style={{ color: '#818cf8', fontSize: '16px', fontWeight: 600, marginBottom: '20px' }}>
             {STEPS[currentStep].subtitle}
           </div>
-          <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '18px', lineHeight: 1.6 }}>
+          <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 'clamp(15px, 4vw, 18px)', lineHeight: 1.6 }}>
             {STEPS[currentStep].content}
           </p>
         </div>
 
         {/* Footer Navigation */}
-        <div style={{ padding: '24px 32px', borderTop: '1px solid rgba(255,255,255,0.06)', background: 'rgba(0,0,0,0.2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ flexShrink: 0, padding: '20px 24px', borderTop: '1px solid rgba(255,255,255,0.06)', background: 'rgba(0,0,0,0.2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
           <button 
             onClick={prevStep}
             disabled={currentStep === 0}
