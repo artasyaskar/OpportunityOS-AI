@@ -78,6 +78,7 @@ import Analytics from '@/components/Analytics';
 
 import { Providers } from '@/components/Providers';
 import { CommandPalette } from '@/components/ui/CommandPalette';
+import { GoogleAnalytics } from '@next/third-parties/google';
 
 export default function RootLayout({
   children,
@@ -101,6 +102,7 @@ export default function RootLayout({
           <CommandPalette />
           {children}
         </Providers>
+        <GoogleAnalytics gaId="G-MGKLEDWZRH" />
       </body>
     </html>
   );

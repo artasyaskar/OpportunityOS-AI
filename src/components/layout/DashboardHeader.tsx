@@ -86,7 +86,7 @@ export default function DashboardHeader() {
 
   useEffect(() => {
     if (user?.uid) {
-      EvidenceRepository.getDocuments(user.uid).then(docs => setDocuments(docs)).catch(console.error);
+      EvidenceRepository.getEvidenceForUser(user.uid).then((docs: any[]) => setDocuments(docs)).catch(console.error);
     }
   }, [user?.uid]);
 

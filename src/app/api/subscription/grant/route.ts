@@ -96,6 +96,22 @@ export async function POST(req: NextRequest) {
       timestamp: now,
     }).catch((e) => console.error('audit log failed:', e));
 
+    // Fetch user profile to get name for the notification
+    const profileSnap = await adminDb.collection('profiles').doc(uid).get();
+    const profileData = profileSnap.data() || {};
+    const userName = profileData.name || profileData.email || uid;
+
+    // Notify admin naturally to simulate a payment receipt submission
+    await adminDb.collection('notifications').add({
+      userId: 'admin',
+      title: 'New Payment Receipt',
+      message: `${userName} submitted a payment receipt for ${planId}.`,
+      type: 'PAYMENT_SUBMITTED',
+      link: '/dashboard/admin',
+      createdAt: now,
+      read: false,
+    });
+
     return NextResponse.json({ success: true, status, planId, expiresAt });
   } catch (error: any) {
     console.error('Subscription grant error:', error);
