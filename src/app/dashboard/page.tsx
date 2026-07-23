@@ -10,7 +10,7 @@ import { ActivityTimeline } from '@/components/ui/ActivityTimeline';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { useProfile } from '@/components/auth/ProfileContext';
 import { usePipeline } from '@/components/auth/PipelineContext';
-import { Check, Hand, Briefcase, Newspaper, Telescope, DollarSign, TrendingUp, Zap, Target, Globe, Landmark, Laptop, Rocket, Trophy, CheckCircle, Search, Plane, Shield, GraduationCap, FileText, Microscope, Mic, Pin, Bot, Network, Download, ShieldCheck, ZapIcon, Info, Mail, Clock, AlertCircle, FileEdit, Activity, Map } from 'lucide-react';
+import { Loader2, Sparkles, Check, Hand, Briefcase, Newspaper, Telescope, DollarSign, TrendingUp, Zap, Target, Globe, Landmark, Laptop, Rocket, Trophy, CheckCircle, Search, Plane, Shield, GraduationCap, FileText, Microscope, Mic, Pin, Bot, Network, Download, ShieldCheck, ZapIcon, Info, Mail, Clock, AlertCircle, FileEdit, Activity, Map } from 'lucide-react';
 
 function ScoreRing({ score, size = 100, label }: { score: number; size?: number; label: string }) {
   const { color } = getScoreLabel(score);
@@ -626,10 +626,16 @@ export default function DashboardPage() {
                 </Link>
               );
             }) : (
-              <div className="card" style={{ padding: '32px', textAlign: 'center' }}>
-                 <div style={{ fontSize: '32px', marginBottom: '12px', display: 'flex', justifyContent: 'center' }}><Search size={32} className="text-indigo-400" /></div>
-                 <h3 style={{ color: 'white', fontSize: '15px', fontWeight: 600, marginBottom: '6px' }}>Scanning Global Databases</h3>
-                 <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '13px' }}>Your AI Chief Officer is analyzing your DNA to find matching opportunities. Check back shortly.</p>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px 20px', background: 'rgba(255,255,255,0.02)', borderRadius: '16px', border: '1px dashed rgba(255,255,255,0.1)', animation: 'pulse 2s infinite' }}>
+                <div style={{ position: 'relative', width: '64px', height: '64px', marginBottom: '16px' }}>
+                  <Loader2 size={64} className="text-indigo-500 animate-spin" style={{ position: 'absolute', opacity: 0.2 }} />
+                  <Loader2 size={64} className="text-indigo-400 animate-spin" style={{ position: 'absolute', animationDuration: '3s' }} />
+                  <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Sparkles size={24} className="text-emerald-400" />
+                  </div>
+                </div>
+                <h3 style={{ color: 'white', fontSize: '15px', fontWeight: 600, marginBottom: '6px' }}>Scanning Global Databases</h3>
+                <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '13px', maxWidth: '300px', textAlign: 'center' }}>Your AI Chief Officer is analyzing your DNA to find matching opportunities. Check back shortly.</p>
               </div>
             )}
           </div>
