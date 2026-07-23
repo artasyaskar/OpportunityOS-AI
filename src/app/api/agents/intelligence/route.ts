@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
     if ('status' in authResult) return authResult;
     const { uid } = authResult as { uid: string };
 
-    const rateLimit = checkRateLimit(req, uid);
+    const rateLimit = await checkRateLimit(req, uid);
     if (!rateLimit.success) {
       return NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429, headers: rateLimit.headers });
     }
