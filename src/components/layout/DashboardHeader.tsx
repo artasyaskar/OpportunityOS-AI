@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { useDialog } from '@/components/ui/DialogProvider';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/components/auth/AuthProvider';
@@ -31,6 +32,7 @@ const NAV_DESTINATIONS: SearchResult[] = [
 ];
 
 export default function DashboardHeader() {
+  const { toast, confirm, prompt, showAILoading, hideAILoading } = useDialog();
   const router = useRouter();
   const { user, logout, getIdToken } = useAuth();
   const { profile, openUpgradeModal, isOffline } = useProfile() as any;
@@ -438,7 +440,7 @@ export default function DashboardHeader() {
                   })
                 });
                 if (res.ok) {
-                  alert('Pro successfully unlocked!');
+                  toast('Pro successfully unlocked!');
                   window.location.reload();
                 }
               } catch (e) {}
