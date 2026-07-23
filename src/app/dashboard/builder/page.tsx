@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import { useDialog } from '@/components/ui/DialogProvider';
 import { OpportunityRepository } from '@/lib/repositories/OpportunityRepository';
 import type { Opportunity } from '@/lib/gemini';
 import UpgradeModal from '@/components/UpgradeModal';
@@ -50,6 +51,7 @@ My professional and academic experiences, primarily involving ${experience}, ali
 };
 
 export default function BuilderPage() {
+  const { toast, confirm, prompt, showAILoading, hideAILoading } = useDialog();
   const [docType, setDocType] = useState('sop');
   const [opportunity, setOpportunity] = useState<Opportunity | null>(null);
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
@@ -148,6 +150,7 @@ export default function BuilderPage() {
   const textRef = useRef<HTMLTextAreaElement>(null);
 
   const handleGenerate = async () => {
+    showAILoading('Synthesizing dynamic strategy...');
     setGenerating(true);
     setContents(prev => ({ ...prev, [docType]: '' }));
     setReviews(prev => ({ ...prev, [docType]: null }));
@@ -204,7 +207,7 @@ export default function BuilderPage() {
           throw new Error('Insufficient AI Credits');
         }
         if (data.error) {
-          alert(`[AI Guardrail Alert]: ${data.error}\n\n${data.content}\n\nTechnical details: ${data.message}`);
+          toast(`[AI Guardrail Alert]: ${data.error}\n\n${data.content}\n\nTechnical details: ${data.message}`);
           throw new Error('Hallucination intercepted');
         }
         throw new Error('API error');
@@ -217,7 +220,11 @@ export default function BuilderPage() {
       explanations.confidence = data.confidence || 'High';
       explanations.evidenceUsed = data.evidenceUsed || ['Base Profile <Check size={12} className="inline ml-1 text-emerald-500" />'];
       setExplanationsMap(prev => ({ ...prev, [docType]: explanations }));
-    } catch {
+    } catch (e: any) {
+      if (e.message !== 'Insufficient AI Credits') {
+        toast('Generation failed: ' + (e.message || 'Unknown error'));
+      }
+      
       // Dynamic fallback based on profile
       const fallbackText = generateTemplate(docType, activeProfile, opportunity);
       let i = 0;
@@ -236,6 +243,7 @@ export default function BuilderPage() {
       }, 50);
     } finally {
       setGenerating(false);
+      hideAILoading();
     }
   };
 
@@ -243,63 +251,68 @@ export default function BuilderPage() {
     const activeContent = contents[docType] || '';
     if (!activeContent) return;
     setReviewing(true);
-    await new Promise(r => setTimeout(r, 1500));
-    
-    // Dynamic Analysis
-    const paragraphs = activeContent.split('\n\n').filter(p => p.trim().length > 0);
-    const analyzedParagraphs = paragraphs.map((p, idx) => {
-      const wordCount = p.split(/\s+/).filter(Boolean).length;
-      let strengths = "Provides clear context.";
-      let weaknesses = "Could use more specific metrics.";
-      let evidence = "General statement.";
-      let perspective = "Maintain formal tone.";
-      let suggestions = "Add quantifiable achievements if applicable.";
+    showAILoading('Running AI diagnostics...');
+    try {
+      await new Promise(r => setTimeout(r, 1500));
+      
+      // Dynamic Analysis
+      const paragraphs = activeContent.split('\n\n').filter(p => p.trim().length > 0);
+      const analyzedParagraphs = paragraphs.map((p, idx) => {
+        const wordCount = p.split(/\s+/).filter(Boolean).length;
+        let strengths = "Provides clear context.";
+        let weaknesses = "Could use more specific metrics.";
+        let evidence = "General statement.";
+        let perspective = "Maintain formal tone.";
+        let suggestions = "Add quantifiable achievements if applicable.";
 
-      // Basic heuristic analysis for demo dynamic feedback
-      if (p.toLowerCase().includes('gpa') || /\d/.test(p)) {
-        strengths = "Effectively uses numerical evidence.";
-        evidence = "Quantifiable metrics detected.";
-      }
-      if (p.toLowerCase().includes('research') || p.toLowerCase().includes('project')) {
-        strengths = "Highlights academic/practical experience.";
-        suggestions = "Ensure you state your specific role and impact.";
-      }
-      if (idx === 0) {
-        strengths = "Establishes a hook.";
-        weaknesses = wordCount < 30 ? "Hook is a bit short." : "None.";
-      } else if (idx === paragraphs.length - 1) {
-        strengths = "Concludes with forward-looking statements.";
-      }
+        // Basic heuristic analysis for demo dynamic feedback
+        if (p.toLowerCase().includes('gpa') || /\d/.test(p)) {
+          strengths = "Effectively uses numerical evidence.";
+          evidence = "Quantifiable metrics detected.";
+        }
+        if (p.toLowerCase().includes('research') || p.toLowerCase().includes('project')) {
+          strengths = "Highlights academic/practical experience.";
+          suggestions = "Ensure you state your specific role and impact.";
+        }
+        if (idx === 0) {
+          strengths = "Establishes a hook.";
+          weaknesses = wordCount < 30 ? "Hook is a bit short." : "None.";
+        } else if (idx === paragraphs.length - 1) {
+          strengths = "Concludes with forward-looking statements.";
+        }
 
-      return {
-        paragraph: idx + 1,
-        excerpt: p.length > 80 ? p.substring(0, 80) + '...' : p,
-        strengths,
-        weaknesses,
-        evidence,
-        perspective,
-        suggestions,
-        grammar: "Passed standard check",
-        wordCount,
-      };
-    });
+        return {
+          paragraph: idx + 1,
+          excerpt: p.length > 80 ? p.substring(0, 80) + '...' : p,
+          strengths,
+          weaknesses,
+          evidence,
+          perspective,
+          suggestions,
+          grammar: "Passed standard check",
+          wordCount,
+        };
+      });
 
-    setReviews(prev => ({
-      ...prev,
-      [docType]: {
-        score: Math.min(95, 60 + paragraphs.length * 5),
-        paragraphs: analyzedParagraphs,
-        strengths: [
-          'Maintains logical structure and flow',
-          'Aligns with general academic standards',
-        ],
-        improvements: [
-          'Enhance specific, quantifiable evidence (e.g., percentages, exact numbers)',
-          'Ensure every paragraph maps directly to the opportunity requirements',
-        ]
-      }
-    }));
-    setReviewing(false);
+      setReviews(prev => ({
+        ...prev,
+        [docType]: {
+          score: Math.min(95, 60 + paragraphs.length * 5),
+          paragraphs: analyzedParagraphs,
+          strengths: [
+            'Maintains logical structure and flow',
+            'Aligns with general academic standards',
+          ],
+          improvements: [
+            'Enhance specific, quantifiable evidence (e.g., percentages, exact numbers)',
+            'Ensure every paragraph maps directly to the opportunity requirements',
+          ]
+        }
+      }));
+    } finally {
+      setReviewing(false);
+      hideAILoading();
+    }
   };
 
   const activeContent = contents[docType] || '';
@@ -444,11 +457,12 @@ export default function BuilderPage() {
               onClick={async () => {
                 const el = document.getElementById('pdf_url_input') as HTMLInputElement;
                 if (!el || !el.value) {
-                  alert('Please paste a PDF or paper URL to analyze.');
+                  toast('Please paste a PDF or paper URL to analyze.');
                   return;
                 }
                 
                 setIsAnalyzingUrl(true);
+                showAILoading('Analyzing URL context...');
                 try {
                   const token = await getIdToken();
                   const res = await fetch('/api/agents/research', {
@@ -463,7 +477,7 @@ export default function BuilderPage() {
                   const data = await res.json();
                   
                   if (!res.ok) {
-                    alert(data.error || 'Failed to analyze URL.');
+                    toast(data.error || 'Failed to analyze URL.');
                     return;
                   }
                   
@@ -481,13 +495,14 @@ Focus Themes: ${data.themes?.join(', ') || 'None found'}
                     };
                   });
                   
-                  alert('AI Extracted metrics and appended them to your Special Instructions!');
+                  toast('AI Extracted metrics and appended them to your Special Instructions!');
                   el.value = '';
                 } catch (err) {
                   console.error(err);
-                  alert('An error occurred during analysis.');
+                  toast('An error occurred during analysis.');
                 } finally {
                   setIsAnalyzingUrl(false);
+                  hideAILoading();
                 }
               }}
               className="btn btn-ghost btn-sm" 
@@ -540,7 +555,7 @@ Focus Themes: ${data.themes?.join(', ') || 'None found'}
                 }
               } catch(e) { console.error('Failed to save story to vault:', e); }
 
-              alert('Your story has been appended to instructions and saved to your Personal Intelligence Vault!');
+              toast('Your story has been appended to instructions and saved to your Personal Intelligence Vault!');
             }}
           />
 
@@ -871,6 +886,7 @@ function InterviewCoachWidget({
   opportunity: Opportunity | null,
   onInjectContext?: (question: string, answer: string) => void
 }) {
+  const { toast, showAILoading, hideAILoading } = useDialog();
   const [category, setCategory] = useState<'behavioral' | 'scholarship' | 'visa'>('scholarship');
   const [question, setQuestion] = useState('Why do you believe you deserve this opportunity?');
   const [answer, setAnswer] = useState('');
@@ -902,17 +918,19 @@ function InterviewCoachWidget({
 
   const handleEvaluateAnswer = () => {
     if (!answer.trim()) {
-      alert('Please type your response answer to evaluate.');
+      toast('Please type your response answer to evaluate.');
       return;
     }
     
     setEvaluating(true);
+    showAILoading('Evaluating response matrix...');
     setFeedback(null);
     setRating(null);
     
     // Provide a mocked evaluation for now
     setTimeout(() => {
       setEvaluating(false);
+      hideAILoading();
       
       const words = answer.trim().split(/\s+/).length;
       if (words < 10) {
