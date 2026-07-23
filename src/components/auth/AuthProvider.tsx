@@ -13,6 +13,11 @@ import {
   updateProfile,
   signOut,
   User as FirebaseUser,
+  updatePassword,
+  linkWithCredential,
+  EmailAuthProvider,
+  deleteUser,
+  reauthenticateWithPopup
 } from 'firebase/auth';
 import { db } from '@/lib/firebase';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
@@ -48,6 +53,11 @@ interface AuthContextType {
   logout: () => Promise<void>;
   clearError: () => void;
   getIdToken: (forceRefresh?: boolean) => Promise<string>;
+  
+  linkPasswordCredential: (password: string) => Promise<void>;
+  updateUserPassword: (password: string) => Promise<void>;
+  deleteUserAccount: () => Promise<void>;
+  reauthenticateUser: () => Promise<void>;
 }
 
 // ─────────────────────────────────────────────
@@ -237,6 +247,54 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return await auth.currentUser.getIdToken(forceRefresh);
   }, []);
 
+  const linkPasswordCredential = useCallback(async (password: string) => {
+    if (!auth.currentUser || !auth.currentUser.email) throw new Error('No authenticated user or email missing');
+    const credential = EmailAuthProvider.credential(auth.currentUser.email, password);
+    try {
+      await linkWithCredential(auth.currentUser, credential);
+      setUser(firebaseUserToAppUser(auth.currentUser));
+    } catch (err: any) {
+      throw new Error(err.message || 'Failed to link password');
+    }
+  }, []);
+
+  const updateUserPassword = useCallback(async (password: string) => {
+    if (!auth.currentUser) throw new Error('No authenticated user');
+    try {
+      await updatePassword(auth.currentUser, password);
+    } catch (err: any) {
+      if (err.code === 'auth/requires-recent-login') {
+        throw new Error('REQUIRES_RECENT_LOGIN');
+      }
+      throw new Error(err.message || 'Failed to update password');
+    }
+  }, []);
+
+  const deleteUserAccount = useCallback(async () => {
+    if (!auth.currentUser) throw new Error('No authenticated user');
+    try {
+      await deleteUser(auth.currentUser);
+      setUser(null);
+    } catch (err: any) {
+      if (err.code === 'auth/requires-recent-login') {
+        throw new Error('REQUIRES_RECENT_LOGIN');
+      }
+      throw new Error(err.message || 'Failed to delete account');
+    }
+  }, []);
+
+  const reauthenticateUser = useCallback(async () => {
+    if (!auth.currentUser) throw new Error('No authenticated user');
+    try {
+      const provider = new GoogleAuthProvider();
+      await reauthenticateWithPopup(auth.currentUser, provider);
+      // For email/password users, this would ideally prompt for password.
+      // But since Google is our primary OAuth, we try Google first.
+    } catch (err: any) {
+      throw new Error(err.message || 'Failed to reauthenticate');
+    }
+  }, []);
+
   const value: AuthContextType = {
     user,
     isAuthenticated: user !== null,
@@ -250,6 +308,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     logout,
     clearError,
     getIdToken,
+    linkPasswordCredential,
+    updateUserPassword,
+    deleteUserAccount,
+    reauthenticateUser,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
