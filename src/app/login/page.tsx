@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { useProfile } from '@/components/auth/ProfileContext';
+import { useDialog } from '@/components/ui/DialogProvider';
 import AuthModal from '@/components/auth/AuthModal';
 import { Rocket } from 'lucide-react';
 import Toast, { ToastType } from '@/components/auth/Toast';
@@ -25,6 +26,7 @@ export default function LoginPage() {
   const router = useRouter();
   const { loginWithEmail, loginWithGoogle, isAuthenticated, authMode } = useAuth();
   const { profileStatus } = useProfile();
+  const { toast } = useDialog();
 
   // If already authenticated, redirect to appropriate page
   useEffect(() => {
@@ -63,7 +65,7 @@ export default function LoginPage() {
       const { sendPasswordResetEmail } = await import('firebase/auth');
       const { auth } = await import('@/lib/firebase');
       await sendPasswordResetEmail(auth, email);
-      showToast('Password reset email sent. Please check your inbox.', 'success');
+      toast('A secure password reset link has been sent to your email. Please check your inbox and your spam/junk folder.');
       setResetCooldown(60);
       setTimeout(() => setIsResettingPassword(false), 2000);
     } catch (err) {
