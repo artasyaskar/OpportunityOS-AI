@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { useDialog } from '@/components/ui/DialogProvider';
 import { getProbabilityColor, getScoreLabel } from '@/lib/scoring';
 import { SEED_OPPORTUNITIES } from '@/lib/opportunities';
 
@@ -26,6 +27,7 @@ const STATUS_STYLES: Record<string, { color: string; label: any; bg: string }> =
 };
 
 export default function PortfolioPage() {
+  const { toast, confirm, prompt, showAILoading, hideAILoading } = useDialog();
   const [activeTab, setActiveTab] = useState<'dna' | 'portfolio'>('dna');
   
   const { user, getIdToken } = useAuth();
@@ -191,11 +193,11 @@ export default function PortfolioPage() {
         usedInApplications: []
       };
       await EvidenceRepository.saveEvidence(user.uid, newDoc as any);
-      alert('Resume successfully added to vault! Wait a moment for AI extraction.');
+      toast('Resume successfully added to vault! Wait a moment for AI extraction.');
       EvidenceRepository.getEvidenceForUser(user.uid).then(setDocuments);
     } catch (err) {
       console.error(err);
-      alert('Upload failed.');
+      toast('Upload failed.');
     } finally {
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
