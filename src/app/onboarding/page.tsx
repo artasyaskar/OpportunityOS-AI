@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import { useDialog } from '@/components/ui/DialogProvider';
 import { useRouter } from 'next/navigation';
 import { useProfile } from '@/components/auth/ProfileContext';
 import { useAuth } from '@/components/auth/AuthProvider';
@@ -33,6 +34,7 @@ interface UploadedFile {
 }
 
 export default function OnboardingPage() {
+  const { toast, confirm, prompt, showAILoading, hideAILoading } = useDialog();
   const [step, setStep] = useState(1);
   const [analyzing, setAnalyzing] = useState(false);
   const [analyzingProgress, setAnalyzingProgress] = useState(0);
@@ -236,7 +238,7 @@ export default function OnboardingPage() {
         setUploadedResearchPapers(prev => [...prev, ...newFilesData]);
       }
     } catch (e: any) {
-      alert(e.message);
+      toast(e.message);
     } finally {
       setIsUploading(false);
       setActiveUploadModal(null);
@@ -247,7 +249,7 @@ export default function OnboardingPage() {
     if (e.target.files && e.target.files.length > 0) {
       const files = Array.from(e.target.files);
       if ((activeUploadModal === 'transcript' || activeUploadModal === 'research') && files.length > 5) {
-        alert('You can only upload up to 5 files at a time.');
+        toast('You can only upload up to 5 files at a time.');
         return;
       }
       startRealUpload(files);
@@ -278,7 +280,7 @@ export default function OnboardingPage() {
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       const files = Array.from(e.dataTransfer.files);
       if ((activeUploadModal === 'transcript' || activeUploadModal === 'research') && files.length > 5) {
-        alert('You can only upload up to 5 files at a time.');
+        toast('You can only upload up to 5 files at a time.');
         return;
       }
       startRealUpload(files);
@@ -291,7 +293,7 @@ export default function OnboardingPage() {
       setActiveUploadModal(null);
       setLinkedinInput('');
     } else {
-      alert('Please enter a valid LinkedIn URL');
+      toast('Please enter a valid LinkedIn URL');
     }
   };
 
