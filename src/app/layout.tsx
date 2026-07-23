@@ -38,6 +38,14 @@ export const metadata: Metadata = {
   publisher: SITE_NAME,
   alternates: { canonical: '/' },
   manifest: '/manifest.webmanifest',
+  icons: {
+    icon: '/icon.svg',
+    shortcut: '/icon.svg',
+    apple: '/icon.svg',
+  },
+  verification: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION ? {
+    google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION,
+  } : undefined,
   openGraph: {
     title: `${SITE_NAME} — ${SITE_TAGLINE}`,
     description: DEFAULT_DESCRIPTION,
@@ -80,29 +88,60 @@ import { Providers } from '@/components/Providers';
 import { CommandPalette } from '@/components/ui/CommandPalette';
 import { GoogleAnalytics } from '@next/third-parties/google';
 
+import { Inter, Space_Grotesk } from 'next/font/google';
+
+const inter = Inter({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-inter',
+});
+
+const spaceGrotesk = Space_Grotesk({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-space-grotesk',
+});
+
+import { AuthProvider } from '@/components/auth/AuthProvider';
+import { ProfileProvider } from '@/components/auth/ProfileContext';
+import { DialogProvider } from '@/components/ui/DialogProvider';
+import Script from 'next/script';
+import { Analytics as VercelAnalytics } from '@vercel/analytics/react';
+import { SpeedInsights } from '@vercel/speed-insights/next';
+
 export default function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" data-scroll-behavior="smooth" suppressHydrationWarning>
+    <html lang="en" data-scroll-behavior="smooth" suppressHydrationWarning className={`${inter.variable} ${spaceGrotesk.variable}`}>
       <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@300;400;500;600;700&display=swap"
-          rel="stylesheet"
-        />
+        {process.env.NEXT_PUBLIC_VERCEL_ENV === 'production' && (
+          <Script
+            src="https://www.googletagmanager.com/gtag/js?id=G-YOURMEASUREMENTID"
+            strategy="afterInteractive"
+          />
+        )}
       </head>
       <body className={process.env.NEXT_PUBLIC_PRESENTATION_MODE === 'true' ? 'presentation-mode' : ''}>
         <JsonLd data={[organizationJsonLd(), websiteJsonLd()]} />
         <Providers>
-          <Analytics />
-          <CommandPalette />
-          {children}
+          <DialogProvider>
+            <AuthProvider>
+              <ProfileProvider>
+                <Analytics />
+                <CommandPalette />
+                {children}
+              </ProfileProvider>
+            </AuthProvider>
+          </DialogProvider>
         </Providers>
-        <GoogleAnalytics gaId="G-MGKLEDWZRH" />
+        {process.env.NEXT_PUBLIC_GA_ID && (
+          <GoogleAnalytics gaId={process.env.NEXT_PUBLIC_GA_ID} />
+        )}
+        <VercelAnalytics />
+        <SpeedInsights />
       </body>
     </html>
   );
