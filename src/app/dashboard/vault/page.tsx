@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { useDialog } from '@/components/ui/DialogProvider';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { UploadCloud, CheckCircle, XCircle, AlertTriangle, Clock } from 'lucide-react';
 import { EvidenceRepository, EvidenceDocument, EvidenceType, DocumentStatus } from '@/lib/repositories/EvidenceRepository';
@@ -30,6 +31,7 @@ function generateDemoEvidence(userId: string): EvidenceDocument[] {
 }
 
 export default function EvidenceVaultPage() {
+  const { toast, confirm, prompt, showAILoading, hideAILoading } = useDialog();
   const { user, getIdToken } = useAuth();
   const { subscription } = useSubscription();
   const [documents, setDocuments] = useState<EvidenceDocument[]>([]);
@@ -79,7 +81,7 @@ export default function EvidenceVaultPage() {
       a.download = doc.fileName;
       a.click();
     } catch (e: any) {
-      alert('Could not download file: ' + e.message);
+      toast('Could not download file: ' + e.message);
     }
   };
   
@@ -181,7 +183,7 @@ export default function EvidenceVaultPage() {
       loadDocuments(user.uid);
     } catch (err) {
       console.error(err);
-      alert('Failed to process URL.');
+      toast('Failed to process URL.');
     } finally {
       setIsUploading(false);
     }
@@ -192,7 +194,7 @@ export default function EvidenceVaultPage() {
     
     const isFree = !subscription || subscription.status === 'FREE' || subscription.planId === 'free';
     if (isFree && documents.length >= 2) {
-      alert("Free plan is limited to 2 documents. Please upgrade to Pro to upload unlimited evidence.");
+      toast("Free plan is limited to 2 documents. Please upgrade to Pro to upload unlimited evidence.");
       return;
     }
 
@@ -215,7 +217,7 @@ export default function EvidenceVaultPage() {
         usedInApplications: []
       };
       await EvidenceRepository.saveEvidence(user.uid, newDoc as any);
-      alert('Document successfully added to vault! Wait a moment for AI extraction.');
+      toast('Document successfully added to vault! Wait a moment for AI extraction.');
       loadDocuments(user.uid);
 
       // Trigger asynchronous AI processing via real API
@@ -252,7 +254,7 @@ export default function EvidenceVaultPage() {
 
     } catch (err) {
       console.error(err);
-      alert('Upload failed.');
+      toast('Upload failed.');
     } finally {
       setIsUploading(false);
       if (uploadInputRef.current) uploadInputRef.current.value = '';
@@ -286,7 +288,7 @@ export default function EvidenceVaultPage() {
       };
       
       await EvidenceRepository.saveEvidence(user.uid, newDoc);
-      alert(`Document successfully replaced with ${file.name}. AI is processing...`);
+      toast(`Document successfully replaced with ${file.name}. AI is processing...`);
       loadDocuments(user.uid);
 
       // Trigger asynchronous AI processing via real API
@@ -322,7 +324,7 @@ export default function EvidenceVaultPage() {
 
     } catch (err) {
       console.error(err);
-      alert('Failed to replace document.');
+      toast('Failed to replace document.');
     } finally {
       setReplacingDocId(null);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -331,13 +333,13 @@ export default function EvidenceVaultPage() {
 
   const handleDelete = async (docId: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!confirm('Are you sure you want to delete this document? This may affect your AI recommendations.')) return;
+    if (!await confirm('Are you sure you want to delete this document? This may affect your AI recommendations.')) return;
     if (!user?.uid) return;
     
     try {
       await EvidenceRepository.deleteEvidence(docId);
       loadDocuments(user.uid);
-      alert('Document permanently deleted from Vault.');
+      toast('Document permanently deleted from Vault.');
     } catch (err) {
       console.error(err);
     }
@@ -359,7 +361,7 @@ export default function EvidenceVaultPage() {
       setEditingDocId(null);
       loadDocuments(user.uid);
     } catch (err) {
-      alert("Invalid JSON format. Please check your syntax.");
+      toast("Invalid JSON format. Please check your syntax.");
     }
   };
 
@@ -386,8 +388,8 @@ export default function EvidenceVaultPage() {
           
           <button 
             className="btn btn-secondary" 
-            onClick={() => {
-              const url = prompt("Enter a Research URL (DOI, arXiv, IEEE, PDF):");
+            onClick={async () => {
+              const url = await prompt("Enter a Research URL (DOI, arXiv, IEEE, PDF):");
               if (url) handleUrlSubmit(url);
             }}
             disabled={isUploading}
