@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { useProfile } from '@/components/auth/ProfileContext';
+import { useDialog } from '@/components/ui/DialogProvider';
 import AuthModal from '@/components/auth/AuthModal';
 import { Rocket } from 'lucide-react';
 import Toast, { ToastType } from '@/components/auth/Toast';
@@ -25,6 +26,7 @@ export default function SignupPage() {
   const router = useRouter();
   const { signupWithEmail, loginWithGoogle, isAuthenticated, authMode } = useAuth();
   const { profile, isLoading: isProfileLoading } = useProfile();
+  const { toast } = useDialog();
 
   // If already authenticated, redirect
   useEffect(() => {
@@ -65,6 +67,7 @@ export default function SignupPage() {
     setLoading(true);
     try {
       await signupWithEmail(email, password, name);
+      toast('A secure verification link has been sent to your email. Please check your inbox and your spam/junk folder.');
       // Redirect happens via the useEffect above when isAuthenticated becomes true
     } catch (err: unknown) {
       showToast((err as Error).message, 'error');
