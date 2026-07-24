@@ -403,7 +403,7 @@ export default function DashboardHeader() {
                   <button onClick={markAllRead} style={{ background: 'transparent', border: 'none', color: '#818cf8', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}>Mark all read</button>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  {Array.from(new Map(notifications.map(n => [n.id, n])).values()).map((n, i) => (
+                  {Array.from(new Map(notifications.map((n, i) => [n.id || `notif-${i}-${n.title}`, n])).values()).map((n, i) => (
                     <div key={n.id || `notif-${i}`} style={{ paddingBottom: '8px', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                         <span style={{ fontSize: '12px', fontWeight: 700, color: n.unread ? '#818cf8' : 'white' }}>{n.title}</span>

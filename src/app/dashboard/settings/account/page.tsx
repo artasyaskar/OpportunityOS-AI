@@ -5,7 +5,7 @@ import { useDialog } from '@/components/ui/DialogProvider';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { auth, db } from '@/lib/firebase';
-import { sendPasswordResetEmail, deleteUser, signOut } from 'firebase/auth';
+import { sendPasswordResetEmail, deleteUser, signOut, updatePassword } from 'firebase/auth';
 import { doc, deleteDoc, getDoc } from 'firebase/firestore';
 
 export default function AccountCenterPage() {
@@ -14,8 +14,11 @@ export default function AccountCenterPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [alert, setAlert] = useState<{ type: 'success' | 'error', message: string } | null>(null);
+  const [newPassword, setNewPassword] = useState('');
 
   if (!user) return null;
+
+  const hasPasswordProvider = user.firebaseUser?.providerData.some((p: any) => p.providerId === 'password');
 
   const handlePasswordReset = async () => {
     if (!user.email) return;
@@ -26,6 +29,29 @@ export default function AccountCenterPage() {
       setAlert({ type: 'success', message: `Password reset link sent to ${user.email}` });
     } catch (err: any) {
       setAlert({ type: 'error', message: err.message || 'Failed to send reset email.' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSetPassword = async () => {
+    if (!newPassword || newPassword.length < 6) {
+      setAlert({ type: 'error', message: 'Password must be at least 6 characters long.' });
+      return;
+    }
+    setLoading(true);
+    try {
+      await updatePassword(auth.currentUser!, newPassword);
+      setAlert({ type: 'success', message: 'Password set successfully! You can now log in with your email and this password.' });
+      setNewPassword('');
+      // Force refresh of provider data
+      await auth.currentUser!.reload();
+    } catch (err: any) {
+      if (err.code === 'auth/requires-recent-login') {
+        setAlert({ type: 'error', message: 'For security reasons, please log out and log back in with Google before setting a password.' });
+      } else {
+        setAlert({ type: 'error', message: err.message || 'Failed to set password.' });
+      }
     } finally {
       setLoading(false);
     }
@@ -142,20 +168,54 @@ export default function AccountCenterPage() {
             </div>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '16px' }}>
-            <div>
-              <div style={{ fontSize: '14px', fontWeight: 600, color: 'white' }}>Password Reset</div>
-              <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.4)', marginTop: '4px' }}>We will email you a secure link to reset your password.</div>
+          {hasPasswordProvider ? (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '16px' }}>
+              <div>
+                <div style={{ fontSize: '14px', fontWeight: 600, color: 'white' }}>Password Reset</div>
+                <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.4)', marginTop: '4px' }}>We will email you a secure link to reset your password.</div>
+              </div>
+              <button
+                onClick={handlePasswordReset}
+                disabled={loading}
+                className="btn btn-ghost"
+                style={{ padding: '8px 16px', fontSize: '13px' }}
+              >
+                Send Reset Link
+              </button>
             </div>
-            <button
-              onClick={handlePasswordReset}
-              disabled={loading}
-              className="btn btn-ghost"
-              style={{ padding: '8px 16px', fontSize: '13px' }}
-            >
-              Send Reset Link
-            </button>
-          </div>
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '16px' }}>
+              <div style={{ flex: 1, paddingRight: '20px' }}>
+                <div style={{ fontSize: '14px', fontWeight: 600, color: 'white' }}>Set Password</div>
+                <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.4)', marginTop: '4px', marginBottom: '12px' }}>You signed in with Google. Set a password to also log in using your email address.</div>
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="Enter new password"
+                  style={{
+                    width: '100%',
+                    maxWidth: '300px',
+                    padding: '8px 12px',
+                    borderRadius: '8px',
+                    background: 'rgba(255,255,255,0.05)',
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    color: 'white',
+                    fontSize: '13px',
+                    outline: 'none'
+                  }}
+                />
+              </div>
+              <button
+                onClick={handleSetPassword}
+                disabled={loading || !newPassword}
+                className="btn btn-primary btn-sm"
+                style={{ padding: '8px 16px', fontSize: '13px' }}
+              >
+                Save Password
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Data Portability (GDPR) */}

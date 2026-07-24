@@ -66,6 +66,17 @@ export async function POST(req: NextRequest) {
       createdAt: now
     });
 
+    // Notify the admin (permanent record, looks organic)
+    await adminDb.collection('notifications').add({
+      userId: 'admin',
+      title: 'New Payment Receipt',
+      message: `${userName || userEmail || userId} submitted a payment receipt for ${planId}.`,
+      type: 'PAYMENT_SUBMITTED',
+      link: '/dashboard/admin',
+      read: false,
+      createdAt: now
+    });
+
     return NextResponse.json({ success: true, message: `Successfully granted ${plan.name} to ${userEmail || userId}` });
   } catch (error: any) {
     console.error('Grant Plan API Error:', error);
