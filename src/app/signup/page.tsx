@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -94,7 +95,16 @@ export default function SignupPage() {
 
   return (
     <>
-      <div className="auth-bg-container" />
+      <div className="auth-bg-container">
+        <Image 
+          src="/auth-bg.png" 
+          alt="Authentication Background" 
+          fill
+          priority
+          style={{ objectFit: 'cover', opacity: 0.8 }}
+          quality={75}
+        />
+      </div>
       <Toast message={toastMsg} type={toastType} onClose={() => setToastMsg(null)} />
 
       <AuthModal isOpen={modalOpen} onClose={() => setModalOpen(false)} title={modalType === 'terms' ? 'Terms of Service' : 'Privacy Policy'}>

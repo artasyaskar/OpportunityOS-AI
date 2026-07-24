@@ -34,16 +34,18 @@ export default function SettingsPage() {
     education: string;
     gpa: string;
     field: string;
+    discipline: string;
+    previousEducation: string;
+    previousDegreeField: string;
+    englishTests: { type: string; score: string; date: string }[];
+    standardizedTests: { type: string; score: string; date: string }[];
     skills: string;
+    experience: string;
+    dynamicLinks: Record<string, string>;
     goal: string;
     careerGoal: string;
-    experience: string;
     level: string;
     targetOpportunities: string[];
-    githubUrl: string;
-    portfolioUrl: string;
-    toeflScore: string;
-    greScore: string;
     // Multi-dimensional DNA Matrix
     leadershipRoles: string;
     communityImpact: string;
@@ -60,16 +62,18 @@ export default function SettingsPage() {
     education: 'Not Specified',
     gpa: '',
     field: '',
+    discipline: 'Technology & Engineering',
+    previousEducation: '',
+    previousDegreeField: '',
+    englishTests: [],
+    standardizedTests: [],
     skills: '',
+    experience: '',
+    dynamicLinks: {},
     goal: '',
     careerGoal: '',
-    experience: '',
     level: 'undergraduate',
     targetOpportunities: [],
-    githubUrl: '',
-    portfolioUrl: '',
-    toeflScore: '',
-    greScore: '',
     leadershipRoles: '',
     communityImpact: '',
     projects: '',
@@ -505,28 +509,127 @@ export default function SettingsPage() {
               <div>
                 <label style={{ display: 'block', fontSize: '11px', color: 'rgba(255,255,255,0.5)', marginBottom: '6px' }}>Study Level</label>
                 <select className="input" value={profile.level} onChange={e => updateProfileField('level', e.target.value)}>
-                  <option value="high_school">High School</option>
+                  <option value="highschool">High School</option>
                   <option value="undergraduate">Undergraduate</option>
                   <option value="masters">Masters</option>
                   <option value="phd">PhD</option>
+                  <option value="postdoc">Postdoc</option>
                   <option value="professional">Professional</option>
                 </select>
               </div>
               <div>
-                <label style={{ display: 'block', fontSize: '11px', color: 'rgba(255,255,255,0.5)', marginBottom: '6px' }}>Field of Study</label>
-                <input className="input" value={profile.field} onChange={e => updateProfileField('field', e.target.value)} />
+                <label style={{ display: 'block', fontSize: '11px', color: 'rgba(255,255,255,0.5)', marginBottom: '6px' }}>Broad Discipline</label>
+                <select className="input" value={profile.discipline} onChange={e => updateProfileField('discipline', e.target.value)}>
+                  <option value="Technology & Engineering">Technology & Engineering</option>
+                  <option value="Medical & Healthcare">Medical & Healthcare</option>
+                  <option value="Business & Management">Business & Management</option>
+                  <option value="Arts & Design">Arts & Design</option>
+                  <option value="Natural Sciences">Natural Sciences</option>
+                  <option value="Humanities & Law">Humanities & Law</option>
+                </select>
               </div>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
               <div>
-                <label style={{ display: 'block', fontSize: '11px', color: 'rgba(255,255,255,0.5)', marginBottom: '6px' }}>TOEFL / IELTS Score</label>
-                <input className="input" value={profile.toeflScore} onChange={e => updateProfileField('toeflScore', e.target.value)} />
+                <label style={{ display: 'block', fontSize: '11px', color: 'rgba(255,255,255,0.5)', marginBottom: '6px' }}>Field of Study</label>
+                <input className="input" value={profile.field} onChange={e => updateProfileField('field', e.target.value)} />
               </div>
               <div>
-                <label style={{ display: 'block', fontSize: '11px', color: 'rgba(255,255,255,0.5)', marginBottom: '6px' }}>GRE / GMAT Score</label>
-                <input className="input" value={profile.greScore} onChange={e => updateProfileField('greScore', e.target.value)} />
+                <label style={{ display: 'block', fontSize: '11px', color: 'rgba(255,255,255,0.5)', marginBottom: '6px' }}>Previous Education / Degree</label>
+                <input className="input" value={profile.level === 'undergraduate' ? profile.previousEducation : profile.previousDegreeField} onChange={e => updateProfileField(profile.level === 'undergraduate' ? 'previousEducation' : 'previousDegreeField', e.target.value)} />
               </div>
             </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '24px', marginBottom: '12px' }}>
+              <h3 style={{ fontSize: '14px', fontWeight: 600, color: 'white' }}>Global Readiness</h3>
+            </div>
+            
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+              <label style={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)', fontWeight: 600 }}>English Tests</label>
+              <button className="btn btn-secondary btn-sm" onClick={() => updateProfileField('englishTests', [...(profile.englishTests || []), { type: 'Not Planned', score: '', date: '' }])}>+ Add Test</button>
+            </div>
+            {(profile.englishTests || []).map((test, index) => (
+              <div key={`eng-${index}`} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr auto', gap: '16px', marginBottom: '16px', alignItems: 'end' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '11px', color: 'rgba(255,255,255,0.5)', marginBottom: '6px' }}>Test Type</label>
+                  <select className="input" value={test.type} onChange={e => {
+                    const newTests = [...profile.englishTests];
+                    newTests[index].type = e.target.value;
+                    updateProfileField('englishTests', newTests);
+                  }}>
+                    <option value="Not Planned">Not Planned</option>
+                    <option value="IELTS">IELTS</option>
+                    <option value="TOEFL">TOEFL</option>
+                    <option value="PTE">PTE Academic</option>
+                    <option value="Duolingo">Duolingo</option>
+                    <option value="Cambridge">Cambridge</option>
+                    <option value="MOI">MOI</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '11px', color: 'rgba(255,255,255,0.5)', marginBottom: '6px' }}>Score</label>
+                  <input className="input" value={test.score} onChange={e => {
+                    const newTests = [...profile.englishTests];
+                    newTests[index].score = e.target.value;
+                    updateProfileField('englishTests', newTests);
+                  }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '11px', color: 'rgba(255,255,255,0.5)', marginBottom: '6px' }}>Date</label>
+                  <input type="date" className="input" value={test.date} onChange={e => {
+                    const newTests = [...profile.englishTests];
+                    newTests[index].date = e.target.value;
+                    updateProfileField('englishTests', newTests);
+                  }} />
+                </div>
+                <button 
+                  onClick={() => updateProfileField('englishTests', profile.englishTests.filter((_, i) => i !== index))}
+                  style={{ background: 'none', border: 'none', color: '#fb7185', cursor: 'pointer', paddingBottom: '12px' }}
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            ))}
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', marginTop: '24px' }}>
+              <label style={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)', fontWeight: 600 }}>Standardized Tests</label>
+              <button className="btn btn-secondary btn-sm" onClick={() => updateProfileField('standardizedTests', [...(profile.standardizedTests || []), { type: '', score: '' }])}>+ Add Test</button>
+            </div>
+            {(profile.standardizedTests || []).map((test, index) => (
+              <div key={`std-${index}`} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: '16px', marginBottom: '16px', alignItems: 'end' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '11px', color: 'rgba(255,255,255,0.5)', marginBottom: '6px' }}>Test Type</label>
+                  <select className="input" value={test.type} onChange={e => {
+                    const newTests = [...profile.standardizedTests];
+                    newTests[index].type = e.target.value;
+                    updateProfileField('standardizedTests', newTests);
+                  }}>
+                    <option value="">None</option>
+                    <option value="GRE">GRE</option>
+                    <option value="GMAT">GMAT</option>
+                    <option value="SAT">SAT</option>
+                    <option value="ACT">ACT</option>
+                    <option value="LSAT">LSAT</option>
+                    <option value="MCAT">MCAT</option>
+                    <option value="GATE">GATE</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '11px', color: 'rgba(255,255,255,0.5)', marginBottom: '6px' }}>Score</label>
+                  <input className="input" value={test.score} onChange={e => {
+                    const newTests = [...profile.standardizedTests];
+                    newTests[index].score = e.target.value;
+                    updateProfileField('standardizedTests', newTests);
+                  }} />
+                </div>
+                <button 
+                  onClick={() => updateProfileField('standardizedTests', profile.standardizedTests.filter((_, i) => i !== index))}
+                  style={{ background: 'none', border: 'none', color: '#fb7185', cursor: 'pointer', paddingBottom: '12px' }}
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            ))}
 
             <h3 style={{ fontSize: '14px', fontWeight: 600, color: 'white', marginTop: '24px', marginBottom: '12px' }}>Leadership & Impact</h3>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
@@ -540,19 +643,38 @@ export default function SettingsPage() {
               </div>
             </div>
 
-            <h3 style={{ fontSize: '14px', fontWeight: 600, color: 'white', marginTop: '24px', marginBottom: '12px' }}>Projects & Portfolio</h3>
+            <h3 style={{ fontSize: '14px', fontWeight: 600, color: 'white', marginTop: '24px', marginBottom: '12px' }}>Professional Assets</h3>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+              <div style={{ gridColumn: 'span 2' }}>
+                <label style={{ display: 'block', fontSize: '11px', color: 'rgba(255,255,255,0.5)', marginBottom: '6px' }}>Skills (comma-separated)</label>
+                <textarea className="input" style={{ minHeight: '40px', resize: 'vertical' }} value={profile.skills} onChange={e => updateProfileField('skills', e.target.value)} placeholder="Python, Machine Learning, Leadership..." />
+              </div>
+              <div style={{ gridColumn: 'span 2' }}>
+                <label style={{ display: 'block', fontSize: '11px', color: 'rgba(255,255,255,0.5)', marginBottom: '6px' }}>Work / Research Experience Summary</label>
+                <textarea className="input" style={{ minHeight: '60px', resize: 'vertical' }} value={profile.experience} onChange={e => updateProfileField('experience', e.target.value)} placeholder="2 years as research assistant..." />
+              </div>
               <div style={{ gridColumn: 'span 2' }}>
                 <label style={{ display: 'block', fontSize: '11px', color: 'rgba(255,255,255,0.5)', marginBottom: '6px' }}>Notable Projects & Ventures</label>
                 <textarea className="input" style={{ minHeight: '60px', resize: 'vertical' }} value={profile.projects} onChange={e => updateProfileField('projects', e.target.value)} placeholder="Built an AI app that..." />
               </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
               <div>
-                <label style={{ display: 'block', fontSize: '11px', color: 'rgba(255,255,255,0.5)', marginBottom: '6px' }}>GitHub URL</label>
-                <input className="input" value={profile.githubUrl} onChange={e => updateProfileField('githubUrl', e.target.value)} />
+                <label style={{ display: 'block', fontSize: '11px', color: 'rgba(255,255,255,0.5)', marginBottom: '6px' }}>LinkedIn Profile</label>
+                <input className="input" value={profile.dynamicLinks?.linkedin || ''} onChange={e => updateProfileField('dynamicLinks', { ...profile.dynamicLinks, linkedin: e.target.value })} />
               </div>
               <div>
-                <label style={{ display: 'block', fontSize: '11px', color: 'rgba(255,255,255,0.5)', marginBottom: '6px' }}>Portfolio / Website URL</label>
-                <input className="input" value={profile.portfolioUrl} onChange={e => updateProfileField('portfolioUrl', e.target.value)} />
+                <label style={{ display: 'block', fontSize: '11px', color: 'rgba(255,255,255,0.5)', marginBottom: '6px' }}>Personal Website</label>
+                <input className="input" value={profile.dynamicLinks?.website || ''} onChange={e => updateProfileField('dynamicLinks', { ...profile.dynamicLinks, website: e.target.value })} />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '11px', color: 'rgba(255,255,255,0.5)', marginBottom: '6px' }}>GitHub Profile</label>
+                <input className="input" value={profile.dynamicLinks?.github || ''} onChange={e => updateProfileField('dynamicLinks', { ...profile.dynamicLinks, github: e.target.value })} />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '11px', color: 'rgba(255,255,255,0.5)', marginBottom: '6px' }}>ORCID / ResearchGate / Behance</label>
+                <input className="input" value={profile.dynamicLinks?.orcid || profile.dynamicLinks?.behance || ''} onChange={e => updateProfileField('dynamicLinks', { ...profile.dynamicLinks, orcid: e.target.value })} />
               </div>
             </div>
 

@@ -84,13 +84,11 @@ export default function OnboardingPage() {
     targetOpportunities: [] as string[],
     education: '',
     gpa: '',
+    field: '',
     previousEducation: '',
     previousDegreeField: '',
-    englishTest: 'Not Planned',
-    englishScore: '',
-    englishDate: '',
-    standardizedTestType: '',
-    standardizedTestScore: '',
+    englishTests: [{ type: 'Not Planned', score: '', date: '' }],
+    standardizedTests: [{ type: '', score: '' }],
     skills: '',
     experience: '',
     dynamicLinks: {} as Record<string, string>,
@@ -460,6 +458,10 @@ export default function OnboardingPage() {
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.6)', marginBottom: '8px' }}>GPA / Grade</label>
                 <input className="input" placeholder="e.g. 3.90 / 4.0 or 85%" value={profile.gpa} onChange={e => update('gpa', e.target.value)} />
               </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.6)', marginBottom: '8px' }}>Field of Study</label>
+                <input className="input" placeholder="e.g. Computer Science" value={profile.field} onChange={e => update('field', e.target.value)} />
+              </div>
               
               {profile.level === 'undergraduate' && (
                 <div>
@@ -489,71 +491,146 @@ export default function OnboardingPage() {
           {step === 3 && (
             <div style={{ display: 'grid', gap: '24px' }}>
               <div style={{ padding: '20px', borderRadius: '12px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.08)' }}>
-                <h4 style={{ color: 'white', fontSize: '14px', fontWeight: 600, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}><MessageCircle size={18} /> English Proficiency</h4>
-                <div style={{ display: 'grid', gap: '16px' }}>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.6)', marginBottom: '8px' }}>Have you taken an English test?</label>
-                    <select className="input" value={profile.englishTest} onChange={e => update('englishTest', e.target.value)} style={{ appearance: 'none' }}>
-                      <option value="Not Planned">Not Planned</option>
-                      <option value="IELTS">IELTS</option>
-                      <option value="TOEFL">TOEFL</option>
-                      <option value="PTE">PTE Academic</option>
-                      <option value="Duolingo">Duolingo English Test (DET)</option>
-                      <option value="Cambridge">Cambridge English</option>
-                      <option value="MOI">Medium of Instruction (MOI) Letter</option>
-                    </select>
-                  </div>
-                  {profile.englishTest !== 'Not Planned' && profile.englishTest !== 'MOI' && (
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                  <h4 style={{ color: 'white', fontSize: '14px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px' }}><MessageCircle size={18} /> English Proficiency</h4>
+                  <button className="btn btn-secondary btn-sm" onClick={() => setProfile(p => ({ ...p, englishTests: [...p.englishTests, { type: 'Not Planned', score: '', date: '' }] }))}>+ Add Test</button>
+                </div>
+                <div style={{ display: 'grid', gap: '20px' }}>
+                  {profile.englishTests.map((test, index) => (
+                    <div key={index} style={{ padding: '16px', background: 'rgba(0,0,0,0.2)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)', position: 'relative' }}>
+                      {profile.englishTests.length > 1 && (
+                        <button 
+                          onClick={() => setProfile(p => ({ ...p, englishTests: p.englishTests.filter((_, i) => i !== index) }))}
+                          style={{ position: 'absolute', top: '12px', right: '12px', background: 'none', border: 'none', color: '#fb7185', cursor: 'pointer' }}
+                        >
+                          <X size={16} />
+                        </button>
+                      )}
                       <div>
-                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.6)', marginBottom: '8px' }}>Score / Band</label>
-                        <input className="input" placeholder="e.g. 7.5" value={profile.englishScore} onChange={e => update('englishScore', e.target.value)} />
+                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.6)', marginBottom: '8px' }}>Test Type</label>
+                        <select 
+                          className="input" 
+                          value={test.type} 
+                          onChange={e => {
+                            const newTests = [...profile.englishTests];
+                            newTests[index].type = e.target.value;
+                            setProfile(p => ({ ...p, englishTests: newTests }));
+                          }} 
+                          style={{ appearance: 'none' }}
+                        >
+                          <option value="Not Planned">Not Planned</option>
+                          <option value="IELTS">IELTS</option>
+                          <option value="TOEFL">TOEFL</option>
+                          <option value="PTE">PTE Academic</option>
+                          <option value="Duolingo">Duolingo English Test (DET)</option>
+                          <option value="Cambridge">Cambridge English</option>
+                          <option value="MOI">Medium of Instruction (MOI) Letter</option>
+                        </select>
                       </div>
-                      <div>
-                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.6)', marginBottom: '8px' }}>Test Date (Optional)</label>
-                        <input type="date" className="input" value={profile.englishDate} onChange={e => update('englishDate', e.target.value)} />
-                      </div>
+                      {test.type !== 'Not Planned' && test.type !== 'MOI' && (
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginTop: '16px' }}>
+                          <div>
+                            <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.6)', marginBottom: '8px' }}>Score / Band</label>
+                            <input 
+                              className="input" 
+                              placeholder="e.g. 7.5" 
+                              value={test.score} 
+                              onChange={e => {
+                                const newTests = [...profile.englishTests];
+                                newTests[index].score = e.target.value;
+                                setProfile(p => ({ ...p, englishTests: newTests }));
+                              }} 
+                            />
+                          </div>
+                          <div>
+                            <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.6)', marginBottom: '8px' }}>Test Date (Optional)</label>
+                            <input 
+                              type="date" 
+                              className="input" 
+                              value={test.date} 
+                              onChange={e => {
+                                const newTests = [...profile.englishTests];
+                                newTests[index].date = e.target.value;
+                                setProfile(p => ({ ...p, englishTests: newTests }));
+                              }} 
+                            />
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  )}
+                  ))}
                 </div>
               </div>
 
               <div style={{ padding: '20px', borderRadius: '12px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.08)' }}>
-                <h4 style={{ color: 'white', fontSize: '14px', fontWeight: 600, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}><FileText size={18} /> Standardized Tests</h4>
-                <div style={{ display: 'grid', gap: '16px' }}>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.6)', marginBottom: '8px' }}>Select Test (if applicable)</label>
-                    <select className="input" value={profile.standardizedTestType} onChange={e => { update('standardizedTestType', e.target.value); setActiveTestInfo(e.target.value); }} style={{ appearance: 'none' }}>
-                      <option value="">None / Not Planned</option>
-                      <option value="GRE">GRE</option>
-                      <option value="GMAT">GMAT</option>
-                      <option value="SAT">SAT</option>
-                      <option value="ACT">ACT</option>
-                      <option value="LSAT">LSAT</option>
-                      <option value="MCAT">MCAT</option>
-                      <option value="GATE">GATE</option>
-                    </select>
-                  </div>
-                  
-                  {activeTestInfo && activeTestInfo !== '' && (
-                    <div style={{ background: 'rgba(99,102,241,0.1)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(99,102,241,0.2)', fontSize: '12px', color: 'rgba(255,255,255,0.8)' }}>
-                      <strong style={{ color: '#818cf8' }}>What is {activeTestInfo}?</strong><br/>
-                      {activeTestInfo === 'GRE' && 'Graduate Record Examinations. Often required for Master’s/PhD programs in the US.'}
-                      {activeTestInfo === 'GMAT' && 'Graduate Management Admission Test. Required for many MBA and business programs.'}
-                      {activeTestInfo === 'SAT' && 'Scholastic Assessment Test. Widely used for undergraduate admissions in the US.'}
-                      {activeTestInfo === 'ACT' && 'American College Testing. Another major undergraduate admissions test in the US.'}
-                      {activeTestInfo === 'LSAT' && 'Law School Admission Test. Required for law schools (JD programs) in the US and Canada.'}
-                      {activeTestInfo === 'MCAT' && 'Medical College Admission Test. Required for medical schools in the US and Canada.'}
-                      {activeTestInfo === 'GATE' && 'Graduate Aptitude Test in Engineering. Primarily used in India for engineering Master’s programs.'}
-                    </div>
-                  )}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                  <h4 style={{ color: 'white', fontSize: '14px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px' }}><FileText size={18} /> Standardized Tests</h4>
+                  <button className="btn btn-secondary btn-sm" onClick={() => setProfile(p => ({ ...p, standardizedTests: [...p.standardizedTests, { type: '', score: '' }] }))}>+ Add Test</button>
+                </div>
+                <div style={{ display: 'grid', gap: '20px' }}>
+                  {profile.standardizedTests.map((test, index) => (
+                    <div key={index} style={{ padding: '16px', background: 'rgba(0,0,0,0.2)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)', position: 'relative' }}>
+                      {profile.standardizedTests.length > 1 && (
+                        <button 
+                          onClick={() => setProfile(p => ({ ...p, standardizedTests: p.standardizedTests.filter((_, i) => i !== index) }))}
+                          style={{ position: 'absolute', top: '12px', right: '12px', background: 'none', border: 'none', color: '#fb7185', cursor: 'pointer' }}
+                        >
+                          <X size={16} />
+                        </button>
+                      )}
+                      <div>
+                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.6)', marginBottom: '8px' }}>Select Test (if applicable)</label>
+                        <select 
+                          className="input" 
+                          value={test.type} 
+                          onChange={e => {
+                            const newTests = [...profile.standardizedTests];
+                            newTests[index].type = e.target.value;
+                            setProfile(p => ({ ...p, standardizedTests: newTests }));
+                          }} 
+                          style={{ appearance: 'none' }}
+                        >
+                          <option value="">None / Not Planned</option>
+                          <option value="GRE">GRE</option>
+                          <option value="GMAT">GMAT</option>
+                          <option value="SAT">SAT</option>
+                          <option value="ACT">ACT</option>
+                          <option value="LSAT">LSAT</option>
+                          <option value="MCAT">MCAT</option>
+                          <option value="GATE">GATE</option>
+                        </select>
+                      </div>
+                      
+                      {test.type && test.type !== '' && (
+                        <div style={{ background: 'rgba(99,102,241,0.1)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(99,102,241,0.2)', fontSize: '12px', color: 'rgba(255,255,255,0.8)', marginTop: '16px' }}>
+                          <strong style={{ color: '#818cf8' }}>What is {test.type}?</strong><br/>
+                          {test.type === 'GRE' && 'Graduate Record Examinations. Often required for Master’s/PhD programs in the US.'}
+                          {test.type === 'GMAT' && 'Graduate Management Admission Test. Required for many MBA and business programs.'}
+                          {test.type === 'SAT' && 'Scholastic Assessment Test. Widely used for undergraduate admissions in the US.'}
+                          {test.type === 'ACT' && 'American College Testing. Another major undergraduate admissions test in the US.'}
+                          {test.type === 'LSAT' && 'Law School Admission Test. Required for law schools (JD programs) in the US and Canada.'}
+                          {test.type === 'MCAT' && 'Medical College Admission Test. Required for medical schools in the US and Canada.'}
+                          {test.type === 'GATE' && 'Graduate Aptitude Test in Engineering. Primarily used in India for engineering Master’s programs.'}
+                        </div>
+                      )}
 
-                  {profile.standardizedTestType !== '' && (
-                    <div>
-                      <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.6)', marginBottom: '8px' }}>Score (or Expected Score)</label>
-                      <input className="input" placeholder="e.g. 320" value={profile.standardizedTestScore} onChange={e => update('standardizedTestScore', e.target.value)} />
+                      {test.type !== '' && (
+                        <div style={{ marginTop: '16px' }}>
+                          <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.6)', marginBottom: '8px' }}>Score (or Expected Score)</label>
+                          <input 
+                            className="input" 
+                            placeholder="e.g. 320" 
+                            value={test.score} 
+                            onChange={e => {
+                              const newTests = [...profile.standardizedTests];
+                              newTests[index].score = e.target.value;
+                              setProfile(p => ({ ...p, standardizedTests: newTests }));
+                            }} 
+                          />
+                        </div>
+                      )}
                     </div>
-                  )}
+                  ))}
                 </div>
               </div>
             </div>
