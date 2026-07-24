@@ -349,6 +349,34 @@ button, a, select, input[type="submit"], input[type="button"] {
   box-shadow: var(--glass-shadow);
 }
 
+.glass-panel:hover {
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.notification-dropdown {
+  position: absolute;
+  top: 32px;
+  right: -10px;
+  width: min(320px, calc(100vw - 24px));
+  border-radius: 12px;
+  padding: 16px;
+  border: 1px solid rgba(255,255,255,0.08);
+  box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+  z-index: 100;
+  background: rgba(10, 12, 16, 0.95);
+}
+
+@media (max-width: 600px) {
+  .notification-dropdown {
+    position: fixed;
+    top: 70px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: calc(100vw - 32px);
+    max-width: 380px;
+  }
+}
+
 .card-premium {
   background: linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(139, 92, 246, 0.04) 100%);
   border: 1px solid rgba(99, 102, 241, 0.2);

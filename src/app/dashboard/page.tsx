@@ -315,15 +315,15 @@ export default function DashboardPage() {
               Welcome back to your Opportunity Operating System.
             </p>
           </div>
-          <div style={{ display: 'flex', gap: '10px' }}>
+          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
              <button 
               onClick={() => setShowInvestorModal(true)}
               className="btn btn-ghost btn-sm"
-              style={{ display: 'flex', alignItems: 'center', gap: '6px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.02)' }}
+              style={{ display: 'flex', alignItems: 'center', gap: '6px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.02)', whiteSpace: 'nowrap' }}
             >
               <Briefcase size={16} className="inline mr-2" /> Investor Mode (PDF Export)
             </button>
-            <Link href="/dashboard/opportunities" className="btn btn-primary btn-sm">
+            <Link href="/dashboard/opportunities" className="btn btn-primary btn-sm" style={{ whiteSpace: 'nowrap' }}>
               + New Application
             </Link>
           </div>

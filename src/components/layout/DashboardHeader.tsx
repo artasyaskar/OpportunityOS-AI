@@ -384,19 +384,7 @@ export default function DashboardHeader() {
             {/* Notification Dropdown */}
             {showNotifications && (
               <div
-                className="glass-panel"
-                style={{
-                  position: 'absolute',
-                  top: '32px',
-                  right: 0,
-                  width: '320px',
-                  borderRadius: '12px',
-                  padding: '16px',
-                  border: '1px solid rgba(255,255,255,0.08)',
-                  boxShadow: '0 12px 40px rgba(0,0,0,0.5)',
-                  zIndex: 100,
-                  background: 'rgba(10, 12, 16, 0.95)'
-                }}
+                className="glass-panel notification-dropdown"
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
                   <h4 style={{ fontSize: '13px', fontWeight: 700, color: 'white' }}>Inbox Notifications</h4>

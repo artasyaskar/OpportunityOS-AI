@@ -9,6 +9,7 @@ import { usePipeline } from '@/components/auth/PipelineContext';
 import { useProfile } from '@/components/auth/ProfileContext';
 import { SubscriptionGuard } from '@/components/auth/SubscriptionGuard';
 import { useAuth } from '@/components/auth/AuthProvider';
+import { useSubscription } from '@/components/auth/SubscriptionContext';
 import { EvidenceRepository } from '@/lib/repositories/EvidenceRepository';
 import { PenLine, MessageSquare, Mail, Microscope, Edit3, FolderSearch, Search, Bot, FileText, Settings, Sparkles, Target, Scissors, Check, MessageCircle, AlertTriangle, ShieldCheck, Landmark, Lightbulb, CheckCircle, X, Download, Mic, Trash2, Clock, Activity, Zap, ClipboardList } from 'lucide-react';
 
@@ -62,6 +63,7 @@ export default function BuilderPage() {
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const { pipeline: applications } = usePipeline();
   const { profile, openUpgradeModal } = useProfile() as any;
+  const { subscription } = useSubscription();
   const { user, getIdToken } = useAuth();
 
   useEffect(() => {
@@ -213,7 +215,7 @@ export default function BuilderPage() {
         throw new Error('API error');
       }
       
-      import('@/lib/costLimiter').then(m => m.recordAiRequest(2500, 'groq'));
+      import('@/lib/costLimiter').then(m => m.recordAiRequest(2500, 'groq', !!subscription?.planId && subscription.planId !== 'free'));
       
       const generatedContent = data.content || generateTemplate(docType, activeProfile, opportunity);
       setContents(prev => ({ ...prev, [docType]: generatedContent }));
@@ -370,7 +372,7 @@ export default function BuilderPage() {
         </p>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: '24px' }}>
+      <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-6">
         {/* Left: Config Panel */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           {/* CTRL+K Command Palette Trigger */}

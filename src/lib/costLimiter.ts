@@ -37,15 +37,15 @@ export class OutOfCreditsError extends Error {
   }
 }
 
-export function recordAiRequest(tokensUsed: number = 2000, modelType: 'groq' | 'gemini' = 'groq'): boolean {
+export function recordAiRequest(tokensUsed: number = 2000, modelType: 'groq' | 'gemini' = 'groq', isPro: boolean = false): boolean {
   const state = getQuotaState();
   const now = Date.now();
   
-  if (state.dailyCredits < 250) {
+  if (state.dailyCredits < 250 && !isPro) {
     throw new OutOfCreditsError('You have completely exhausted your 1000 daily AI credits.');
   }
 
-  if (now - state.lastRequestTime < 2000) {
+  if (now - state.lastRequestTime < 2000 && !isPro) {
     console.warn('AI request blocked by rate limiter: Cooldown active');
     return false;
   }
