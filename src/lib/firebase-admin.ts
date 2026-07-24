@@ -1,3 +1,7 @@
+import dns from 'dns';
+if (dns.setDefaultResultOrder) {
+  dns.setDefaultResultOrder('ipv4first');
+}
 import * as admin from 'firebase-admin';
 
 if (!admin.apps.length) {

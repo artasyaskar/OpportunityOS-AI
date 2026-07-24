@@ -136,6 +136,8 @@ export default function AgentsDashboard() {
         throw new Error(data.error || 'Failed to execute agent');
       }
       
+      import('@/lib/costLimiter').then(m => m.recordAiRequest(2000, 'groq'));
+      
       setResultData(data);
     } catch (err) {
       setResultData({ error: err instanceof Error ? err.message : 'Failed to communicate with the Agent backend. Check console logs.' });

@@ -848,12 +848,16 @@ export default function SettingsPage() {
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
                   <div className="glass-sm" style={{ padding: '16px' }}>
                     <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)', fontWeight: 700 }}>DAILY AI DISPATCHES</div>
-                    <div style={{ fontSize: '20px', fontWeight: 900, color: 'white', marginTop: '4px' }}>{quota?.dailyCredits || 0} / 3</div>
+                    <div style={{ fontSize: '20px', fontWeight: 900, color: 'white', marginTop: '4px' }}>
+                      {(!sub || !['ACTIVE', 'LIFETIME', 'ENTERPRISE'].includes(sub.status)) ? `${quota?.dailyCredits || 0} Remaining` : 'Unlimited'}
+                    </div>
                     <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', marginTop: '4px' }}>Resets in 24 hours.</p>
                   </div>
                   <div className="glass-sm" style={{ padding: '16px' }}>
-                    <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)', fontWeight: 700 }}>SAVED SCHOLARSHIPS</div>
-                    <div style={{ fontSize: '20px', fontWeight: 900, color: 'white', marginTop: '4px' }}>{savedCount} / 5</div>
+                    <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)', fontWeight: 700 }}>SAVED OPPORTUNITIES</div>
+                    <div style={{ fontSize: '20px', fontWeight: 900, color: 'white', marginTop: '4px' }}>
+                      {(!sub || !['ACTIVE', 'LIFETIME', 'ENTERPRISE'].includes(sub.status)) ? `${savedCount} / 5 Used` : 'Unlimited'}
+                    </div>
                     <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', marginTop: '4px' }}>Target list limits.</p>
                   </div>
                   <div className="glass-sm" style={{ padding: '16px' }}>
@@ -894,12 +898,35 @@ export default function SettingsPage() {
                         {priceStr}<span style={{ fontSize: '13px', fontWeight: 500, color: 'rgba(255,255,255,0.4)' }}>{cycleStr}</span>
                       </h3>
 
-                      <ul style={{ margin: '20px 0', padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '12px', color: 'rgba(255,255,255,0.6)' }}>
-                        <li><Check size={12} className="inline mr-1 text-emerald-500" /> {plan.id === 'free' ? '3 daily AI dispatches' : 'Unlimited priority AI runs'}</li>
-                        <li><Check size={12} className="inline mr-1 text-emerald-500" /> {plan.id === 'free' ? 'Save up to 5 opportunities' : 'Unlimited opportunity saving'}</li>
-                        <li>{plan.pdfExportEnabled ? <><Check size={12} className="inline mr-1 text-emerald-500" /> Executive PDF report downloads</> : <><X size={12} className="inline mr-1 text-red-500" /> No document exports</>}</li>
-                        <li>{plan.advisorEnabled ? <><Check size={12} className="inline mr-1 text-emerald-500" /> Proactive executive AI coaching</> : <><X size={12} className="inline mr-1 text-red-500" /> No AI coach consultations</>}</li>
-                        <li>{plan.simulatorEnabled ? <><Check size={12} className="inline mr-1 text-emerald-500" /> Real-time probability simulator</> : <><X size={12} className="inline mr-1 text-red-500" /> Static score calculations</>}</li>
+                      {/* Customized Plan Benefits */}
+                      <ul style={{ margin: '20px 0', padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '13px', color: 'rgba(255,255,255,0.7)' }}>
+                        {plan.id === 'free' && (
+                          <>
+                            <li><Check size={14} className="inline mr-2 text-emerald-500" /> 5 opportunities/month</li>
+                            <li><Check size={14} className="inline mr-2 text-emerald-500" /> Basic eligibility check</li>
+                            <li><Check size={14} className="inline mr-2 text-emerald-500" /> Opportunity Score</li>
+                            <li><Check size={14} className="inline mr-2 text-emerald-500" /> 1 essay draft</li>
+                            <li style={{ color: 'rgba(255,255,255,0.4)', marginTop: '8px' }}><X size={14} className="inline mr-2 text-red-500" /> No full AI analysis</li>
+                            <li style={{ color: 'rgba(255,255,255,0.4)' }}><X size={14} className="inline mr-2 text-red-500" /> No 1-on-1 strategy</li>
+                          </>
+                        )}
+                        {plan.id === 'professional_monthly' && (
+                          <>
+                            <li><Check size={14} className="inline mr-2 text-emerald-500" /> <strong style={{ color: 'white' }}>Unlimited</strong> opportunities</li>
+                            <li><Check size={14} className="inline mr-2 text-emerald-500" /> <strong style={{ color: 'white' }}>Full AI analysis</strong> (all 12 agents)</li>
+                            <li><Check size={14} className="inline mr-2 text-emerald-500" /> <strong style={{ color: 'white' }}>Unlimited</strong> essays</li>
+                            <li><Check size={14} className="inline mr-2 text-emerald-500" /> Priority support</li>
+                            <li><Check size={14} className="inline mr-2 text-emerald-500" /> Portfolio tracker</li>
+                          </>
+                        )}
+                        {plan.id === 'founder_lifetime' && (
+                          <>
+                            <li><Check size={14} className="inline mr-2 text-emerald-500" /> <strong style={{ color: '#fbbf24' }}>Everything in Pro</strong></li>
+                            <li><Check size={14} className="inline mr-2 text-emerald-500" /> <strong style={{ color: 'white' }}>All application assistance</strong></li>
+                            <li><Check size={14} className="inline mr-2 text-emerald-500" /> <strong style={{ color: 'white' }}>1-on-1 strategy session</strong></li>
+                            <li><Check size={14} className="inline mr-2 text-emerald-500" /> <strong style={{ color: '#fbbf24' }}>Expert review included</strong></li>
+                          </>
+                        )}
                       </ul>
 
                       {plan.id !== 'free' ? (

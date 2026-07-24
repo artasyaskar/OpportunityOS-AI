@@ -108,6 +108,7 @@ export default function RoadmapPage() {
       });
       const data = await res.json();
       const content = data.content || data;
+      import('@/lib/costLimiter').then(m => m.recordAiRequest(1500, 'groq'));
       setAiAnalysis(content);
       
       if (content?.gaps) {

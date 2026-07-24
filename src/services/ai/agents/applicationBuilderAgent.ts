@@ -5,26 +5,46 @@ import { EvidenceEngine, HallucinationError } from '@/lib/services/EvidenceEngin
 function cleanAndParseJSON(text: string): any {
   const trimmed = text.trim();
   
+  // Helper to repair common LLM JSON errors like unescaped newlines in strings
+  const safeParse = (str: string) => {
+    try {
+      return JSON.parse(str);
+    } catch (e) {
+      // Attempt to repair unescaped newlines inside strings
+      try {
+        // Replace actual newlines with \n if they are between quotes
+        let inString = false;
+        let escaped = false;
+        let repaired = '';
+        for (let i = 0; i < str.length; i++) {
+          const char = str[i];
+          if (char === '"' && !escaped) inString = !inString;
+          
+          if (char === '\\' && !escaped) escaped = true;
+          else escaped = false;
+
+          if (inString && char === '\n') repaired += '\\n';
+          else if (inString && char === '\r') repaired += '\\r';
+          else if (inString && char === '\t') repaired += '\\t';
+          else repaired += char;
+        }
+        return JSON.parse(repaired);
+      } catch (e2) {}
+      throw e;
+    }
+  };
+  
   // Try direct parsing
   try {
-    return JSON.parse(trimmed);
+    return safeParse(trimmed);
   } catch (e) {}
 
-  // Extract from ```json ... ```
-  const jsonBlockRegex = /```json\s*([\s\S]*?)\s*```/;
+  // Extract from ```json ... ``` or generic ``` ... ```
+  const jsonBlockRegex = /```(?:json)?\s*([\s\S]*?)\s*```/;
   const match = trimmed.match(jsonBlockRegex);
   if (match && match[1]) {
     try {
-      return JSON.parse(match[1].trim());
-    } catch (e) {}
-  }
-
-  // Extract from generic ``` ... ```
-  const genericBlockRegex = /```\s*([\s\S]*?)\s*```/;
-  const genericMatch = trimmed.match(genericBlockRegex);
-  if (genericMatch && genericMatch[1]) {
-    try {
-      return JSON.parse(genericMatch[1].trim());
+      return safeParse(match[1].trim());
     } catch (e) {}
   }
 
@@ -33,7 +53,7 @@ function cleanAndParseJSON(text: string): any {
   const end = trimmed.lastIndexOf('}');
   if (start !== -1 && end !== -1 && end > start) {
     try {
-      return JSON.parse(trimmed.slice(start, end + 1));
+      return safeParse(trimmed.slice(start, end + 1));
     } catch (e) {}
   }
 

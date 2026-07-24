@@ -6,7 +6,6 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { useProfile } from '@/components/auth/ProfileContext';
-import { useDialog } from '@/components/ui/DialogProvider';
 import AuthModal from '@/components/auth/AuthModal';
 import { Rocket } from 'lucide-react';
 import Toast, { ToastType } from '@/components/auth/Toast';
@@ -27,7 +26,6 @@ export default function LoginPage() {
   const router = useRouter();
   const { loginWithEmail, loginWithGoogle, isAuthenticated, authMode } = useAuth();
   const { profileStatus } = useProfile();
-  const { toast } = useDialog();
 
   // If already authenticated, redirect to appropriate page
   useEffect(() => {
@@ -66,7 +64,7 @@ export default function LoginPage() {
       const { sendPasswordResetEmail } = await import('firebase/auth');
       const { auth } = await import('@/lib/firebase');
       await sendPasswordResetEmail(auth, email);
-      toast('A secure password reset link has been sent to your email. Please check your inbox and your spam/junk folder.');
+      showToast('A secure password reset link has been sent to your email. Please check your inbox and your spam/junk folder.', 'success');
       setResetCooldown(60);
       setTimeout(() => setIsResettingPassword(false), 2000);
     } catch (err) {
@@ -84,7 +82,12 @@ export default function LoginPage() {
       await loginWithEmail(email, password);
       // Redirect happens via the useEffect above when isAuthenticated becomes true
     } catch (err: unknown) {
-      showToast((err as Error).message, 'error');
+      const msg = (err as Error).message;
+      if (msg.includes('user-not-found') || msg.includes('invalid-credential') || msg.includes('invalid-login-credentials')) {
+        showToast('Account not found. Please sign up again correctly by going to the official link.', 'error');
+      } else {
+        showToast(msg, 'error');
+      }
       // ✅ NO CATCH-BLOCK REDIRECT — failed login stays on login page
     } finally {
       setLoading(false);
@@ -97,7 +100,12 @@ export default function LoginPage() {
       await loginWithGoogle();
       // Redirect happens via the useEffect above when isAuthenticated becomes true
     } catch (err: unknown) {
-      showToast((err as Error).message, 'error');
+      const msg = (err as Error).message;
+      if (msg.includes('user-not-found') || msg.includes('invalid-credential')) {
+        showToast('Account not found. Please sign up again correctly by going to the official link.', 'error');
+      } else {
+        showToast(msg, 'error');
+      }
       // ✅ NO CATCH-BLOCK REDIRECT — failed Google login stays on login page
     } finally {
       setLoading(false);

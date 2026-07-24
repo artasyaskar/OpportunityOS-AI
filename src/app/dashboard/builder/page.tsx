@@ -213,6 +213,8 @@ export default function BuilderPage() {
         throw new Error('API error');
       }
       
+      import('@/lib/costLimiter').then(m => m.recordAiRequest(2500, 'groq'));
+      
       const generatedContent = data.content || generateTemplate(docType, activeProfile, opportunity);
       setContents(prev => ({ ...prev, [docType]: generatedContent }));
       
