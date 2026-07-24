@@ -384,7 +384,7 @@ export default function ExecutiveAdvisorWidget() {
           </div>
 
           {/* Chat Inputs */}
-          <div style={{ padding: '12px', background: 'var(--bg-primary)', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+          <div style={{ padding: '12px', background: 'var(--bg-primary)', borderTop: '1px solid rgba(255,255,255,0.05)', display: 'flex', gap: '8px', alignItems: 'center' }}>
             <input
               type="text"
               placeholder="Ask anything..."
@@ -392,7 +392,7 @@ export default function ExecutiveAdvisorWidget() {
               onChange={e => setInputVal(e.target.value)}
               onKeyDown={handleKeyPress}
               style={{ 
-                width: '100%', 
+                flex: 1, 
                 padding: '10px 12px', 
                 borderRadius: '8px', 
                 background: 'rgba(255,255,255,0.02)', 
@@ -402,6 +402,27 @@ export default function ExecutiveAdvisorWidget() {
                 outline: 'none'
               }}
             />
+            <button 
+              onClick={() => setIsOpen(false)}
+              style={{
+                background: 'rgba(239, 68, 68, 0.1)',
+                color: '#ef4444',
+                border: '1px solid rgba(239, 68, 68, 0.2)',
+                borderRadius: '8px',
+                padding: '10px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                flexShrink: 0
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(239, 68, 68, 0.2)' }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)' }}
+              title="Close Advisor"
+            >
+              <X size={14} />
+            </button>
           </div>
         </div>
       )}

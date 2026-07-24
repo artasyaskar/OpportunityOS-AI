@@ -18,13 +18,23 @@ import { NotificationRepository } from '@/lib/repositories/NotificationRepositor
 import { compressImage, validateReceiptUpload } from '@/lib/imageUtils';
 import { Settings, Dna, CreditCard, Archive, Lock, FileText, BarChart2, Briefcase, Smartphone, Landmark, CheckCircle, XCircle, Check, X, Shield, ShieldCheck, Clipboard, Copy, AlertTriangle, UploadCloud, Clock, Hourglass } from 'lucide-react';
 
+import { useSearchParams } from 'next/navigation';
+
 export default function SettingsPage() {
   const { toast, confirm, prompt, showAILoading, hideAILoading } = useDialog();
+  const searchParams = useSearchParams();
   const { user, getIdToken } = useAuth();
   const { profile: remoteProfile, updateProfile } = useProfile();
   const { subscription: sub, updateSubscription } = useSubscription();
   const { pipeline: applications } = usePipeline();
+  
   const [activeTab, setActiveTab] = useState<'profile' | 'billing'>('profile');
+  
+  useEffect(() => {
+    if (searchParams.get('tab') === 'billing') {
+      setActiveTab('billing');
+    }
+  }, [searchParams]);
   
   // Profile DNA state — local edit buffer
   const [profile, setProfile] = useState<{
