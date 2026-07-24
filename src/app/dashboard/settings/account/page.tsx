@@ -5,8 +5,9 @@ import { useDialog } from '@/components/ui/DialogProvider';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { auth, db } from '@/lib/firebase';
-import { sendPasswordResetEmail, deleteUser, signOut, updatePassword } from 'firebase/auth';
+import { sendPasswordResetEmail, deleteUser, signOut, updatePassword, reauthenticateWithPopup, GoogleAuthProvider } from 'firebase/auth';
 import { doc, deleteDoc, getDoc } from 'firebase/firestore';
+import { Eye, EyeOff } from 'lucide-react';
 
 export default function AccountCenterPage() {
   const { toast, confirm, prompt, showAILoading, hideAILoading } = useDialog();
@@ -15,6 +16,7 @@ export default function AccountCenterPage() {
   const [loading, setLoading] = useState(false);
   const [alert, setAlert] = useState<{ type: 'success' | 'error', message: string } | null>(null);
   const [newPassword, setNewPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   if (!user) return null;
 
@@ -44,11 +46,20 @@ export default function AccountCenterPage() {
       await updatePassword(auth.currentUser!, newPassword);
       setAlert({ type: 'success', message: 'Password set successfully! You can now log in with your email and this password.' });
       setNewPassword('');
-      // Force refresh of provider data
       await auth.currentUser!.reload();
     } catch (err: any) {
       if (err.code === 'auth/requires-recent-login') {
-        setAlert({ type: 'error', message: 'For security reasons, please log out and log back in with Google before setting a password.' });
+        try {
+          // Reauthenticate and retry
+          const provider = new GoogleAuthProvider();
+          await reauthenticateWithPopup(auth.currentUser!, provider);
+          await updatePassword(auth.currentUser!, newPassword);
+          setAlert({ type: 'success', message: 'Password set successfully! You can now log in with your email and this password.' });
+          setNewPassword('');
+          await auth.currentUser!.reload();
+        } catch (reauthErr: any) {
+          setAlert({ type: 'error', message: 'Failed to reauthenticate. Please log out and log back in.' });
+        }
       } else {
         setAlert({ type: 'error', message: err.message || 'Failed to set password.' });
       }
@@ -92,11 +103,7 @@ export default function AccountCenterPage() {
   };
 
   const handleDeleteAccount = async () => {
-    const confirm1 = await confirm('Are you absolutely sure you want to delete your account? This action cannot be undone and will permanently erase all your data, saved opportunities, and subscription status.');
-    if (!confirm1) return;
-
-    const confirm2 = await prompt('Type "DELETE" to confirm account deletion:');
-    if (confirm2 !== 'DELETE') return;
+    if (!await confirm('Are you sure you want to permanently delete your account and all associated data? This cannot be undone.')) return;
 
     setLoading(true);
     try {
@@ -111,7 +118,17 @@ export default function AccountCenterPage() {
       router.push('/');
     } catch (err: any) {
       if (err.code === 'auth/requires-recent-login') {
-        setAlert({ type: 'error', message: 'For security reasons, you must log out and log back in before deleting your account.' });
+        try {
+          const provider = new GoogleAuthProvider();
+          await reauthenticateWithPopup(auth.currentUser!, provider);
+          await deleteDoc(doc(db, 'users', user.uid));
+          await deleteDoc(doc(db, 'subscriptions', user.uid));
+          await deleteUser(auth.currentUser!);
+          await signOut(auth);
+          router.push('/');
+        } catch (reauthErr: any) {
+          setAlert({ type: 'error', message: 'Failed to reauthenticate. Please log out and log back in before deleting your account.' });
+        }
       } else {
         setAlert({ type: 'error', message: err.message || 'Failed to delete account.' });
       }
@@ -188,23 +205,43 @@ export default function AccountCenterPage() {
               <div style={{ flex: 1, paddingRight: '20px' }}>
                 <div style={{ fontSize: '14px', fontWeight: 600, color: 'white' }}>Set Password</div>
                 <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.4)', marginTop: '4px', marginBottom: '12px' }}>You signed in with Google. Set a password to also log in using your email address.</div>
-                <input
-                  type="password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="Enter new password"
-                  style={{
-                    width: '100%',
-                    maxWidth: '300px',
-                    padding: '8px 12px',
-                    borderRadius: '8px',
-                    background: 'rgba(255,255,255,0.05)',
-                    border: '1px solid rgba(255,255,255,0.1)',
-                    color: 'white',
-                    fontSize: '13px',
-                    outline: 'none'
-                  }}
-                />
+                <div style={{ position: 'relative', width: '100%', maxWidth: '300px' }}>
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="Enter new password"
+                    style={{
+                      width: '100%',
+                      padding: '8px 40px 8px 12px',
+                      borderRadius: '8px',
+                      background: 'rgba(255,255,255,0.05)',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      color: 'white',
+                      fontSize: '13px',
+                      outline: 'none'
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    style={{
+                      position: 'absolute',
+                      right: '12px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      background: 'none',
+                      border: 'none',
+                      color: 'rgba(255,255,255,0.4)',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}
+                  >
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
               </div>
               <button
                 onClick={handleSetPassword}

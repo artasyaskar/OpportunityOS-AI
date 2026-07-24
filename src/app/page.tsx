@@ -237,6 +237,17 @@ export default function Home() {
             paddingTop: '16px',
           }}
         >
+          {/* Encryption Trust Badge */}
+          <div className="animate-slide-up" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '6px 12px', background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.2)', borderRadius: '20px', marginBottom: '24px' }}>
+            <span style={{ display: 'flex', height: '8px', width: '8px', position: 'relative' }}>
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+            </span>
+            <span style={{ fontSize: '11px', fontWeight: 600, color: '#34d399', letterSpacing: '0.5px' }}>
+              SECURED BY 256-BIT BANK-GRADE ENCRYPTION
+            </span>
+          </div>
+
           {/* Main Headline */}
           <h1
             className="text-hero animate-slide-up delay-100"

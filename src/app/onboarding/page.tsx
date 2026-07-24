@@ -362,7 +362,17 @@ export default function OnboardingPage() {
       <div style={{ width: '100%', maxWidth: '680px' }}>
         {/* Header */}
         <div style={{ textAlign: 'center', marginBottom: '40px', position: 'relative' }}>
-          {/* Sandbox Button Removed to enforce authentic extraction */}
+          {/* Encryption Trust Badge */}
+          <div className="animate-slide-up" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '6px 12px', background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.2)', borderRadius: '20px', marginBottom: '16px' }}>
+            <span style={{ display: 'flex', height: '8px', width: '8px', position: 'relative' }}>
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+            </span>
+            <span style={{ fontSize: '11px', fontWeight: 600, color: '#34d399', letterSpacing: '0.5px' }}>
+              SECURED BY 256-BIT BANK-GRADE ENCRYPTION
+            </span>
+          </div>
+
           <div style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '24px', fontWeight: 800, color: 'white', marginBottom: '8px' }}>
             Build Your <span className="gradient-text">Opportunity Profile</span>
           </div>
@@ -438,6 +448,7 @@ export default function OnboardingPage() {
                     <option value="Arts & Design">Arts & Design</option>
                     <option value="Natural Sciences">Natural Sciences</option>
                     <option value="Humanities & Law">Humanities & Law</option>
+                    <option value="Literature">Literature</option>
                   </select>
                 </div>
               </div>
