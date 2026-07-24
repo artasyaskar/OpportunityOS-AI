@@ -79,6 +79,12 @@ button, a, select, input[type="submit"], input[type="button"] {
   -webkit-user-select: none;
 }
 
+/* Ensure native dropdown options match the dark theme */
+option, optgroup {
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
 /* ================================
    SCROLLBAR STYLING
 ================================ */

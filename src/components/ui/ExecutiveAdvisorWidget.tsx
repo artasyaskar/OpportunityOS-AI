@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useProfile } from '@/components/auth/ProfileContext';
 import { useAuth } from '@/components/auth/AuthProvider';
+import { useSubscription } from '@/components/auth/SubscriptionContext';
 import { Bot, Zap, X } from 'lucide-react';
 
 interface Message {
@@ -35,6 +36,7 @@ export default function ExecutiveAdvisorWidget() {
 
   const { profile } = useProfile();
   const { getIdToken } = useAuth();
+  const { subscription } = useSubscription();
 
   // Sync profile details and track device size
   useEffect(() => {
@@ -152,7 +154,7 @@ export default function ExecutiveAdvisorWidget() {
       // Deduct credits before sending request
       const { recordAiRequest, OutOfCreditsError } = await import('@/lib/costLimiter');
       try {
-        recordAiRequest(500, 'groq');
+        recordAiRequest(500, 'groq', !!subscription?.planId && subscription.planId !== 'free');
       } catch (err: any) {
         if (err.name === 'OutOfCreditsError') {
           setToastMsg("The AI servers run in the backend and you've completed your 1000 credits for today. Buy a Pro plan to continue growing your professional journey.");

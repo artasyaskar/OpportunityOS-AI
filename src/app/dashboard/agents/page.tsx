@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { useProfile } from '@/components/auth/ProfileContext';
 import { usePipeline } from '@/components/auth/PipelineContext';
+import { useSubscription } from '@/components/auth/SubscriptionContext';
 import { EvidenceRepository, type EvidenceDocument } from '@/lib/repositories/EvidenceRepository';
 import { OpportunityRepository } from '@/lib/repositories/OpportunityRepository';
 import { SEED_OPPORTUNITIES } from '@/lib/opportunities';
@@ -30,6 +31,7 @@ export default function AgentsDashboard() {
   const { user, getIdToken } = useAuth();
   const { profile, openUpgradeModal } = useProfile() as any;
   const { pipeline } = usePipeline() as any;
+  const { subscription } = useSubscription();
   
   const [documents, setDocuments] = useState<EvidenceDocument[]>([]);
   const [evidenceContext, setEvidenceContext] = useState('');
@@ -136,7 +138,7 @@ export default function AgentsDashboard() {
         throw new Error(data.error || 'Failed to execute agent');
       }
       
-      import('@/lib/costLimiter').then(m => m.recordAiRequest(2000, 'groq'));
+      import('@/lib/costLimiter').then(m => m.recordAiRequest(2000, 'groq', !!subscription?.planId && subscription.planId !== 'free'));
       
       setResultData(data);
     } catch (err) {
@@ -276,7 +278,7 @@ export default function AgentsDashboard() {
 
       {/* Results Modal/Panel */}
       {activeAgent && (
-        <div style={{ position: 'fixed', top: 0, right: 0, bottom: 0, width: '500px', background: 'rgba(2, 4, 8, 0.95)', borderLeft: '1px solid rgba(255,255,255,0.1)', backdropFilter: 'blur(20px)', zIndex: 100, display: 'flex', flexDirection: 'column', boxShadow: '-10px 0 30px rgba(0,0,0,0.5)', transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)' }}>
+        <div style={{ position: 'fixed', top: 0, right: 0, bottom: 0, width: '100%', maxWidth: '500px', background: 'rgba(2, 4, 8, 0.95)', borderLeft: '1px solid rgba(255,255,255,0.1)', backdropFilter: 'blur(20px)', zIndex: 100, display: 'flex', flexDirection: 'column', boxShadow: '-10px 0 30px rgba(0,0,0,0.5)', transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)' }}>
           <div style={{ padding: '24px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
               <span style={{ fontSize: '24px' }}>{activeAgent.icon}</span>

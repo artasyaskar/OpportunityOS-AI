@@ -108,7 +108,7 @@ export default function RoadmapPage() {
       });
       const data = await res.json();
       const content = data.content || data;
-      import('@/lib/costLimiter').then(m => m.recordAiRequest(1500, 'groq'));
+      import('@/lib/costLimiter').then(m => m.recordAiRequest(1500, 'groq', !!subscription?.planId && subscription.planId !== 'free'));
       setAiAnalysis(content);
       
       if (content?.gaps) {
@@ -166,8 +166,8 @@ export default function RoadmapPage() {
         </div>
         
         {/* Opportunity Selector */}
-        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-          <div style={{ position: 'relative', width: '320px' }}>
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap', width: '100%' }}>
+          <div style={{ position: 'relative', flex: '1 1 200px', maxWidth: '100%' }}>
             <select 
               className="input"
               style={{ width: '100%', appearance: 'none', background: 'rgba(255,255,255,0.05)', color: 'white', border: '1px solid rgba(255,255,255,0.1)', padding: '12px 40px 12px 16px', borderRadius: '12px', fontSize: '14px', cursor: 'pointer', outline: 'none' }}
@@ -243,7 +243,7 @@ export default function RoadmapPage() {
             {aiAnalysis?.estimatedTimeToReady || '3-4 Months'}
           </div>
           <div style={{ marginTop: '8px' }}>
-            <span className="badge badge-amber"><Target size={14} className="inline mr-1" /> Target: {targetTitle}</span>
+            <span className="badge badge-amber" style={{ whiteSpace: 'normal', display: 'inline-block', textAlign: 'right' }}><Target size={14} className="inline mr-1" /> Target: {targetTitle}</span>
           </div>
         </div>
       </div>
@@ -361,7 +361,8 @@ export default function RoadmapPage() {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '7fr 3fr', gap: '24px' }}>
+      <div style={{ overflowX: 'auto', paddingBottom: '16px', margin: '0 -16px', padding: '0 16px 16px 16px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '7fr 3fr', gap: '24px', minWidth: '700px' }}>
         {/* AI Missions Timeline */}
         <div className="card" style={{ padding: '28px' }}>
           <h2 style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '18px', fontWeight: 700, color: 'white', marginBottom: '24px' }}>
@@ -432,6 +433,7 @@ export default function RoadmapPage() {
               </div>
             </div>
           ))}
+        </div>
         </div>
       </div>
     </div>

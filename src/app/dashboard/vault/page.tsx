@@ -367,7 +367,7 @@ export default function EvidenceVaultPage() {
 
   return (
     <div style={{ maxWidth: '1000px', margin: '0 auto', paddingBottom: '60px' }}>
-      <div className="glass" style={{ padding: '32px', borderRadius: '16px', marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div className="glass" style={{ padding: '32px', borderRadius: '16px', marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '24px' }}>
         <div>
           <h1 style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '32px', fontWeight: 900, color: 'white', marginBottom: '8px' }}>
             Personal Intelligence Vault
@@ -488,7 +488,7 @@ export default function EvidenceVaultPage() {
               {/* Expanded Details */}
               {expandedDoc === doc.id && (
                 <div style={{ marginTop: '20px', paddingTop: '20px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '16px', marginBottom: '20px' }}>
                     {/* Extracted Data */}
                     {doc.extractedData && (
                       <div className="glass-sm" style={{ padding: '16px', borderRadius: '12px' }}>
