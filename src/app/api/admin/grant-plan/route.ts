@@ -56,6 +56,16 @@ export async function POST(req: NextRequest) {
       adminNotes: 'Ad-hoc grant by administrator.'
     });
 
+    // Notify the user
+    await adminDb.collection('notifications').add({
+      userId: userId,
+      title: 'Payment Approved! 🎉',
+      message: `Your payment for ${planId} has been successfully verified. Welcome to Premium!`,
+      type: 'PAYMENT_APPROVED',
+      read: false,
+      createdAt: now
+    });
+
     return NextResponse.json({ success: true, message: `Successfully granted ${plan.name} to ${userEmail || userId}` });
   } catch (error: any) {
     console.error('Grant Plan API Error:', error);

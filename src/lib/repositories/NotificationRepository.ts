@@ -52,14 +52,14 @@ export class NotificationRepository {
   }
   
   static subscribeToAdminNotifications(callback: (notifications: AppNotification[]) => void): () => void {
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
+    const lastWeek = new Date();
+    lastWeek.setDate(lastWeek.getDate() - 7);
     const q = query(collection(db, 'notifications'), where('userId', '==', 'admin'));
     
     return onSnapshot(q, (snap) => {
       let notifs = snap.docs.map(d => d.data() as AppNotification);
       // Filter in memory to avoid Firestore composite index requirement
-      notifs = notifs.filter(n => new Date(n.createdAt) >= yesterday);
+      notifs = notifs.filter(n => new Date(n.createdAt) >= lastWeek);
       notifs.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
       callback(notifs);
     });
