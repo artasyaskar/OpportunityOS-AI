@@ -51,6 +51,8 @@ export default function EmailVerificationWall({ children }: { children: React.Re
         </h2>
         <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.6)', lineHeight: 1.5, marginBottom: '32px' }}>
           To protect your API limits and secure your account, please click the verification link we sent to <strong style={{ color: 'white' }}>{user.email}</strong>.
+          <br /><br />
+          <span style={{ fontSize: '13px', color: 'rgba(255,255,255,0.45)' }}>Can't find it? Please check your <strong>Spam</strong> or <strong>Promotions</strong> folder.</span>
         </p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           <button 

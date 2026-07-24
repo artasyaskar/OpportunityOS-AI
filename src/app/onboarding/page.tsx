@@ -12,10 +12,11 @@ import { motion } from 'framer-motion';
 import { UploadCloud, FileText, BarChart, FlaskConical, BookUser, MessageCircle, Briefcase, Rocket, Download, Check, X, Info } from 'lucide-react';
 
 const STEPS = [
-  { id: 1, title: 'Verify Your Academic Profile', desc: 'Upload Evidence Documents' },
-  { id: 2, title: 'Define Goals', desc: 'Your target countries and fields' },
-  { id: 3, title: 'Academic Profile', desc: 'Institution & GPA grades' },
-  { id: 4, title: 'Skills & Assets', desc: 'What you bring to the table' },
+  { id: 1, title: 'The Vision', desc: 'Identity & Goals' },
+  { id: 2, title: 'Academic DNA', desc: 'Education Details' },
+  { id: 3, title: 'Global Readiness', desc: 'Languages & Tests' },
+  { id: 4, title: 'Professional Assets', desc: 'Skills & Links' },
+  { id: 5, title: 'Evidence Vault', desc: 'Upload Documents' },
 ];
 
 const AGENT_SEQUENCE = [
@@ -56,6 +57,7 @@ export default function OnboardingPage() {
   const [ieltsStatus, setIeltsStatus] = useState('Not Planned');
   const [ieltsDate, setIeltsDate] = useState('');
   const [ieltsExpected, setIeltsExpected] = useState('');
+  const [activeTestInfo, setActiveTestInfo] = useState<string | null>(null);
   
   // OCR Mocks
   const [ocrConfirming, setOcrConfirming] = useState<string | null>(null);
@@ -76,18 +78,22 @@ export default function OnboardingPage() {
     email: '',
     country: '',
     goal: '',
-    education: '',
-    gpa: '',
-    field: '',
     level: 'undergraduate',
-    skills: '',
-    experience: '',
+    discipline: 'Technology & Engineering',
     careerGoal: '',
     targetOpportunities: [] as string[],
-    githubUrl: '',
-    portfolioUrl: '',
-    toeflScore: '',
-    greScore: '',
+    education: '',
+    gpa: '',
+    previousEducation: '',
+    previousDegreeField: '',
+    englishTest: 'Not Planned',
+    englishScore: '',
+    englishDate: '',
+    standardizedTestType: '',
+    standardizedTestScore: '',
+    skills: '',
+    experience: '',
+    dynamicLinks: {} as Record<string, string>,
   });
 
   const update = (key: string, val: string) =>
@@ -405,9 +411,205 @@ export default function OnboardingPage() {
         {/* Form Card */}
         <div className="glass-bright" style={{ padding: '36px', borderRadius: '20px' }}>
           {step === 1 && (
+            <div style={{ display: 'grid', gap: '20px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.6)', marginBottom: '8px' }}>Full Name *</label>
+                <input className="input" placeholder="John Doe" value={profile.name} onChange={e => update('name', e.target.value)} />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.6)', marginBottom: '8px' }}>Country of Residence *</label>
+                <input className="input" placeholder="United States" value={profile.country} onChange={e => update('country', e.target.value)} />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.6)', marginBottom: '8px' }}>Current Study Level</label>
+                  <select className="input" value={profile.level} onChange={e => update('level', e.target.value)} style={{ appearance: 'none' }}>
+                    <option value="highschool">High School</option>
+                    <option value="undergraduate">Undergraduate (Bachelor's)</option>
+                    <option value="masters">Master's</option>
+                    <option value="phd">PhD</option>
+                    <option value="postdoc">Postdoc</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.6)', marginBottom: '8px' }}>Broad Discipline</label>
+                  <select className="input" value={profile.discipline} onChange={e => update('discipline', e.target.value)} style={{ appearance: 'none' }}>
+                    <option value="Technology & Engineering">Technology & Engineering</option>
+                    <option value="Medical & Healthcare">Medical & Healthcare</option>
+                    <option value="Business & Management">Business & Management</option>
+                    <option value="Arts & Design">Arts & Design</option>
+                    <option value="Natural Sciences">Natural Sciences</option>
+                    <option value="Humanities & Law">Humanities & Law</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.6)', marginBottom: '8px' }}>One-line Goal *</label>
+                <input className="input" placeholder="Win a fully-funded scholarship to study AI at a top UK university" value={profile.goal} onChange={e => update('goal', e.target.value)} />
+              </div>
+            </div>
+          )}
+
+          {step === 2 && (
+            <div style={{ display: 'grid', gap: '20px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.6)', marginBottom: '8px' }}>Current/Most Recent Institution</label>
+                <input className="input" placeholder="e.g. Harvard University" value={profile.education} onChange={e => update('education', e.target.value)} />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.6)', marginBottom: '8px' }}>GPA / Grade</label>
+                <input className="input" placeholder="e.g. 3.90 / 4.0 or 85%" value={profile.gpa} onChange={e => update('gpa', e.target.value)} />
+              </div>
+              
+              {profile.level === 'undergraduate' && (
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.6)', marginBottom: '8px' }}>Previous Education (High School Track)</label>
+                  <select className="input" value={profile.previousEducation} onChange={e => update('previousEducation', e.target.value)} style={{ appearance: 'none' }}>
+                    <option value="">Select Track</option>
+                    <option value="Pre-Medical">Pre-Medical</option>
+                    <option value="Pre-Engineering">Pre-Engineering</option>
+                    <option value="ICS">ICS (Computer Science)</option>
+                    <option value="ICOM">ICOM (Commerce)</option>
+                    <option value="FA">FA (Arts)</option>
+                    <option value="A Levels">A Levels</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+              )}
+
+              {(profile.level === 'masters' || profile.level === 'phd' || profile.level === 'postdoc') && (
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.6)', marginBottom: '8px' }}>Previous Degree Field</label>
+                  <input className="input" placeholder={profile.level === 'masters' ? "e.g. Bachelor's in Computer Science" : "e.g. Master's in Data Science"} value={profile.previousDegreeField} onChange={e => update('previousDegreeField', e.target.value)} />
+                </div>
+              )}
+            </div>
+          )}
+
+          {step === 3 && (
+            <div style={{ display: 'grid', gap: '24px' }}>
+              <div style={{ padding: '20px', borderRadius: '12px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <h4 style={{ color: 'white', fontSize: '14px', fontWeight: 600, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}><MessageCircle size={18} /> English Proficiency</h4>
+                <div style={{ display: 'grid', gap: '16px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.6)', marginBottom: '8px' }}>Have you taken an English test?</label>
+                    <select className="input" value={profile.englishTest} onChange={e => update('englishTest', e.target.value)} style={{ appearance: 'none' }}>
+                      <option value="Not Planned">Not Planned</option>
+                      <option value="IELTS">IELTS</option>
+                      <option value="TOEFL">TOEFL</option>
+                      <option value="PTE">PTE Academic</option>
+                      <option value="Duolingo">Duolingo English Test (DET)</option>
+                      <option value="Cambridge">Cambridge English</option>
+                      <option value="MOI">Medium of Instruction (MOI) Letter</option>
+                    </select>
+                  </div>
+                  {profile.englishTest !== 'Not Planned' && profile.englishTest !== 'MOI' && (
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.6)', marginBottom: '8px' }}>Score / Band</label>
+                        <input className="input" placeholder="e.g. 7.5" value={profile.englishScore} onChange={e => update('englishScore', e.target.value)} />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.6)', marginBottom: '8px' }}>Test Date (Optional)</label>
+                        <input type="date" className="input" value={profile.englishDate} onChange={e => update('englishDate', e.target.value)} />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div style={{ padding: '20px', borderRadius: '12px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <h4 style={{ color: 'white', fontSize: '14px', fontWeight: 600, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}><FileText size={18} /> Standardized Tests</h4>
+                <div style={{ display: 'grid', gap: '16px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.6)', marginBottom: '8px' }}>Select Test (if applicable)</label>
+                    <select className="input" value={profile.standardizedTestType} onChange={e => { update('standardizedTestType', e.target.value); setActiveTestInfo(e.target.value); }} style={{ appearance: 'none' }}>
+                      <option value="">None / Not Planned</option>
+                      <option value="GRE">GRE</option>
+                      <option value="GMAT">GMAT</option>
+                      <option value="SAT">SAT</option>
+                      <option value="ACT">ACT</option>
+                      <option value="LSAT">LSAT</option>
+                      <option value="MCAT">MCAT</option>
+                      <option value="GATE">GATE</option>
+                    </select>
+                  </div>
+                  
+                  {activeTestInfo && activeTestInfo !== '' && (
+                    <div style={{ background: 'rgba(99,102,241,0.1)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(99,102,241,0.2)', fontSize: '12px', color: 'rgba(255,255,255,0.8)' }}>
+                      <strong style={{ color: '#818cf8' }}>What is {activeTestInfo}?</strong><br/>
+                      {activeTestInfo === 'GRE' && 'Graduate Record Examinations. Often required for Master’s/PhD programs in the US.'}
+                      {activeTestInfo === 'GMAT' && 'Graduate Management Admission Test. Required for many MBA and business programs.'}
+                      {activeTestInfo === 'SAT' && 'Scholastic Assessment Test. Widely used for undergraduate admissions in the US.'}
+                      {activeTestInfo === 'ACT' && 'American College Testing. Another major undergraduate admissions test in the US.'}
+                      {activeTestInfo === 'LSAT' && 'Law School Admission Test. Required for law schools (JD programs) in the US and Canada.'}
+                      {activeTestInfo === 'MCAT' && 'Medical College Admission Test. Required for medical schools in the US and Canada.'}
+                      {activeTestInfo === 'GATE' && 'Graduate Aptitude Test in Engineering. Primarily used in India for engineering Master’s programs.'}
+                    </div>
+                  )}
+
+                  {profile.standardizedTestType !== '' && (
+                    <div>
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.6)', marginBottom: '8px' }}>Score (or Expected Score)</label>
+                      <input className="input" placeholder="e.g. 320" value={profile.standardizedTestScore} onChange={e => update('standardizedTestScore', e.target.value)} />
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {step === 4 && (
+            <div style={{ display: 'grid', gap: '20px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.6)', marginBottom: '8px' }}>Skills (comma-separated)</label>
+                <textarea className="input" placeholder="Python, Machine Learning, Research, Leadership, Public Speaking..." value={profile.skills} onChange={e => update('skills', e.target.value)} rows={3} />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.6)', marginBottom: '8px' }}>Work / Research Experience Summary</label>
+                <textarea className="input" placeholder="2 years as research assistant at AI Lab, published 2 papers..." value={profile.experience} onChange={e => update('experience', e.target.value)} rows={4} />
+              </div>
+              
+              <div style={{ marginTop: '8px' }}>
+                <h4 style={{ color: 'white', fontSize: '14px', fontWeight: 600, marginBottom: '12px' }}>Professional Links</h4>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                  {profile.discipline === 'Technology & Engineering' && (
+                    <div>
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.6)', marginBottom: '8px' }}>GitHub Profile</label>
+                      <input className="input" placeholder="github.com/username" value={profile.dynamicLinks['github'] || ''} onChange={e => setProfile(p => ({...p, dynamicLinks: {...p.dynamicLinks, github: e.target.value}}))} />
+                    </div>
+                  )}
+                  {profile.discipline === 'Medical & Healthcare' && (
+                    <div>
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.6)', marginBottom: '8px' }}>ORCID / ResearchGate</label>
+                      <input className="input" placeholder="orcid.org/..." value={profile.dynamicLinks['orcid'] || ''} onChange={e => setProfile(p => ({...p, dynamicLinks: {...p.dynamicLinks, orcid: e.target.value}}))} />
+                    </div>
+                  )}
+                  {profile.discipline === 'Arts & Design' && (
+                    <>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.6)', marginBottom: '8px' }}>Behance / Dribbble</label>
+                        <input className="input" placeholder="behance.net/..." value={profile.dynamicLinks['behance'] || ''} onChange={e => setProfile(p => ({...p, dynamicLinks: {...p.dynamicLinks, behance: e.target.value}}))} />
+                      </div>
+                    </>
+                  )}
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.6)', marginBottom: '8px' }}>LinkedIn Profile</label>
+                    <input className="input" placeholder="linkedin.com/in/..." value={profile.dynamicLinks['linkedin'] || ''} onChange={e => setProfile(p => ({...p, dynamicLinks: {...p.dynamicLinks, linkedin: e.target.value}}))} />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.6)', marginBottom: '8px' }}>Personal Website</label>
+                    <input className="input" placeholder="yourdomain.com" value={profile.dynamicLinks['website'] || ''} onChange={e => setProfile(p => ({...p, dynamicLinks: {...p.dynamicLinks, website: e.target.value}}))} />
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {step === 5 && (
             <div style={{ display: 'grid', gap: '16px' }}>
               <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '13px', marginBottom: '8px' }}>
-                Upload your resume, transcripts, and LinkedIn profile to construct your Opportunity DNA. All files are parsed securely.
+                Upload your resume and academic records to construct your Opportunity DNA. All files are parsed securely.
               </p>
               
               <div style={{
@@ -426,7 +628,7 @@ export default function OnboardingPage() {
                 <div style={{ flex: 1 }}>
                   <h4 style={{ color: '#e0e7ff', fontSize: '13px', fontWeight: 600, marginBottom: '4px' }}>Missing some documents?</h4>
                   <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '12px', lineHeight: 1.5 }}>
-                    You can safely skip this step and click <strong>Continue</strong>. You will be able to securely upload or update your evidence anytime from the Evidence Vault in your dashboard later.
+                    You can safely skip this step and click <strong>Activate AI Analysis</strong>. You will be able to securely upload or update your evidence anytime from the Evidence Vault in your dashboard later.
                   </p>
                 </div>
               </div>
@@ -434,9 +636,7 @@ export default function OnboardingPage() {
               {/* Resume Row */}
               <div
                 className="glass"
-                onClick={() => {
-                  setActiveUploadModal('resume');
-                }}
+                onClick={() => setActiveUploadModal('resume')}
                 style={{ padding: '20px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '16px', cursor: 'pointer', transition: 'all 0.2s ease', border: uploadedResume ? '1px solid rgba(16,185,129,0.3)' : '1px solid rgba(255,255,255,0.08)' }}
                 onMouseEnter={e => (e.currentTarget.style.borderColor = uploadedResume ? 'rgba(16,185,129,0.5)' : 'rgba(99,102,241,0.3)')}
                 onMouseLeave={e => (e.currentTarget.style.borderColor = uploadedResume ? 'rgba(16,185,129,0.3)' : 'rgba(255,255,255,0.08)')}
@@ -445,374 +645,50 @@ export default function OnboardingPage() {
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: '13px', fontWeight: 600, color: 'white' }}>Resume / CV</div>
                   <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)', marginTop: '2px' }}>
-                    {uploadedResume ? (
-                      <span style={{ color: '#10b981', fontWeight: 600 }}>
-                        Connected: {uploadedResume.name} ({uploadedResume.size}) via {uploadedResume.source}
-                      </span>
-                    ) : (
-                      'System Storage, Google Drive, or Dropbox (.pdf, .doc, .docx)'
-                    )}
+                    {uploadedResume ? <span style={{ color: '#10b981', fontWeight: 600 }}>Connected: {uploadedResume.name}</span> : 'System Storage (.pdf, .doc, .docx)'}
                   </div>
                 </div>
                 {uploadedResume ? (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setUploadedResume(null);
-                    }}
-                    style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: '12px', cursor: 'pointer' }}
-                  >
-                    Disconnect <X size={12} />
-                  </button>
-                ) : (
-                  <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.3)' }}>Upload →</span>
-                )}
+                  <button onClick={(e) => { e.stopPropagation(); setUploadedResume(null); }} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: '12px', cursor: 'pointer' }}>Disconnect <X size={12} /></button>
+                ) : <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.3)' }}>Upload →</span>}
               </div>
 
               {/* Transcript Row */}
               <div
                 className="glass"
-                onClick={() => {
-                  setActiveUploadModal('transcript');
-                }}
+                onClick={() => setActiveUploadModal('transcript')}
                 style={{ padding: '20px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '16px', cursor: 'pointer', transition: 'all 0.2s ease', border: uploadedTranscripts.length > 0 ? '1px solid rgba(16,185,129,0.3)' : '1px solid rgba(255,255,255,0.08)' }}
                 onMouseEnter={e => (e.currentTarget.style.borderColor = uploadedTranscripts.length > 0 ? 'rgba(16,185,129,0.5)' : 'rgba(99,102,241,0.3)')}
                 onMouseLeave={e => (e.currentTarget.style.borderColor = uploadedTranscripts.length > 0 ? 'rgba(16,185,129,0.3)' : 'rgba(255,255,255,0.08)')}
               >
                 <div style={{ display: 'flex', color: 'white' }}><BarChart size={24} /></div>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: '13px', fontWeight: 600, color: 'white' }}>Academic Transcripts</div>
+                  <div style={{ fontSize: '13px', fontWeight: 600, color: 'white' }}>Academic Records (Transcripts / Degree)</div>
                   <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)', marginTop: '2px' }}>
-                    {uploadedTranscripts.length > 0 ? (
-                      <span style={{ color: '#10b981', fontWeight: 600 }}>
-                        Connected: {uploadedTranscripts[0].name} ({uploadedTranscripts[0].size}) via {uploadedTranscripts[0].source}
-                      </span>
-                    ) : (
-                      'System Storage (.pdf, .png, .jpg)'
-                    )}
+                    {uploadedTranscripts.length > 0 ? <span style={{ color: '#10b981', fontWeight: 600 }}>Connected: {uploadedTranscripts[0].name}</span> : 'System Storage (.pdf, .png, .jpg)'}
                   </div>
                 </div>
                 {uploadedTranscripts.length > 0 ? (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setUploadedTranscripts([]);
-                    }}
-                    style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: '12px', cursor: 'pointer' }}
-                  >
-                    Disconnect <X size={12} />
-                  </button>
-                ) : (
-                  <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.3)' }}>Upload →</span>
-                )}
+                  <button onClick={(e) => { e.stopPropagation(); setUploadedTranscripts([]); }} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: '12px', cursor: 'pointer' }}>Disconnect <X size={12} /></button>
+                ) : <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.3)' }}>Upload →</span>}
               </div>
               
-              {/* Research Papers Row */}
-              <div
-                className="glass"
-                onClick={() => {
-                  setActiveUploadModal('research');
-                }}
-                style={{ padding: '20px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '16px', cursor: 'pointer', transition: 'all 0.2s ease', border: uploadedResearchPapers.length > 0 ? '1px solid rgba(16,185,129,0.3)' : '1px solid rgba(255,255,255,0.08)' }}
-                onMouseEnter={e => (e.currentTarget.style.borderColor = uploadedResearchPapers.length > 0 ? 'rgba(16,185,129,0.5)' : 'rgba(99,102,241,0.3)')}
-                onMouseLeave={e => (e.currentTarget.style.borderColor = uploadedResearchPapers.length > 0 ? 'rgba(16,185,129,0.3)' : 'rgba(255,255,255,0.08)')}
-              >
-                <div style={{ display: 'flex', color: 'white' }}><FlaskConical size={24} /></div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: '13px', fontWeight: 600, color: 'white' }}>Research Papers & Publications</div>
-                  <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)', marginTop: '2px' }}>
-                    {uploadedResearchPapers.length > 0 ? (
-                      <span style={{ color: '#10b981', fontWeight: 600 }}>
-                        {uploadedResearchPapers.length} paper(s) uploaded
-                      </span>
-                    ) : (
-                      'System Storage (.pdf)'
-                    )}
-                  </div>
-                </div>
-                {uploadedResearchPapers.length > 0 ? (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setUploadedResearchPapers([]);
-                    }}
-                    style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: '12px', cursor: 'pointer' }}
-                  >
-                    Remove <X size={12} />
-                  </button>
-                ) : (
-                  <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.3)' }}>Upload →</span>
-                )}
-              </div>
-
-
               {/* Passport Row */}
               <div
                 className="glass"
-                onClick={() => {
-                  setActiveUploadModal('passport');
-                }}
+                onClick={() => setActiveUploadModal('passport')}
                 style={{ padding: '20px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '16px', cursor: 'pointer', transition: 'all 0.2s ease', border: uploadedPassport ? '1px solid rgba(16,185,129,0.3)' : '1px solid rgba(255,255,255,0.08)' }}
               >
                 <div style={{ display: 'flex', color: 'white' }}><BookUser size={24} /></div>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: '13px', fontWeight: 600, color: 'white' }}>Passport</div>
+                  <div style={{ fontSize: '13px', fontWeight: 600, color: 'white' }}>Passport (Optional)</div>
                   <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)', marginTop: '2px' }}>
-                    {uploadedPassport ? (
-                      <span style={{ color: '#10b981', fontWeight: 600 }}>
-                        Verified: {uploadedPassport.name}
-                      </span>
-                    ) : (
-                      'Missing. Some international opportunities require it. Upload later.'
-                    )}
+                    {uploadedPassport ? <span style={{ color: '#10b981', fontWeight: 600 }}>Verified: {uploadedPassport.name}</span> : 'Missing. Some international opportunities require it.'}
                   </div>
                 </div>
                 {uploadedPassport ? (
                   <button onClick={(e) => { e.stopPropagation(); setUploadedPassport(null); }} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>Remove <X size={12} /></button>
-                ) : (
-                  <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.3)' }}>Upload →</span>
-                )}
-              </div>
-
-              {/* IELTS Row */}
-              <div
-                className="glass"
-                style={{ padding: '20px', borderRadius: '12px', display: 'flex', flexDirection: 'column', gap: '16px', border: uploadedIelts ? '1px solid rgba(16,185,129,0.3)' : '1px solid rgba(255,255,255,0.08)' }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                  <div style={{ display: 'flex', color: 'white' }}><MessageCircle size={24} /></div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: '13px', fontWeight: 600, color: 'white' }}>IELTS</div>
-                    <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)', marginTop: '2px' }}>
-                      {uploadedIelts ? <span style={{ color: '#10b981', fontWeight: 600 }}>Verified: {uploadedIelts.name}</span> : 'Some opportunities require IELTS.'}
-                    </div>
-                  </div>
-                  {!uploadedIelts && (
-                    <select className="input" style={{ width: '150px', padding: '6px 10px', fontSize: '12px' }} value={ieltsStatus} onChange={e => setIeltsStatus(e.target.value)}>
-                      <option value="Not Planned">Not Planned</option>
-                      <option value="Scheduled">Scheduled</option>
-                      <option value="Result Pending">Result Pending</option>
-                      <option value="Upload Now">Upload Now</option>
-                    </select>
-                  )}
-                  {uploadedIelts && (
-                    <button onClick={(e) => { e.stopPropagation(); setUploadedIelts(null); setIeltsStatus('Not Planned'); }} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>Remove <X size={12} /></button>
-                  )}
-                </div>
-
-                {ieltsStatus === 'Scheduled' && !uploadedIelts && (
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', paddingLeft: '40px' }}>
-                    <div>
-                      <label style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)' }}>Exam Date</label>
-                      <input type="date" className="input" style={{ padding: '8px' }} value={ieltsDate} onChange={e => setIeltsDate(e.target.value)} />
-                    </div>
-                    <div>
-                      <label style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)' }}>Expected Band</label>
-                      <input type="number" step="0.5" className="input" style={{ padding: '8px' }} placeholder="7.0" value={ieltsExpected} onChange={e => setIeltsExpected(e.target.value)} />
-                    </div>
-                  </div>
-                )}
-                
-                {ieltsStatus === 'Upload Now' && !uploadedIelts && (
-                  <div style={{ paddingLeft: '40px' }}>
-                     <button className="btn btn-secondary btn-sm" onClick={() => { setActiveUploadModal('ielts'); }}>Open Uploader</button>
-                  </div>
-                )}
-              </div>
-
-              {/* LinkedIn Row */}
-              <div
-                className="glass"
-                onClick={() => {
-                  setActiveUploadModal('linkedin');
-                }}
-                style={{ padding: '20px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '16px', cursor: 'pointer', transition: 'all 0.2s ease', border: linkedinConnected ? '1px solid rgba(16,185,129,0.3)' : '1px solid rgba(255,255,255,0.08)' }}
-                onMouseEnter={e => (e.currentTarget.style.borderColor = linkedinConnected ? 'rgba(16,185,129,0.5)' : 'rgba(99,102,241,0.3)')}
-                onMouseLeave={e => (e.currentTarget.style.borderColor = linkedinConnected ? 'rgba(16,185,129,0.3)' : 'rgba(255,255,255,0.08)')}
-              >
-                <div style={{ display: 'flex', color: 'white' }}><Briefcase size={24} /></div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: '13px', fontWeight: 600, color: 'white' }}>LinkedIn Profile URL</div>
-                  <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)', marginTop: '2px' }}>
-                    {linkedinConnected ? (
-                      <span style={{ color: '#10b981', fontWeight: 600 }}>
-                        Linked: {linkedinConnected}
-                      </span>
-                    ) : (
-                      'Paste your LinkedIn URL to ingest your experience'
-                    )}
-                  </div>
-                </div>
-                {linkedinConnected ? (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setLinkedinConnected(null);
-                    }}
-                    style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: '12px', cursor: 'pointer' }}
-                  >
-                    Disconnect ✕
-                  </button>
-                ) : (
-                  <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.3)' }}>Connect →</span>
-                )}
-              </div>
-            </div>
-          )}
-
-          {step === 2 && (
-            <div style={{ display: 'grid', gap: '20px' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.6)', marginBottom: '8px' }}>Full Name *</label>
-                <input className="input" placeholder="John Doe" value={profile.name} onChange={e => update('name', e.target.value)} />
-              </div>
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.6)', marginBottom: '8px' }}>Country of Residence *</label>
-                <input className="input" placeholder="United States" value={profile.country} onChange={e => update('country', e.target.value)} />
-              </div>
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.6)', marginBottom: '8px' }}>One-line Goal *</label>
-                <input className="input" placeholder="Win a fully-funded scholarship to study AI at a top UK university" value={profile.goal} onChange={e => update('goal', e.target.value)} />
-              </div>
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.6)', marginBottom: '8px' }}>Career Vision</label>
-                <textarea className="input" placeholder="Become a lead AI researcher in developing countries..." value={profile.careerGoal} onChange={e => update('careerGoal', e.target.value)} rows={3} />
-              </div>
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.6)', marginBottom: '12px' }}>Target Opportunity Types</label>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
-                  {['Scholarships', 'Fellowships', 'Grants', 'Remote Jobs', 'Accelerators', 'Competitions'].map(type => {
-                    const selected = profile.targetOpportunities.includes(type);
-                    return (
-                      <button
-                        key={type}
-                        type="button"
-                        onClick={() => toggleOpportunity(type)}
-                        style={{
-                          padding: '10px',
-                          borderRadius: '10px',
-                          border: selected ? '1px solid rgba(99,102,241,0.6)' : '1px solid rgba(255,255,255,0.1)',
-                          background: selected ? 'rgba(99,102,241,0.15)' : 'transparent',
-                          color: selected ? '#818cf8' : 'rgba(255,255,255,0.5)',
-                          fontSize: '12px',
-                          fontWeight: 600,
-                          cursor: 'pointer',
-                          transition: 'all 0.2s ease',
-                        }}
-                      >
-                        {type}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {step === 3 && (
-            <div style={{ display: 'grid', gap: '20px' }}>
-              <div>
-                <label style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.6)', marginBottom: '8px' }}>
-                  <span>Current/Most Recent Institution</span>
-                  {extractedFields.education && <span style={{ color: '#10b981', display: 'inline-flex', alignItems: 'center', gap: '4px' }}><Check size={12} /> Extracted by AI</span>}
-                </label>
-                <input 
-                  className="input" 
-                  style={extractedFields.education ? { borderColor: 'rgba(16,185,129,0.5)', background: 'rgba(16,185,129,0.05)' } : {}}
-                  placeholder="e.g. Harvard University" 
-                  value={profile.education} 
-                  onChange={e => update('education', e.target.value)} 
-                />
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                <div>
-                  <label style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.6)', marginBottom: '8px' }}>
-                    <span>GPA / Grade</span>
-                    {extractedFields.gpa && <span style={{ color: '#10b981', display: 'inline-flex', alignItems: 'center', gap: '4px' }}><Check size={12} /> Extracted</span>}
-                  </label>
-                  <input 
-                    className="input" 
-                    style={extractedFields.gpa ? { borderColor: 'rgba(16,185,129,0.5)', background: 'rgba(16,185,129,0.05)' } : {}}
-                    placeholder="e.g. 3.90 / 4.0" 
-                    value={profile.gpa} 
-                    onChange={e => update('gpa', e.target.value)} 
-                  />
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.6)', marginBottom: '8px' }}>Study Level</label>
-                  <select className="input" value={profile.level} onChange={e => update('level', e.target.value)} style={{ appearance: 'none' }}>
-                    <option value="undergraduate">Undergraduate</option>
-                    <option value="masters">Masters</option>
-                    <option value="phd">PhD</option>
-                    <option value="postdoc">Postdoc</option>
-                  </select>
-                </div>
-              </div>
-              <div>
-                <label style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.6)', marginBottom: '8px' }}>
-                  <span>Field of Study</span>
-                  {extractedFields.field && <span style={{ color: '#10b981', display: 'inline-flex', alignItems: 'center', gap: '4px' }}><Check size={12} /> Extracted by AI</span>}
-                </label>
-                <input 
-                  className="input" 
-                  style={extractedFields.field ? { borderColor: 'rgba(16,185,129,0.5)', background: 'rgba(16,185,129,0.05)' } : {}}
-                  placeholder="e.g. Computer Science" 
-                  value={profile.field} 
-                  onChange={e => update('field', e.target.value)} 
-                />
-              </div>
-            </div>
-          )}
-
-          {step === 4 && (
-            <div style={{ display: 'grid', gap: '20px' }}>
-              <div>
-                <label style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.6)', marginBottom: '8px' }}>
-                  <span>Skills (comma-separated)</span>
-                  {extractedFields.skills && <span style={{ color: '#10b981', display: 'inline-flex', alignItems: 'center', gap: '4px' }}><Check size={12} /> Extracted from Document</span>}
-                </label>
-                <textarea 
-                  className="input" 
-                  style={extractedFields.skills ? { borderColor: 'rgba(16,185,129,0.5)', background: 'rgba(16,185,129,0.05)' } : {}}
-                  placeholder="Python, Machine Learning, Research, Leadership, Public Speaking..." 
-                  value={profile.skills} 
-                  onChange={e => update('skills', e.target.value)} 
-                  rows={3} 
-                />
-              </div>
-              <div>
-                <label style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.6)', marginBottom: '8px' }}>
-                  <span>Work / Research Experience</span>
-                  {extractedFields.experience && <span style={{ color: '#10b981', display: 'inline-flex', alignItems: 'center', gap: '4px' }}><Check size={12} /> Extracted from Document</span>}
-                </label>
-                <textarea 
-                  className="input" 
-                  style={extractedFields.experience ? { borderColor: 'rgba(16,185,129,0.5)', background: 'rgba(16,185,129,0.05)' } : {}}
-                  placeholder="2 years as research assistant at AI Lab, published 2 papers..." 
-                  value={profile.experience} 
-                  onChange={e => update('experience', e.target.value)} 
-                  rows={4} 
-                />
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.6)', marginBottom: '8px' }}>GitHub Profile URL</label>
-                  <input className="input" placeholder="github.com/username" value={profile.githubUrl} onChange={e => update('githubUrl', e.target.value)} />
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.6)', marginBottom: '8px' }}>Personal Portfolio URL</label>
-                  <input className="input" placeholder="johndoe.com" value={profile.portfolioUrl} onChange={e => update('portfolioUrl', e.target.value)} />
-                </div>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.6)', marginBottom: '8px' }}>TOEFL / IELTS Score</label>
-                  <input className="input" placeholder="e.g. 110 / 8.0" value={profile.toeflScore} onChange={e => update('toeflScore', e.target.value)} />
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.6)', marginBottom: '8px' }}>GRE / GMAT Score</label>
-                  <input className="input" placeholder="e.g. 320" value={profile.greScore} onChange={e => update('greScore', e.target.value)} />
-                </div>
+                ) : <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.3)' }}>Upload →</span>}
               </div>
             </div>
           )}
