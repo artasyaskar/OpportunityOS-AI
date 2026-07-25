@@ -12,7 +12,7 @@ import { usePipeline } from '@/components/auth/PipelineContext';
 import { SEED_OPPORTUNITIES } from '@/lib/opportunities';
 import { NotificationRepository, AppNotification } from '@/lib/repositories/NotificationRepository';
 import { EvidenceRepository } from '@/lib/repositories/EvidenceRepository';
-import { Menu, Search, Bell, Zap, WifiOff } from 'lucide-react';
+import { Menu, Search, Bell, Zap, WifiOff, X } from 'lucide-react';
 interface SearchResult {
   title: string;
   category: string;
@@ -45,7 +45,39 @@ export default function DashboardHeader() {
   const notificationRef = useRef<HTMLDivElement>(null);
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState<any[]>([]);
+  const [dismissedNotifs, setDismissedNotifs] = useState<string[]>([]);
   const [documents, setDocuments] = useState<any[]>([]);
+  const [draggedNotifId, setDraggedNotifId] = useState<string | null>(null);
+  const [dragOverNotifId, setDragOverNotifId] = useState<string | null>(null);
+
+  const handleDragEnd = () => {
+    if (draggedNotifId && dragOverNotifId && draggedNotifId !== dragOverNotifId) {
+      setNotifications(prev => {
+        const newArr = [...prev];
+        const dragIndex = newArr.findIndex(n => n.id === draggedNotifId);
+        const targetIndex = newArr.findIndex(n => n.id === dragOverNotifId);
+        if (dragIndex !== -1 && targetIndex !== -1) {
+          const [draggedItem] = newArr.splice(dragIndex, 1);
+          newArr.splice(targetIndex, 0, draggedItem);
+        }
+        return newArr;
+      });
+    }
+    setDraggedNotifId(null);
+    setDragOverNotifId(null);
+  };
+
+  const handleRemoveNotification = async (id: string, type: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setDismissedNotifs(prev => [...prev, id]);
+    if (type !== 'PROACTIVE') {
+      try {
+        await NotificationRepository.deleteNotification(id);
+      } catch (err) {
+        console.error('Failed to delete notification', err);
+      }
+    }
+  };
 
   // Mirror the shared `sidebar-open` class into React state so the toggle button
   // can expose accurate aria-expanded regardless of which control changed it.
@@ -391,13 +423,41 @@ export default function DashboardHeader() {
                   <button onClick={markAllRead} style={{ background: 'transparent', border: 'none', color: '#818cf8', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}>Mark all read</button>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '350px', overflowY: 'auto', paddingRight: '4px' }}>
-                  {Array.from(new Map(notifications.map((n, i) => [n.id || `notif-${i}-${n.title}`, n])).values()).map((n, i) => (
-                    <div key={n.id || `notif-${i}`} style={{ paddingBottom: '8px', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                  {Array.from(new Map(notifications.map((n, i) => [n.id || `notif-${i}-${n.title}`, n])).values())
+                    .filter(n => !dismissedNotifs.includes(n.id))
+                    .map((n, i) => (
+                    <div 
+                      key={n.id || `notif-${i}`} 
+                      draggable
+                      onDragStart={() => setDraggedNotifId(n.id)}
+                      onDragEnter={() => setDragOverNotifId(n.id)}
+                      onDragEnd={handleDragEnd}
+                      onDragOver={(e) => e.preventDefault()}
+                      style={{ 
+                        paddingBottom: '8px', 
+                        borderBottom: '1px solid rgba(255,255,255,0.04)', 
+                        position: 'relative',
+                        cursor: 'grab',
+                        opacity: draggedNotifId === n.id ? 0.4 : 1,
+                        background: dragOverNotifId === n.id ? 'rgba(129, 140, 248, 0.1)' : 'transparent',
+                        borderTop: dragOverNotifId === n.id ? '2px solid #818cf8' : 'none',
+                        transition: 'background 0.2s, opacity 0.2s'
+                      }}
+                    >
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                        <span style={{ fontSize: '12px', fontWeight: 700, color: n.unread ? '#818cf8' : 'white' }}>{n.title}</span>
-                        <span style={{ fontSize: '8px', color: 'rgba(255,255,255,0.3)' }}>{n.time}</span>
+                        <span style={{ fontSize: '12px', fontWeight: 700, color: n.unread ? '#818cf8' : 'white', paddingRight: '20px' }}>{n.title}</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span style={{ fontSize: '8px', color: 'rgba(255,255,255,0.3)' }}>{n.time}</span>
+                          <button 
+                            onClick={(e) => handleRemoveNotification(n.id, n.type, e)}
+                            style={{ background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.3)', cursor: 'pointer', padding: '2px', display: 'flex', alignItems: 'center' }}
+                            aria-label="Remove notification"
+                          >
+                            <X size={12} />
+                          </button>
+                        </div>
                       </div>
-                      <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)', lineHeight: 1.3, marginTop: '3px' }}>{n.text}</p>
+                      <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)', lineHeight: 1.3, marginTop: '3px', paddingRight: '24px' }}>{n.text}</p>
                     </div>
                   ))}
                 </div>

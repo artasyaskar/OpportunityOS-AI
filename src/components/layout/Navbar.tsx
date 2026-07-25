@@ -4,12 +4,13 @@ import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { auth } from '@/lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
-import { Menu, X } from 'lucide-react';
+import { Menu, X, ShieldCheck, ChevronDown } from 'lucide-react';
 
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [trustHovered, setTrustHovered] = useState(false);
 
   useEffect(() => {
     const handler = () => setScrolled(window.scrollY > 20);
@@ -102,6 +103,77 @@ export default function Navbar() {
             {item}
           </a>
         ))}
+        <div style={{ width: '1px', height: '16px', background: 'rgba(255,255,255,0.1)', margin: '0 8px' }} />
+        
+        <div
+          style={{ position: 'relative' }}
+          onMouseEnter={() => setTrustHovered(true)}
+          onMouseLeave={() => setTrustHovered(false)}
+        >
+          <div
+            style={{
+              color: trustHovered ? 'white' : 'rgba(255,255,255,0.65)',
+              background: trustHovered ? 'rgba(255,255,255,0.06)' : 'transparent',
+              fontSize: '14px',
+              fontWeight: 500,
+              padding: '6px 14px',
+              borderRadius: '8px',
+              transition: 'all 0.2s',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}
+          >
+            <ShieldCheck size={16} className={trustHovered ? "text-emerald-400" : "text-emerald-400 opacity-70"} /> Trust Center <ChevronDown size={14} style={{ opacity: 0.5, transform: trustHovered ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }} />
+          </div>
+          
+          <div style={{
+            position: 'absolute',
+            top: 'calc(100% + 8px)',
+            left: '50%',
+            transform: `translateX(-50%) translateY(${trustHovered ? '0' : '10px'})`,
+            opacity: trustHovered ? 1 : 0,
+            visibility: trustHovered ? 'visible' : 'hidden',
+            background: 'rgba(2, 4, 8, 0.95)',
+            backdropFilter: 'blur(20px)',
+            border: '1px solid rgba(255,255,255,0.08)',
+            padding: '8px',
+            borderRadius: '12px',
+            minWidth: '180px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '4px',
+            zIndex: 100,
+            boxShadow: '0 10px 40px rgba(0,0,0,0.5)',
+            transition: 'all 0.2s ease-out'
+          }}>
+            {['Privacy Policy', 'Terms of Service', 'Contact Info'].map(item => (
+              <a
+                key={item}
+                href={`#${item.split(' ')[0].toLowerCase()}-btn`}
+                style={{
+                  color: 'rgba(255,255,255,0.7)',
+                  padding: '10px 12px',
+                  fontSize: '13px',
+                  textDecoration: 'none',
+                  borderRadius: '6px',
+                  transition: 'all 0.2s',
+                }}
+                onMouseEnter={e => {
+                  (e.target as HTMLElement).style.color = 'white';
+                  (e.target as HTMLElement).style.background = 'rgba(255,255,255,0.05)';
+                }}
+                onMouseLeave={e => {
+                  (e.target as HTMLElement).style.color = 'rgba(255,255,255,0.7)';
+                  (e.target as HTMLElement).style.background = 'transparent';
+                }}
+              >
+                {item}
+              </a>
+            ))}
+          </div>
+        </div>
 
         {isAuthenticated ? (
           <Link
@@ -172,6 +244,23 @@ export default function Navbar() {
               {item}
             </a>
           ))}
+          <div style={{ display: 'flex', gap: '16px', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '12px' }}>
+            {['Privacy Policy', 'Terms of Service', 'Contact Info'].map(item => (
+              <a
+                key={item}
+                href={`#${item.split(' ')[0].toLowerCase()}-btn`}
+                onClick={() => setMobileMenuOpen(false)}
+                style={{
+                  color: 'rgba(255,255,255,0.5)',
+                  textDecoration: 'none',
+                  fontSize: '14px',
+                  fontWeight: 500,
+                }}
+              >
+                {item}
+              </a>
+            ))}
+          </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '8px' }}>
             {isAuthenticated ? (
               <Link href="/dashboard" onClick={() => setMobileMenuOpen(false)} className="btn btn-primary btn-lg" style={{ width: '100%' }}>

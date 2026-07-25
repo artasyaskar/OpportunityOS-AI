@@ -30,6 +30,12 @@ export class NotificationRepository {
     await updateDoc(ref, { read: true });
   }
 
+  static async deleteNotification(id: string): Promise<void> {
+    const { deleteDoc } = await import('firebase/firestore');
+    const ref = doc(db, 'notifications', id);
+    await deleteDoc(ref);
+  }
+
   static async markAllAsRead(userId: string): Promise<void> {
     const q = query(collection(db, 'notifications'), where('userId', '==', userId), where('read', '==', false));
     const snap = await getDocs(q);

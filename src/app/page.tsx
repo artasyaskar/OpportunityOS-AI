@@ -15,7 +15,7 @@ import { GLOBAL_OPPORTUNITIES, getCategoryCounts } from '@/lib/opportunities-dat
 import AnimatedCounter from '@/components/ui/AnimatedCounter';
 import LiveAgentFeed from '@/components/ui/LiveAgentFeed';
 import { agentIcons, opportunityTypeIcon } from '@/lib/uiIcons';
-import { Rocket, ArrowRight, PlayCircle, UserRound, Bot, Trophy, X, Check, Target, Network, TrendingUp, Cpu, FileText, ArrowDown, Building2, Globe2, Clock, MessageSquareQuote, MessageCircle } from 'lucide-react';
+import { Rocket, ArrowRight, PlayCircle, UserRound, Bot, Trophy, X, Check, Target, Network, TrendingUp, Cpu, FileText, ArrowDown, Building2, Globe2, Clock, MessageSquareQuote, MessageCircle, ShieldCheck, Lock } from 'lucide-react';
 
 const ThreeScene = dynamic(() => import('@/components/3d/ThreeScene'), {
   ssr: false,
@@ -733,6 +733,7 @@ export default function Home() {
 
       {/* Footer */}
       <footer
+        id="footer"
         style={{
           borderTop: '1px solid rgba(255,255,255,0.06)',
           padding: '60px 24px',
@@ -755,10 +756,10 @@ export default function Home() {
             Designed & Developed by <strong style={{ color: 'white' }}>Artas Yaskar</strong>
           </div>
 
-          <div style={{ display: 'flex', gap: '24px', justifyContent: 'center', marginBottom: '32px' }}>
-            <button onClick={() => setPrivacyOpen(true)} style={{ color: 'rgba(255,255,255,0.4)', textDecoration: 'none', fontSize: '14px', background: 'none', border: 'none', cursor: 'pointer' }}>Privacy Policy</button>
-            <button onClick={() => setTermsOpen(true)} style={{ color: 'rgba(255,255,255,0.4)', textDecoration: 'none', fontSize: '14px', background: 'none', border: 'none', cursor: 'pointer' }}>Terms of Service</button>
-            <button onClick={() => setContactOpen(true)} style={{ color: 'rgba(255,255,255,0.4)', textDecoration: 'none', fontSize: '14px', background: 'none', border: 'none', cursor: 'pointer' }}>Contact Info</button>
+          <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', flexWrap: 'wrap', marginBottom: '32px' }}>
+            <button id="privacy-btn" className="legal-btn" onClick={() => setPrivacyOpen(true)} style={{ color: 'rgba(255,255,255,0.6)', fontSize: '14px', fontWeight: 500, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', padding: '10px 20px', borderRadius: '12px', cursor: 'pointer' }}>Privacy Policy</button>
+            <button id="terms-btn" className="legal-btn" onClick={() => setTermsOpen(true)} style={{ color: 'rgba(255,255,255,0.6)', fontSize: '14px', fontWeight: 500, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', padding: '10px 20px', borderRadius: '12px', cursor: 'pointer' }}>Terms of Service</button>
+            <button id="contact-btn" className="legal-btn" onClick={() => setContactOpen(true)} style={{ color: 'rgba(255,255,255,0.6)', fontSize: '14px', fontWeight: 500, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', padding: '10px 20px', borderRadius: '12px', cursor: 'pointer' }}>Contact Info</button>
           </div>
 
           <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: '13px' }}>
@@ -775,14 +776,30 @@ export default function Home() {
           <div className="modal-content glass-panel" style={{ maxWidth: '600px', width: '90%' }}>
             <button className="modal-close" onClick={() => setPrivacyOpen(false)}><X size={20} /></button>
             <h2 style={{ fontSize: '24px', color: 'white', marginBottom: '20px' }}>Privacy Policy</h2>
-            <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: '14px', lineHeight: 1.6, maxHeight: '60vh', overflowY: 'auto' }}>
-              <p style={{ marginBottom: '16px' }}>At OpportunityOS AI, your privacy is our top priority. We use industry-standard encryption to protect your academic records, resumes, and personal information.</p>
-              <h3 style={{ color: 'white', fontSize: '16px', marginBottom: '8px', marginTop: '16px' }}>1. Data Collection</h3>
-              <p style={{ marginBottom: '16px' }}>We collect only the data necessary to provide you with the best AI-driven opportunity matches, including your educational background and career preferences.</p>
-              <h3 style={{ color: 'white', fontSize: '16px', marginBottom: '8px', marginTop: '16px' }}>2. Data Usage</h3>
-              <p style={{ marginBottom: '16px' }}>Your data is strictly used by our internal AI agents (e.g., Discovery Agent, Gap Analysis) to tailor your experience. We do not sell your personal data to third parties.</p>
-              <h3 style={{ color: 'white', fontSize: '16px', marginBottom: '8px', marginTop: '16px' }}>3. AI Providers</h3>
-              <p style={{ marginBottom: '16px' }}>We route requests through trusted AI providers (Gemini, Groq). None of these providers use your data to train their models.</p>
+            <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: '15px', lineHeight: 1.7, maxHeight: '60vh', overflowY: 'auto', paddingRight: '8px' }}>
+              <p style={{ marginBottom: '16px' }}>Your privacy matters.</p>
+              <p style={{ marginBottom: '16px' }}>OpportunityOS AI is built around one simple principle: <strong>Your data belongs to you.</strong></p>
+
+              <h3 style={{ color: 'white', fontSize: '18px', marginBottom: '8px', marginTop: '24px' }}>1. Your Documents</h3>
+              <p style={{ marginBottom: '16px' }}>You may upload documents such as resumes, transcripts, test scores, and application materials. These documents are used only to provide personalized recommendations and generate application content you request.</p>
+
+              <h3 style={{ color: 'white', fontSize: '18px', marginBottom: '8px', marginTop: '24px' }}>2. How AI Uses Your Information</h3>
+              <p style={{ marginBottom: '16px' }}>When you request AI-generated content, only the information required to complete that request is processed. Your personal documents are not intentionally used to train OpportunityOS AI models. Some requests may be processed through trusted third-party AI providers (such as Google Gemini). We only send the information necessary to complete your request.</p>
+
+              <h3 style={{ color: 'white', fontSize: '18px', marginBottom: '8px', marginTop: '24px' }}>3. Security</h3>
+              <p style={{ marginBottom: '16px' }}>We take security seriously. Your data is stored using trusted cloud infrastructure with industry-standard security practices, authentication, and encrypted connections. Only authorized systems can access your information to provide the services you request.</p>
+
+              <h3 style={{ color: 'white', fontSize: '18px', marginBottom: '8px', marginTop: '24px' }}>4. We Do Not Sell Your Data</h3>
+              <p style={{ marginBottom: '16px' }}>We do not sell your personal information. We do not share your documents with advertisers or marketing companies. Your information is only used to operate and improve OpportunityOS AI.</p>
+              
+              <h3 style={{ color: 'white', fontSize: '18px', marginBottom: '8px', marginTop: '24px' }}>5. Accuracy & AI Responses</h3>
+              <p style={{ marginBottom: '16px' }}>OpportunityOS AI is designed to generate evidence-based and personalized content using the information you provide. However, AI-generated content should always be reviewed before submission, especially for scholarships, university admissions, employment, and legal or financial decisions.</p>
+
+              <h3 style={{ color: 'white', fontSize: '18px', marginBottom: '8px', marginTop: '24px' }}>6. Your Control</h3>
+              <p style={{ marginBottom: '16px' }}>You remain in control of your data. You can update your profile, delete uploaded documents, or delete your account. When your account is deleted, we will delete your stored personal data according to our data retention policy.</p>
+
+              <h3 style={{ color: 'white', fontSize: '18px', marginBottom: '8px', marginTop: '24px' }}>7. Contact</h3>
+              <p style={{ marginBottom: '16px' }}>If you have questions about privacy, security, or your data, please contact us through the support page or the email listed on our website.</p>
             </div>
             <div style={{ marginTop: '24px', textAlign: 'right' }}>
               <button className="btn btn-primary" onClick={() => setPrivacyOpen(false)}>Acknowledge</button>
@@ -797,14 +814,24 @@ export default function Home() {
           <div className="modal-content glass-panel" style={{ maxWidth: '600px', width: '90%' }}>
             <button className="modal-close" onClick={() => setTermsOpen(false)}><X size={20} /></button>
             <h2 style={{ fontSize: '24px', color: 'white', marginBottom: '20px' }}>Terms of Service</h2>
-            <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: '14px', lineHeight: 1.6, maxHeight: '60vh', overflowY: 'auto' }}>
-              <p style={{ marginBottom: '16px' }}>Welcome to OpportunityOS AI. By accessing or using our platform, you agree to be bound by these Terms.</p>
-              <h3 style={{ color: 'white', fontSize: '16px', marginBottom: '8px', marginTop: '16px' }}>1. Service Description</h3>
-              <p style={{ marginBottom: '16px' }}>OpportunityOS provides AI-assisted coaching, discovery, and essay generation for opportunities. It is an advisory tool and does not guarantee acceptances or funding.</p>
-              <h3 style={{ color: 'white', fontSize: '16px', marginBottom: '8px', marginTop: '16px' }}>2. User Responsibilities</h3>
-              <p style={{ marginBottom: '16px' }}>You are responsible for verifying the final application materials generated by our agents before submission. You agree not to misuse the platform to generate spam or fraudulent applications.</p>
-              <h3 style={{ color: 'white', fontSize: '16px', marginBottom: '8px', marginTop: '16px' }}>3. Subscriptions & Payments</h3>
-              <p style={{ marginBottom: '16px' }}>Subscription fees are billed according to your selected plan. You may cancel your subscription at any time, but past charges are non-refundable.</p>
+            <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: '15px', lineHeight: 1.7, maxHeight: '60vh', overflowY: 'auto', paddingRight: '8px' }}>
+              <p style={{ marginBottom: '16px' }}>Welcome to OpportunityOS AI.</p>
+              <p style={{ marginBottom: '16px' }}>Our mission is to help students and professionals discover verified global opportunities and prepare stronger applications using AI. By using OpportunityOS AI, you agree to the following terms.</p>
+
+              <h3 style={{ color: 'white', fontSize: '18px', marginBottom: '8px', marginTop: '24px' }}>1. Using OpportunityOS AI</h3>
+              <p style={{ marginBottom: '16px' }}>OpportunityOS AI is designed to assist with discovering opportunities and preparing application materials. While we strive to provide accurate recommendations and high-quality AI assistance, all application decisions, eligibility checks, and final submissions remain your responsibility. Always verify important information through the official organization before applying.</p>
+
+              <h3 style={{ color: 'white', fontSize: '18px', marginBottom: '8px', marginTop: '24px' }}>2. Responsible Use</h3>
+              <p style={{ marginBottom: '16px' }}>Please use the platform honestly and ethically. You agree not to upload fraudulent or misleading information, generate fake credentials, misuse the platform to spam organizations, or attempt to bypass security measures. OpportunityOS AI is built to help present your genuine achievements in the strongest possible way.</p>
+
+              <h3 style={{ color: 'white', fontSize: '18px', marginBottom: '8px', marginTop: '24px' }}>3. Accounts</h3>
+              <p style={{ marginBottom: '16px' }}>You are responsible for keeping your account credentials secure. If you believe your account has been accessed without permission, please contact us as soon as possible.</p>
+
+              <h3 style={{ color: 'white', fontSize: '18px', marginBottom: '8px', marginTop: '24px' }}>4. Subscription & Billing</h3>
+              <p style={{ marginBottom: '16px' }}>Premium features are available through paid subscriptions. You can upgrade or cancel your subscription at any time. Unless required by law, subscription payments are non-refundable once processed. Your premium access will remain active until the end of your current billing period.</p>
+
+              <h3 style={{ color: 'white', fontSize: '18px', marginBottom: '8px', marginTop: '24px' }}>5. Service Availability</h3>
+              <p style={{ marginBottom: '16px' }}>We continuously improve OpportunityOS AI and may update features, AI models, or functionality without prior notice. Although we aim for high availability, uninterrupted service cannot always be guaranteed.</p>
             </div>
             <div style={{ marginTop: '24px', textAlign: 'right' }}>
               <button className="btn btn-primary" onClick={() => setTermsOpen(false)}>I Agree</button>

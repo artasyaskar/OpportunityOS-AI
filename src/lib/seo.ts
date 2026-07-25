@@ -23,7 +23,7 @@ export const SITE_TAGLINE = 'Your AI Chief Opportunity Officer';
 export const TWITTER_HANDLE = '@opportunityos';
 
 export const DEFAULT_DESCRIPTION =
-  'OpportunityOS AI is the AI-powered Opportunity Operating System that helps students, researchers, founders and professionals discover and win scholarships, fellowships, grants, internships, hackathons, remote jobs and accelerators.';
+  'OpportunityOS AI is the AI-powered Operating System helping students and professionals discover and win global scholarships, grants, and top internships.';
 
 /** Absolute URL for any path. */
 export function absoluteUrl(path = ''): string {
