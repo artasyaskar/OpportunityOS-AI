@@ -30,7 +30,7 @@ export async function runApplicationReviewerAgent(
         'You are the Application Reviewer Agent.'
       );
     },
-    { format: 'json', taskType: 'complex_reasoning', cacheKey: `reviewer_${opportunity.id}_${essay.length}`, userId }
+    { format: 'json', taskType: 'complex_reasoning', cacheKey: `reviewer_${opportunity?.id || 'none'}_${essay?.length || 0}`, userId }
   );
   return response.content;
 }

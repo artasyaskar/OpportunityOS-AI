@@ -24,7 +24,7 @@ export async function runStrategistAgent(
         'You are the Opportunity Strategist Agent.'
       );
     },
-    { format: 'json', taskType: 'complex_reasoning', cacheKey: `strategist_${opportunities.length}_${evidenceContext?.length}`, userId: profile.userId }
+    { format: 'json', taskType: 'complex_reasoning', cacheKey: `strategist_${opportunities?.length || 0}_${evidenceContext?.length || 0}`, userId: profile.userId }
   );
   return response.content;
 }

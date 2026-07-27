@@ -23,7 +23,7 @@ export async function runComplianceAgent(
         'You are the Compliance Agent.'
       );
     },
-    { format: 'json', taskType: 'complex_reasoning', cacheKey: `compliance_${requirements.length}`, userId }
+    { format: 'json', taskType: 'complex_reasoning', cacheKey: `compliance_${requirements?.length || 0}`, userId }
   );
   return response.content;
 }
