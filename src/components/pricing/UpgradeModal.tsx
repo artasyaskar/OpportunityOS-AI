@@ -96,9 +96,15 @@ export default function UpgradeModal({ isOpen, onClose }: UpgradeModalProps) {
                 </ul>
 
                 <button 
+                  onClick={() => {
+                    if (isPro) {
+                      onClose();
+                      window.location.href = '/dashboard/settings?tab=billing';
+                    }
+                  }}
                   className={`w-full py-4 rounded-xl font-bold text-lg transition-all duration-300 ${
                     isPro 
-                      ? 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 hover:-translate-y-0.5' 
+                      ? 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 hover:-translate-y-0.5 cursor-pointer' 
                       : 'bg-gray-800 hover:bg-gray-700 text-gray-300 cursor-default'
                   }`}
                 >
