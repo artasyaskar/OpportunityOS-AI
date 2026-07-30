@@ -11,7 +11,7 @@ import { SubscriptionGuard } from '@/components/auth/SubscriptionGuard';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { useSubscription } from '@/components/auth/SubscriptionContext';
 import { EvidenceRepository } from '@/lib/repositories/EvidenceRepository';
-import { PenLine, MessageSquare, Mail, Microscope, Edit3, FolderSearch, Search, Bot, FileText, Settings, Sparkles, Target, Scissors, Check, MessageCircle, AlertTriangle, ShieldCheck, Landmark, Lightbulb, CheckCircle, X, Download, Mic, Trash2, Clock, Activity, Zap, ClipboardList } from 'lucide-react';
+import { PenLine, MessageSquare, Mail, Microscope, Edit3, FolderSearch, Search, Bot, FileText, Settings, Sparkles, Target, Scissors, Check, MessageCircle, AlertTriangle, ShieldCheck, Landmark, Lightbulb, CheckCircle, X, Download, Mic, Trash2, Clock, Activity, Zap, ClipboardList, Copy } from 'lucide-react';
 
 const DOC_TYPES = [
   { id: 'sop', label: 'Statement of Purpose (SOP)', icon: <PenLine size={16} className="text-indigo-400" />, desc: 'Your personal academic and career narrative' },
@@ -61,6 +61,7 @@ export default function BuilderPage() {
   const [isInitializing, setIsInitializing] = useState(true);
   const [isAnalyzingUrl, setIsAnalyzingUrl] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [copied, setCopied] = useState(false);
   const { pipeline: applications } = usePipeline();
   const { profile, openUpgradeModal } = useProfile() as any;
   const { subscription } = useSubscription();
@@ -603,8 +604,8 @@ Focus Themes: ${data.themes?.join(', ') || 'None found'}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           {/* Editor */}
           <div className="card" style={{ padding: '20px', flex: 1, display: 'flex', flexDirection: 'column' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
                 <div style={{ fontSize: '14px', fontWeight: 700, color: 'white' }}>
                   {DOC_TYPES.find(d => d.id === docType)?.label}
                 </div>
@@ -614,26 +615,142 @@ Focus Themes: ${data.themes?.join(', ') || 'None found'}
                   </div>
                 )}
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.4)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', overflowX: 'auto', maxWidth: '100%' }}>
+                <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.4)', marginRight: '4px' }}>
                   {wordCount} words
                 </span>
                 {activeContent && (
                   <>
-                    <button className="btn btn-ghost btn-sm" style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)' }}><Clock size={12} className="inline mr-1" /> History</button>
+                    <button className="btn btn-ghost btn-sm" style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)', whiteSpace: 'nowrap' }}><Clock size={12} className="inline mr-1" /> History</button>
                     <button
-                      onClick={() => navigator.clipboard.writeText(activeContent)}
+                      onClick={() => {
+                        navigator.clipboard.writeText(activeContent);
+                        setCopied(true);
+                        toast('Content copied to clipboard!');
+                        setTimeout(() => setCopied(false), 2500);
+                      }}
                       className="btn btn-ghost btn-sm"
-                      style={{ fontSize: '12px' }}
+                      style={{ 
+                        fontSize: '12px', 
+                        whiteSpace: 'nowrap',
+                        color: copied ? '#10b981' : 'rgba(255,255,255,0.8)',
+                        background: copied ? 'rgba(16,185,129,0.15)' : 'transparent',
+                        border: copied ? '1px solid rgba(16,185,129,0.3)' : '1px solid transparent',
+                        transition: 'all 0.2s ease'
+                      }}
                     >
-                      Copy
+                      {copied ? (
+                        <><Check size={14} className="inline mr-1 text-emerald-400" /> Copied!</>
+                      ) : (
+                        <><Copy size={14} className="inline mr-1" /> Copy</>
+                      )}
                     </button>
                     <button
-                      onClick={() => setShowUpgradeModal(true)}
+                      onClick={async () => {
+                        const isPro = subscription?.planId === 'professional_monthly' || 
+                                      subscription?.planId === 'enterprise_annual' || 
+                                      subscription?.status === 'ACTIVE' ||
+                                      subscription?.status === 'LIFETIME' ||
+                                      subscription?.status === 'ENTERPRISE' ||
+                                      profile?.isPro ||
+                                      profile?.planId === 'pro' ||
+                                      profile?.planId === 'professional_monthly';
+                        if (!isPro) {
+                          setShowUpgradeModal(true);
+                          return;
+                        }
+
+                        if (!activeContent.trim()) {
+                          toast('Please generate content before exporting PDF.');
+                          return;
+                        }
+
+                        showAILoading('Generating PDF document...');
+                        try {
+                          const { jsPDF } = await import('jspdf');
+                          const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+
+                          const docLabel = DOC_TYPES.find(d => d.id === docType)?.label || 'Application Document';
+                          const applicantName = profile?.name || 'Applicant';
+                          const targetTitle = opportunity?.title || 'Target Opportunity';
+
+                          // Header Title
+                          doc.setFont('times', 'bold');
+                          doc.setFontSize(18);
+                          doc.setTextColor(15, 23, 42);
+                          doc.text(applicantName.toUpperCase(), 40, 50);
+
+                          // Document Type Subtitle
+                          doc.setFontSize(11);
+                          doc.setFont('times', 'bold');
+                          doc.setTextColor(71, 85, 105);
+                          doc.text(docLabel.toUpperCase(), 40, 68);
+
+                          // Opportunity Subtitle
+                          doc.setFont('times', 'italic');
+                          doc.setFontSize(10);
+                          doc.setTextColor(100, 116, 139);
+                          doc.text(`Prepared for: ${targetTitle}`, 40, 82);
+
+                          // Header Divider Line
+                          doc.setLineWidth(1.5);
+                          doc.setDrawColor(15, 23, 42);
+                          doc.line(40, 92, 555, 92);
+
+                          // Paragraph Content
+                          doc.setFont('times', 'normal');
+                          doc.setFontSize(11);
+                          doc.setTextColor(30, 41, 59);
+
+                          const margin = 40;
+                          const maxLineWidth = 515;
+                          let currentY = 118;
+                          const pageHeight = 770;
+
+                          const paragraphs = activeContent.split(/\n\s*\n/).map(p => p.trim()).filter(Boolean);
+
+                          for (const para of paragraphs) {
+                            const splitLines = doc.splitTextToSize(para, maxLineWidth);
+                            const paraHeight = splitLines.length * 15;
+
+                            if (currentY + paraHeight > pageHeight) {
+                              doc.addPage();
+                              currentY = 50;
+                            }
+
+                            doc.text(splitLines, margin, currentY, { lineHeightFactor: 1.4 });
+                            currentY += paraHeight + 14;
+                          }
+
+                          // Page Numbers & Footer
+                          const pageCount = (doc as any).internal.getNumberOfPages();
+                          for (let i = 1; i <= pageCount; i++) {
+                            doc.setPage(i);
+                            doc.setFont('times', 'italic');
+                            doc.setFontSize(9);
+                            doc.setTextColor(148, 163, 184);
+                            doc.line(40, 800, 555, 800);
+                            doc.text('OpportunityOS AI Certified Document', 40, 814);
+                            doc.text(`Page ${i} of ${pageCount}`, 490, 814);
+                          }
+
+                          const sanitizedName = applicantName.replace(/[^a-zA-Z0-9]/g, '_');
+                          const sanitizedDoc = docType.toUpperCase();
+                          const filename = `${sanitizedName}_${sanitizedDoc}.pdf`;
+
+                          doc.save(filename);
+                          toast(`Downloaded ${filename} directly to your Downloads!`);
+                        } catch (e: any) {
+                          console.error('PDF export failed:', e);
+                          toast('PDF generation failed. Please try again.');
+                        } finally {
+                          hideAILoading();
+                        }
+                      }}
                       className="btn btn-primary btn-sm"
-                      style={{ fontSize: '12px' }}
+                      style={{ fontSize: '12px', whiteSpace: 'nowrap' }}
                     >
-                      <FileText size={14} className="inline mr-2 text-red-400" /> Export PDF
+                      <FileText size={14} className="inline mr-2 text-white" /> Export PDF
                     </button>
                   </>
                 )}
@@ -671,11 +788,11 @@ Focus Themes: ${data.themes?.join(', ') || 'None found'}
                 
                 {/* AI Editable Generation Buttons */}
                 {activeContent && (
-                  <div className="page-transition" style={{ display: 'flex', gap: '12px', padding: '12px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.06)' }}>
-                    <span style={{ fontSize: '11px', fontWeight: 800, color: 'rgba(255,255,255,0.4)', alignSelf: 'center', marginRight: '8px', letterSpacing: '1px' }}>AI COMMANDS:</span>
-                    <button className="btn btn-ghost btn-sm" style={{ background: 'rgba(99,102,241,0.1)', color: '#818cf8', border: '1px solid rgba(99,102,241,0.2)' }}><Sparkles size={14} className="inline mr-1" /> Improve Polish</button>
-                    <button className="btn btn-ghost btn-sm" style={{ background: 'rgba(16,185,129,0.1)', color: '#10b981', border: '1px solid rgba(16,185,129,0.2)' }}><Target size={14} className="inline mr-1" /> More Personal</button>
-                    <button className="btn btn-ghost btn-sm" style={{ background: 'rgba(245,158,11,0.1)', color: '#f59e0b', border: '1px solid rgba(245,158,11,0.2)' }}><Scissors size={14} className="inline mr-1" /> Shorten</button>
+                  <div className="page-transition" style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.06)', flexWrap: 'wrap', overflowX: 'auto' }}>
+                    <span style={{ fontSize: '11px', fontWeight: 800, color: 'rgba(255,255,255,0.4)', alignSelf: 'center', marginRight: '4px', letterSpacing: '1px', whiteSpace: 'nowrap' }}>AI COMMANDS:</span>
+                    <button className="btn btn-ghost btn-sm" style={{ background: 'rgba(99,102,241,0.1)', color: '#818cf8', border: '1px solid rgba(99,102,241,0.2)', whiteSpace: 'nowrap' }}><Sparkles size={14} className="inline mr-1" /> Improve Polish</button>
+                    <button className="btn btn-ghost btn-sm" style={{ background: 'rgba(16,185,129,0.1)', color: '#10b981', border: '1px solid rgba(16,185,129,0.2)', whiteSpace: 'nowrap' }}><Target size={14} className="inline mr-1" /> More Personal</button>
+                    <button className="btn btn-ghost btn-sm" style={{ background: 'rgba(245,158,11,0.1)', color: '#f59e0b', border: '1px solid rgba(245,158,11,0.2)', whiteSpace: 'nowrap' }}><Scissors size={14} className="inline mr-1" /> Shorten</button>
                   </div>
                 )}
               </div>
