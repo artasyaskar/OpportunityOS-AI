@@ -264,12 +264,14 @@ export default function ExecutiveAdvisorWidget() {
         <div
           className="advisor-chat-window card-magnetic glow-border page-transition"
           style={{
-            width: '340px',
+            width: '360px',
+            maxHeight: 'min(580px, calc(100vh - 80px))',
+            height: '500px',
             background: 'var(--bg-primary)',
-            border: '1px solid rgba(255,255,255,0.1)',
+            border: '1px solid rgba(255,255,255,0.12)',
             borderRadius: '16px',
             overflow: 'hidden',
-            boxShadow: '0 24px 64px rgba(0,0,0,0.6)',
+            boxShadow: '0 24px 64px rgba(0,0,0,0.7)',
             display: 'flex',
             flexDirection: 'column'
           }}
@@ -280,12 +282,13 @@ export default function ExecutiveAdvisorWidget() {
             onTouchStart={handleTouchStart}
             style={{ 
               background: 'linear-gradient(90deg, #1e1b4b, #312e81)', 
-              padding: '16px', 
+              padding: '14px 16px', 
               display: 'flex', 
               justifyContent: 'space-between', 
               alignItems: 'center',
               cursor: isDesktop ? 'grab' : 'default',
-              userSelect: 'none'
+              userSelect: 'none',
+              borderBottom: '1px solid rgba(255,255,255,0.08)'
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', pointerEvents: 'none' }}>
@@ -321,8 +324,22 @@ export default function ExecutiveAdvisorWidget() {
             </button>
           </div>
 
-          {/* Chat Logs */}
-          <div style={{ padding: '16px', height: '280px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '12px', background: 'var(--bg-secondary)', flex: 1 }}>
+          {/* Chat Logs — Fully Scrollable */}
+          <div 
+            style={{ 
+              padding: '16px', 
+              overflowY: 'auto', 
+              display: 'flex', 
+              flexDirection: 'column', 
+              gap: '12px', 
+              background: 'var(--bg-secondary)', 
+              flex: 1,
+              WebkitOverflowScrolling: 'touch',
+              touchAction: 'pan-y'
+            }}
+            onMouseDown={(e) => e.stopPropagation()}
+            onTouchStart={(e) => e.stopPropagation()}
+          >
             {messages.map((msg, idx) => (
               <div
                 key={idx}
@@ -333,10 +350,11 @@ export default function ExecutiveAdvisorWidget() {
                   borderRadius: '12px',
                   fontSize: '12px',
                   color: 'white',
-                  border: msg.sender === 'ai' ? '1px solid rgba(255,255,255,0.05)' : 'none',
-                  maxWidth: '85%',
-                  lineHeight: 1.5,
-                  wordBreak: 'break-word'
+                  border: msg.sender === 'ai' ? '1px solid rgba(255,255,255,0.08)' : 'none',
+                  maxWidth: '88%',
+                  lineHeight: 1.6,
+                  wordBreak: 'break-word',
+                  whiteSpace: 'pre-wrap'
                 }}
               >
                 {msg.text}
