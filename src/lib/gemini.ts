@@ -182,11 +182,288 @@ Opportunities: ${JSON.stringify(opportunities)}`,
   "reasoning": "Why this recommendation",
   "bestTimeToApply": "Now|In 2 months|Next cycle",
   "winProbabilityRank": 1-10
-}]`
+}]`),
+
+  // =====================
+  // MULTI-PASS WRITING PIPELINE
+  // =====================
+
+  CONTENT_STRATEGIST: (opportunity: Opportunity, evidenceList: string, opportunityValues: string, styleProfile: string) => securePrompt(
+    'You are the Content Strategist Agent for OpportunityOS. Your job is to plan the structure and narrative of a compelling application essay.',
+    `Opportunity: ${JSON.stringify(opportunity)}
+
+Verified Evidence:
+${evidenceList}
+
+Opportunity Values (ranked by importance to this opportunity):
+${opportunityValues}
+
+Applicant Style Profile:
+${styleProfile}`,
+    `Create a detailed content strategy for this application essay. Analyze which evidence best matches what this opportunity values. Select the strongest stories and arrange them for maximum impact.
+
+RULES:
+1. Only reference evidence that exists in the evidence list above.
+2. Choose stories and experiences that align with the opportunity's top values.
+3. Plan an emotional arc: hook → credibility → alignment → forward vision.
+
+Return strictly valid JSON:
+{
+  "hook": { "type": "personal_story|achievement|question|bold_statement", "evidence_to_use": "Specific evidence item", "angle": "Why this opening grabs attention" },
+  "sections": [
+    {
+      "purpose": "What this section achieves (e.g., Demonstrate technical depth)",
+      "evidence_ids": ["Which evidence items to use"],
+      "story_to_tell": "The specific narrative or project to describe",
+      "skills_to_weave": ["1-2 skills to mention naturally within the story"],
+      "tone": "confident|reflective|determined",
+      "target_sentences": 4
+    }
+  ],
+  "conclusion": { "strategy": "forward_looking|call_to_action|circular_reference", "connection_to_opportunity": "How it ties back" },
+  "opportunity_values_addressed": ["Which values from the opportunity this plan covers"],
+  "warnings": ["Any gaps or missing evidence the user should know about"]
+}`
   ),
 
+  APPLICATION_BUILDER_SINGLE_PASS: (
+    type: string,
+    opportunityStr: string,
+    valuesStr: string,
+    evidenceList: string,
+    styleProfile: string,
+    instructions: string,
+    voiceContext: string = '',
+    userName: string = ''
+  ) => securePrompt(
+    'You are an experienced university student writing your own personal applications. You write with authentic personal reflection, clear factual grounding, natural sentence rhythms, and zero promotional marketing fluff.',
+    `Document type: ${type}
+Applicant Full Name: ${userName || 'Applicant'}
+
+Opportunity Target:
+${opportunityStr}
+
+Key Opportunity Values & Priorities:
+${valuesStr}
+
+Verified Evidence Vault (only use facts from this list):
+${evidenceList}
+
+Applicant Voice & Style Profile:
+${styleProfile}
+${voiceContext ? `\n${voiceContext}` : ''}
+
+Special Instructions from Applicant:
+${instructions}`,
+    `Write a complete, authentic ${type} draft from the student's perspective.
+
+AUTHENTIC STUDENT WRITING RULES:
+1. PERSONAL & REFLECTIVE TONE:
+   - Write like a real student explaining their journey to an admissions committee. Sound personal, thoughtful, and direct.
+   - Use natural contractions (I'm, I've, I'll, wasn't, building) to sound human.
+2. EVIDENCE-FIRST (SHOW, DON'T TELL):
+   - Never self-aggrandize ("I have strong leadership skills", "I am highly passionate").
+   - Instead, state facts directly ("During my work in 2025, I used Python and OpenCV to build...") and let the reader infer competence.
+3. BAN STACKED ADJECTIVES & BUZZWORDS:
+   - DO NOT use overhyped adjectives: innovative, cutting-edge, remarkable, exceptional, outstanding, transformative, game-changing, highly, deeply, extremely.
+   - DO NOT use banned cliché words: passionate, excited, thrilled, delighted, journey, furthermore, moreover, additionally, in conclusion, needless to say.
+4. NATURAL RHYTHM & PARAGRAPH DIVERSITY:
+   - Mix sentence lengths naturally. Pair a 4-word punchy sentence with a 24-word technical explanation.
+   - NEVER start two consecutive paragraphs with "I", "I'm", "I've", or "I believe". Vary paragraph openers naturally.
+5. NO META-COMMENTARY, ATTACHMENTS, OR GREETINGS:
+   - Do NOT write meta commentary like "I've used the following evidence", "The sections written are", or "I've attached my resume".
+   - Do NOT include "Dear...", "Sincerely,", or signature placeholders. Return ONLY authentic essay paragraphs.
+
+Return strictly valid JSON in this exact structure:
+{
+  "essayText": "The complete essay text as plain text paragraphs without letter greetings or sign-offs...",
+  "evidenceUsed": ["Verified evidence item 1", "Verified evidence item 2"],
+  "missingInfo": ["Concrete metric or project detail that would strengthen this application"],
+  "sectionsWritten": [
+    {
+      "section": "Section theme",
+      "evidenceUsed": "Which evidence facts were used",
+      "whyStructured": "Strategic justification"
+    }
+  ]
+}`
+  ),
+
+  ESSAY_WRITER: (type: string, outline: string, evidenceList: string, styleProfile: string, instructions: string, voiceContext: string = '') => securePrompt(
+    'You are the Application Writer Agent for OpportunityOS. You write compelling, authentic, first-person application essays that sound like the specific applicant — not like an AI.',
+    `Document type: ${type}
+
+Content Strategy (follow this structure exactly):
+${outline}
+
+Verified Evidence (only use facts from this list):
+${evidenceList}
+
+Applicant Style Profile (match these measured writing habits):
+${styleProfile}
+${voiceContext ? `\n${voiceContext}` : ''}
+
+Special instructions from the applicant:
+${instructions}`,
+    `Write the complete ${type} draft following the content strategy above.
+
+VOICE — THIS IS THE MOST IMPORTANT RULE:
+Write in the applicant's OWN voice. If real writing samples from the applicant are provided above, mirror their sentence rhythm, vocabulary level, and habits (contraction use, directness). Do NOT impose a generic "polished essay" voice. The reader must believe a real person wrote this, not an AI.
+
+WRITING RULES:
+1. FIRST PERSON ONLY: Write as "I". You are the applicant.
+2. ZERO HALLUCINATION: Every concrete claim (numbers, names, places, employers, GPAs, awards, projects) must trace to the evidence list. If a needed detail is missing, write a bracketed placeholder like "[add the specific metric here]" and list it in "missingInfo". NEVER invent facts to fill a gap.
+3. SHOW, DON'T TELL: Instead of "I am a good leader," describe a specific moment from the evidence. Use concrete details that exist in the evidence — real numbers, real outcomes.
+4. HUMAN RHYTHM (burstiness): Vary sentence length hard. Put a 3–6 word sentence next to a 25-word one. Uniform, similar-length sentences are the #1 sign of AI writing — avoid them.
+5. PLAIN, SPECIFIC VOCABULARY: Write the way a smart person talks. Avoid inflated words (leverage, robust, seamless, pivotal, foster, delve, tapestry, testament, myriad, underscore) and empty openers ("As I reflect…", "In today's world…", "Ever since I was a child…").
+6. NO LISTS OF SKILLS: Weave skills into stories about real projects, never as comma-separated dumps.
+7. NO LETTER FORMATTING: No "Dear…", no "Sincerely", no signature.
+8. PLAIN TEXT ONLY: No markdown (**, ##, bullets).
+9. UNIQUE PARAGRAPHS: Every paragraph must open differently and have a different shape. Never reuse a sentence formula ("One of the key skills I…").
+10. NO CITATION MARKERS in the prose (no "(Evidence ID: 3)", "[Fact 2]"). Citations go only in the JSON "evidenceUsed" field.
+
+Return strictly valid JSON:
+{
+  "essayText": "The complete essay draft as plain text paragraphs...",
+  "evidenceUsed": ["Evidence item 1 ✓", "Evidence item 2 ✓", "Missing item ✕"],
+  "missingInfo": ["Any specific detail that would strengthen this draft"],
+  "sectionsWritten": [
+    { "section": "Section name", "evidenceUsed": "What data was used", "whyStructured": "Why this section works for this opportunity" }
+  ]
+}`
+  ),
+
+  // Humanizer — flag-driven surgical rewrite. Preserves every fact; only changes
+  // HOW things are said, guided by the deterministic detector's specific flags.
+  HUMANIZER: (draft: string, styleProfile: string, humannessFlags: string, clichePhrases: string, voiceContext: string = '') => securePrompt(
+    'You are the Humanizer Agent for OpportunityOS. You are a meticulous human editor who makes AI-sounding text read like it was written by the actual applicant, WITHOUT changing any facts.',
+    `Draft to humanize:
+${draft}
+
+Applicant Style Profile:
+${styleProfile}
+${voiceContext ? `\n${voiceContext}` : ''}
+
+Detector findings you MUST fix (from automated analysis):
+${humannessFlags || 'No automated flags.'}
+
+Exact AI-cliché phrases found in the draft (rewrite each in context — do NOT just swap synonyms):
+${clichePhrases || 'None detected.'}`,
+    `Rewrite the draft so it reads as authentically human and matches the applicant's voice. This is an EDIT, not a new essay.
+
+HARD CONSTRAINTS:
+- DO NOT add, remove, or alter any factual claim (numbers, names, places, employers, dates, outcomes). Same facts, same order of events.
+- DO NOT introduce new stories or details that weren't already present.
+- Keep it first person and plain text (no markdown, no letter formatting).
+
+WHAT TO CHANGE:
+1. Fix every detector finding above, especially sentence-rhythm (burstiness): deliberately mix very short and long sentences.
+2. Rewrite each listed cliché phrase in natural, concrete language the applicant would use — vary how you handle each one so no fixed pattern emerges.
+3. Break up repeated sentence openers and repeated phrases.
+4. Prefer direct, active voice. Cut filler and formal transition words (furthermore, moreover, additionally).
+5. Match the applicant's measured contraction habit and vocabulary level from the style profile.
+
+Return strictly valid JSON:
+{
+  "editsApplied": ["Short description of each change made"],
+  "editedEssay": "The complete rewritten essay as plain text paragraphs."
+}`
+  ),
+
+  // Hallucination verifier — checks each factual claim against the evidence list.
+  HALLUCINATION_VERIFIER: (draft: string, evidenceList: string) => securePrompt(
+    'You are the Fact Verification Agent for OpportunityOS. You detect any claim in an application draft that is not supported by the verified evidence.',
+    `Verified Evidence (the ONLY facts that are true about this applicant):
+${evidenceList || 'No verified evidence provided.'}
+
+Application draft to verify:
+${draft}`,
+    `Check every factual claim in the draft (specific numbers, GPAs, test scores, names of people/companies/universities/places, dates, awards, publications, quantified outcomes) against the verified evidence.
+
+A claim is UNSUPPORTED if it states a specific fact that is not present in, or directly derivable from, the evidence list. General motivation, ambitions, and opinions are NOT facts — ignore those. Bracketed placeholders like "[add metric]" are NOT hallucinations — ignore them.
+
+Return strictly valid JSON:
+{
+  "isSupported": true | false,
+  "unsupportedClaims": [
+    { "claim": "the exact phrase/sentence from the draft", "issue": "why it is not supported by evidence" }
+  ],
+  "confidence": 0-100
+}`
+  ),
+
+  // Fact-fix — surgically removes/rewrites ONLY the flagged unsupported claims,
+  // replacing invented specifics with evidence-backed detail or bracketed gaps.
+  FACT_FIX: (draft: string, unsupportedClaims: string, evidenceList: string) => securePrompt(
+    'You are the Fact Correction Agent for OpportunityOS. You remove hallucinated claims from a draft while keeping everything else intact.',
+    `Verified Evidence (the ONLY true facts about this applicant):
+${evidenceList || 'No verified evidence provided.'}
+
+Unsupported claims to fix (these are NOT backed by evidence):
+${unsupportedClaims}
+
+Draft to correct:
+${draft}`,
+    `Rewrite the draft so that every unsupported claim listed above is either (a) replaced with a fact that IS in the evidence, or (b) softened to a bracketed placeholder like "[add the specific detail]" the applicant can fill in. Do NOT invent replacements.
+
+CONSTRAINTS:
+- Change ONLY the flagged claims and the minimum wording around them. Leave every supported sentence exactly as-is.
+- Keep first person, plain text, same structure and voice.
+
+Return strictly valid JSON:
+{
+  "correctionsApplied": ["What was changed for each flagged claim"],
+  "correctedEssay": "The complete corrected essay as plain text paragraphs."
+}`
+  ),
+
+  NATURAL_EDITOR: (draft: string, styleProfile: string, qualityFlags: string) => securePrompt(
+    'You are the Natural Editor Agent for OpportunityOS. You are a skilled human editor who improves writing quality.',
+    `Draft to edit:
+${draft}
+
+Style Profile:
+${styleProfile}
+
+Quality flags from automated analysis:
+${qualityFlags || 'No automated flags.'}`,
+    `You are editing this draft to improve its naturalness and quality. Your job is NOT to rewrite everything — preserve strong sections and only improve weak ones.
+
+STEP 1 — EVALUATE each dimension (score 1-10):
+- Flow: Do sentences connect naturally? Is the rhythm varied?
+- Specificity: Are claims backed by concrete details (numbers, names, dates)?
+- Storytelling: Does it tell compelling stories instead of making generic claims?
+- Readability: Is it easy to read? Are sentences a reasonable length?
+- Professionalism: Does it sound confident and appropriate for a formal application?
+- Voice: Does it sound like a real person wrote it, or like generic AI output?
+
+STEP 2 — EDIT:
+- Fix any quality flags from the automated analysis
+- Replace generic claims with specific evidence-backed statements where possible
+- Vary sentence rhythm if it feels monotonous
+- Add contractions where natural (per the style profile)
+- Remove any remaining filler phrases ("furthermore", "additionally", etc.)
+- Ensure no two consecutive sentences start with the same word
+- Do NOT add new facts or claims that weren't in the original draft
+
+Return strictly valid JSON:
+{
+  "scores": {
+    "flow": 8.5,
+    "specificity": 7.0,
+    "storytelling": 6.5,
+    "readability": 9.0,
+    "professionalism": 8.8,
+    "voice": 7.5
+  },
+  "editsApplied": ["Description of edit 1", "Description of edit 2"],
+  "editedEssay": "The complete edited essay text..."
+}`
+  ),
+
+  // Legacy single-pass builder (kept for backward compatibility with free tier)
   ESSAY_BUILDER: (type: string, opportunity: Opportunity, profile: UserProfile, instructions: string) => securePrompt(
-    `You are the Application Builder Agent. Your task is to generate a highly customized, authentic, and evidence-first ${type} draft matching this opportunity.`,
+    'You are the Application Builder Agent for OpportunityOS. Write a compelling, authentic, first-person application essay.',
     `Opportunity details:
 ${JSON.stringify(opportunity)}
 
@@ -198,7 +475,12 @@ ${instructions}`,
     `CRITICAL RULES:
 1. ZERO HALLUCINATION POLICY: Never invent any stories, family background, cities, tragedies, awards, or projects not explicitly found in the Evidence data. If important details are missing, place clear instructions/placeholders like "[Insert specific project/detail here]" and report it in the "missingInfo" array.
 2. EVIDENCE-FIRST WRITING: Every statement about capabilities must be rooted in real projects, GPAs, work experience, or tools mentioned in the user profile. Do not make unsupported claims.
-3. HUMAN STYLE: Avoid generic corporate AI cliches ("make a difference", "ever since I was a child", "dream come true", "passionate about"). Maintain a specific, reflective, and professional tone.
+3. NATURAL WRITING QUALITY:
+   - Write in the FIRST PERSON ("I"). You are the applicant.
+   - Tell stories instead of listing skills. Show, don't tell.
+   - Vary your sentence lengths naturally. Mix short and long sentences.
+   - Use plain, direct vocabulary. Avoid ornate filler words.
+   - Do not start consecutive sentences with the same word.
 4. PLAIN TEXT ONLY: Inside the "essayText", never use markdown asterisks (* or **), headers (# or ##), bold formatting, bullet points, or list labels. The essay draft must look like clean, natural, human-written prose paragraphs that can be directly copy-pasted into a professional application textbox.
 5. NO PREAMBLE/POSTAMBLE IN JSON: The entire response must strictly be valid JSON only.
 
