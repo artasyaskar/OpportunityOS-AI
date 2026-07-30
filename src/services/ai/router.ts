@@ -9,10 +9,12 @@ type TaskType = 'complex_reasoning' | 'fast_chat' | 'document_generation' | 'gen
 
 const ROUTES: Record<string, string[]> = {
   VISION: ['gemini', 'openrouter'],
-  RESUME_PARSING: ['gemini', 'groq', 'openrouter'],
-  GENERAL_CHAT: ['gemini', 'groq', 'openrouter'],
+  RESUME_PARSING: ['groq', 'gemini', 'openrouter'],
+  // Document generation prefers Gemini first (most human, authentic student voice) -> Groq -> OpenRouter
+  DOCUMENT_GENERATION: ['gemini', 'groq', 'openrouter'],
+  GENERAL_CHAT: ['groq', 'gemini', 'openrouter'],
   COMPLEX_REASONING: ['gemini', 'groq', 'openrouter'],
-  DEFAULT: ['gemini', 'groq', 'openrouter']
+  DEFAULT: ['groq', 'gemini', 'openrouter']
 };
 
 interface ProviderHealth {
@@ -61,16 +63,11 @@ class AIRouter {
       h.disabledUntil = null;
     } else {
       h.consecutiveFailures++;
-      // Immediate cooldown for 503/429
-      if (statusCode === 503 || statusCode === 429) {
-        h.status = 'disabled';
-        h.disabledUntil = Date.now() + 60 * 1000; // 60 seconds
-        console.warn(`[Health Manager] Provider ${provider} disabled for 60s due to HTTP ${statusCode} (Overloaded/Rate Limited).`);
-      } else if (h.consecutiveFailures >= 5) {
-        h.status = 'disabled';
-        h.disabledUntil = Date.now() + 10 * 60 * 1000; // 10 minutes
-        console.warn(`[Health Manager] Provider ${provider} disabled for 10 minutes due to 5 consecutive failures.`);
-      }
+      // Exponential cooldown: 30s -> 60s -> 120s -> 300s
+      const cooldownSecs = Math.min(300, 30 * Math.pow(2, Math.max(0, h.consecutiveFailures - 1)));
+      h.status = 'disabled';
+      h.disabledUntil = Date.now() + cooldownSecs * 1000;
+      console.warn(`[Health Manager] Provider ${provider} disabled for ${cooldownSecs}s (Failure #${h.consecutiveFailures}${statusCode ? `, HTTP ${statusCode}` : ''}).`);
     }
   }
 
@@ -82,7 +79,7 @@ class AIRouter {
         h.status = 'healthy'; // Recover
         h.consecutiveFailures = 0;
         h.disabledUntil = null;
-        console.log(`[Health Manager] Provider ${provider} has recovered from cooldown and is healthy again.`);
+        console.log(`[Health Manager] Provider ${provider} recovered from cooldown.`);
         return true;
       }
       return false;
@@ -90,10 +87,31 @@ class AIRouter {
     return true;
   }
 
+  getPrimaryHealthyProvider(taskType: string = 'document_generation'): string {
+    const key = (taskType || 'DEFAULT').toUpperCase();
+    const sequence = ROUTES[key] || ROUTES.DEFAULT;
+
+    // Adaptive Selection: Prefer a healthy provider with consecutive successes
+    for (const name of sequence) {
+      const h = this.health[name];
+      if (h && h.status === 'healthy' && h.successCount >= 2 && h.consecutiveFailures === 0) {
+        if (name === 'groq' && process.env.GROQ_API_KEY) return name;
+      }
+    }
+
+    for (const name of sequence) {
+      if (name === 'groq' && !process.env.GROQ_API_KEY) continue;
+      if (name === 'gemini' && !process.env.GEMINI_API_KEY) continue;
+      if (name === 'openrouter' && !process.env.OPENROUTER_API_KEY) continue;
+      if (this.isProviderHealthy(name)) return name;
+    }
+    return 'groq';
+  }
+
   async runWithRetry<T>(
     agentName: string,
     operation: (provider: AIProvider) => Promise<AIResponse<T>>,
-    options?: { format?: 'text' | 'json'; taskType?: TaskType; cacheKey?: string; forcePremium?: boolean; userId?: string; image?: { data: string; mimeType: string } }
+    options?: { format?: 'text' | 'json'; taskType?: TaskType; cacheKey?: string; forcePremium?: boolean; userId?: string; preferredProvider?: string; image?: { data: string; mimeType: string } }
   ): Promise<AIResponse<T>> {
     // 1. Check Cache
     if (options?.cacheKey) {
@@ -131,6 +149,11 @@ class AIRouter {
       providerSequence = ['gemini', 'groq', 'openrouter'];
     }
 
+    // Provider Locking: If a preferredProvider is specified and healthy, prioritize it
+    if (options?.preferredProvider && this.isProviderHealthy(options.preferredProvider)) {
+      providerSequence = [options.preferredProvider, ...providerSequence.filter(p => p !== options.preferredProvider)];
+    }
+
     const fallbackTrace: { provider: string, status: string, attempt: number, latencyMs: number, error?: string }[] = [];
     let lastError: Error | null = null;
     const overallStart = Date.now();
@@ -162,7 +185,8 @@ class AIRouter {
         const start = Date.now();
         try {
           const responsePromise = operation(provider);
-          const timeoutMs = options?.image ? 60000 : 30000;
+          // Fast timeouts: 10s for Groq/Gemini/OpenRouter to give single-pass generations time to complete
+          const timeoutMs = options?.image ? 45000 : 10000;
           const timeoutPromise = new Promise<never>((_, reject) =>
             setTimeout(() => reject(new Error(`AI Request Timeout (${timeoutMs / 1000}s)`)), timeoutMs)
           );
