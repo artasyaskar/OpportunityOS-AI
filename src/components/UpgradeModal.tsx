@@ -72,7 +72,7 @@ export default function UpgradeModal({ isOpen, onClose, featureName = 'Premium F
         </div>
         
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <Link href="/pricing" onClick={onClose} className="btn btn-primary" style={{ justifyContent: 'center', padding: '14px', fontSize: '16px' }}>
+          <Link href="/dashboard/settings?tab=billing" onClick={onClose} className="btn btn-primary" style={{ justifyContent: 'center', padding: '14px', fontSize: '16px' }}>
             Upgrade to Pro
           </Link>
           <button 
