@@ -15,23 +15,34 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'A message is required.' }, { status: 400 });
     }
 
-    // Fence the user profile as untrusted EVIDENCE and the message as the USER_REQUEST.
-    // constructSecurePrompt instructs the model to ignore instructions inside the
-    // evidence block, defeating prompt-injection via profile fields or the message.
+    // Candidate Profile Context for Personalization
     const evidence = [
-      `Candidate Name: ${profile?.name || 'Unknown'}`,
-      `Field: ${profile?.field || 'Unknown'}`,
-      `Education Level: ${profile?.level || 'Unknown'}`,
-      `Country: ${profile?.country || 'Unknown'}`,
-      `Skills: ${Array.isArray(profile?.skills) ? profile.skills.join(', ') : (profile?.skills || 'Unknown')}`,
-      `Goals: ${profile?.goals || 'Unknown'}`,
+      `Candidate Name: ${profile?.name || 'Applicant'}`,
+      `Field of Study / Career: ${profile?.field || 'General Opportunities'}`,
+      `Education Level: ${profile?.level || 'Undergraduate / Graduate'}`,
+      `Country: ${profile?.country || 'Global'}`,
+      `Skills: ${Array.isArray(profile?.skills) ? profile.skills.join(', ') : (profile?.skills || 'None specified')}`,
+      `Goals: ${profile?.goals || 'Global Scholarships & Career Growth'}`,
     ].join('\n');
 
-    const systemDirective = `You are the Executive Advisor for OpportunityOS.
-Keep answers brief, professional, and strategic, grounded ONLY in the candidate evidence.
-Respond as valid JSON with this exact schema:
-{ "reply": "your strategic response", "confidenceScore": 0-100, "evidenceUsed": ["..."] }
-If the evidence does not support an answer, say so honestly in "reply" and set a low confidenceScore.`;
+    const systemDirective = `You are the Executive AI Advisor & Opportunity Strategist for OpportunityOS.
+Your mission is to help applicants win top global scholarships, fellowships, internships, grants, and admissions opportunities worldwide (e.g. Fulbright, Chevening, Rhodes, Erasmus, DAAD, DeepLearning.AI, Tech Fellowships, etc.).
+
+CORE ADVISORY DIRECTIVES:
+1. ALWAYS ANSWER COMPREHENSIVELY & HELPFULLY:
+   - Answer ANY question the user asks directly (e.g. "What is the Fulbright Scholarship?", "How do I write an SOP?", "What are the eligibility criteria?").
+   - NEVER refuse to answer a question simply because it isn't listed in the candidate profile evidence! You have vast knowledge of global opportunities and admissions strategies.
+2. PERSONALIZE WITH CANDIDATE CONTEXT WHEN HELPFUL:
+   - Use the candidate's background details (Field, Education Level, Country) to tailor your advice specifically to their profile.
+3. CLEAR, EXECUTIVE & STRATEGIC FORMAT:
+   - Provide crisp, structured, executive advice. Use clear bullet points and bold headers where appropriate.
+
+Respond strictly as valid JSON with this exact schema:
+{
+  "reply": "Comprehensive, strategic response directly answering the user's question with clean markdown...",
+  "confidenceScore": 95,
+  "evidenceUsed": ["Candidate Background Context"]
+}`;
 
     const prompt = constructSecurePrompt(systemDirective, evidence, message);
 
