@@ -168,12 +168,13 @@ function cleanEssayText(text: string, userName: string = ''): string {
     cleaned = cleaned.replace(/\[Name\]/gi, '');
   }
 
-  // Strip Evidence ID citation leaks & JSON trailing fragments
-  cleaned = cleaned.replace(/\s*\(\s*Evidence\s*IDs?\s*:\s*[^)]+\)/gi, '');
-  cleaned = cleaned.replace(/\s*\[\s*Evidence\s*IDs?\s*:\s*[^\]]+\]/gi, '');
-  cleaned = cleaned.replace(/\s*\(\s*Fact\s*\d+\s*\)/gi, '');
-  cleaned = cleaned.replace(/\s*\[\s*Fact\s*\d+\s*\]/gi, '');
+  // Strip Evidence ID citation leaks & parenthetical reference leaks
+  cleaned = cleaned.replace(/\s*\(\s*References?\s*[\d\s,.\-&]+\s*\)/gi, '');
+  cleaned = cleaned.replace(/\s*\[\s*References?\s*[\d\s,.\-&]+\s*\]/gi, '');
+  cleaned = cleaned.replace(/\s*\(\s*(?:Ref|Evidence|Source|Node|Fact|Item)\s*[\d\s,.\-&]+\s*\)/gi, '');
+  cleaned = cleaned.replace(/\s*\[\s*(?:Ref|Evidence|Source|Node|Fact|Item)\s*[\d\s,.\-&]+\s*\]/gi, '');
   cleaned = cleaned.replace(/\s*\[\s*\d+(?:\s*,\s*\d+)*\s*\]/g, ''); // Strips [16, 17, 18] leaks
+  cleaned = cleaned.replace(/\s*\(\s*\d+(?:\s*,\s*\d+)*\s*\)/g, ''); // Strips (16, 17, 18) leaks
   cleaned = cleaned.replace(/,\s*"evidenceUsed"\s*:\s*\[[\s\S]*$/gi, '');
 
   // Strip trailing LLM meta-commentary leaks
@@ -200,15 +201,31 @@ function cleanEssayText(text: string, userName: string = ''): string {
     cleaned = cleaned.slice(1, -1);
   }
 
-  // PARAGRAPH DEDUPLICATION: Remove duplicate paragraphs generated in LLM loops
+  // ENHANCED PARAGRAPH DEDUPLICATION: Remove duplicate paragraphs & repetitive closing loops
   const rawParas = cleaned.split(/\n\s*\n/).map(p => p.trim()).filter(Boolean);
   const uniqueParas: string[] = [];
-  const seenNormParas = new Set<string>();
+  const seenConcepts = new Set<string>();
 
   for (const p of rawParas) {
-    const norm = p.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 80);
-    if (norm.length > 0 && !seenNormParas.has(norm)) {
-      seenNormParas.add(norm);
+    const pLower = p.toLowerCase();
+
+    // Concept signature for repetitive closing sentences
+    const isClosingSummary = pLower.includes('necessary resources') || 
+                             pLower.includes('academic and professional goals') || 
+                             (pLower.includes('ideal candidate') && pLower.includes('scholarship')) ||
+                             (pLower.includes('positive impact') && pLower.includes('world'));
+
+    if (isClosingSummary && seenConcepts.has('concept_closing_summary')) {
+      console.warn('[cleanEssayText] Stripped duplicate repetitive closing paragraph:', p.slice(0, 60));
+      continue;
+    }
+    if (isClosingSummary) {
+      seenConcepts.add('concept_closing_summary');
+    }
+
+    const norm = pLower.replace(/[^a-z0-9]/g, '').slice(0, 60);
+    if (norm.length > 0 && !seenConcepts.has(norm)) {
+      seenConcepts.add(norm);
       uniqueParas.push(p);
     } else if (norm.length > 0) {
       console.warn('[cleanEssayText] Stripped duplicate paragraph from LLM response:', p.slice(0, 50));
