@@ -1,15 +1,73 @@
 'use client';
 
-import { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState, Component, ReactNode } from 'react';
 import * as THREE from 'three';
 
-export default function ThreeScene() {
+// WebGL availability inspector
+function isWebGLAvailable(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    const canvas = document.createElement('canvas');
+    return !!(
+      window.WebGLRenderingContext &&
+      (canvas.getContext('webgl2') || canvas.getContext('webgl') || canvas.getContext('experimental-webgl'))
+    );
+  } catch (e) {
+    return false;
+  }
+}
+
+// 2D Elegant Fallback Background for systems with WebGL disabled or driver issues
+function FallbackBackground() {
+  return (
+    <div className="three-fallback-bg">
+      <div className="three-fallback-glow" />
+    </div>
+  );
+}
+
+// Error Boundary specifically around 3D WebGL rendering
+interface ErrorBoundaryProps {
+  children: ReactNode;
+}
+interface ErrorBoundaryState {
+  hasError: boolean;
+}
+
+class ThreeSceneErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: any) {
+    console.warn('[ThreeSceneErrorBoundary] Caught 3D WebGL initialization error:', error);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return <FallbackBackground />;
+    }
+    return this.props.children;
+  }
+}
+
+function ThreeSceneInner() {
   const mountRef = useRef<HTMLDivElement>(null);
+  const [webGLError, setWebGLError] = useState(false);
 
   useEffect(() => {
     if (!mountRef.current) return;
+    if (!isWebGLAvailable()) {
+      console.warn('[ThreeScene] WebGL unavailable on browser/GPU. Rendering 2D CSS background fallback.');
+      setWebGLError(true);
+      return;
+    }
 
-    // Prevent duplicate canvas mounts (especially during React HMR/Hot Reloads)
     mountRef.current.innerHTML = '';
 
     // Scene setup
@@ -20,28 +78,47 @@ export default function ThreeScene() {
       0.1,
       1000
     );
-    // Calibrated camera distance for perfect 100% zoom scaling and full centering
     camera.position.set(0, 0, 9.5);
 
-    const renderer = new THREE.WebGLRenderer({
-      antialias: true,
-      alpha: true,
-      powerPreference: 'high-performance',
-    });
+    let renderer: THREE.WebGLRenderer | null = null;
+    try {
+      renderer = new THREE.WebGLRenderer({
+        antialias: true,
+        alpha: true,
+        powerPreference: 'high-performance',
+        failIfMajorPerformanceCaveat: false,
+      });
+    } catch (e) {
+      console.warn('[ThreeScene] Failed to create WebGLRenderer context:', e);
+      setWebGLError(true);
+      return;
+    }
+
+    if (!renderer || !renderer.domElement) {
+      setWebGLError(true);
+      return;
+    }
+
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
     renderer.setClearColor(0x000000, 0);
 
-    // Style the canvas to ensure it behaves block-level and fills the viewport perfectly
     renderer.domElement.style.display = 'block';
     renderer.domElement.style.width = '100%';
     renderer.domElement.style.height = '100%';
     mountRef.current.appendChild(renderer.domElement);
 
+    // WebGL Context Lost safety handler
+    const handleContextLost = (event: Event) => {
+      event.preventDefault();
+      console.warn('[ThreeScene] WebGL context lost at runtime. Switching to 2D CSS fallback.');
+      setWebGLError(true);
+    };
+    renderer.domElement.addEventListener('webglcontextlost', handleContextLost, false);
+
     // ========================
     // OPPORTUNITY CORE ORB
     // ========================
-    // Icosahedron with detail = 2 creates beautiful visible facet faces when flatShading is enabled
     const coreGeometry = new THREE.IcosahedronGeometry(1.8, 2);
     const coreMaterial = new THREE.MeshPhongMaterial({
       color: 0x6366f1,
@@ -51,7 +128,7 @@ export default function ThreeScene() {
       transparent: true,
       opacity: 0.85,
       shininess: 100,
-      flatShading: true, // Enables highly premium crystal-like light faceting
+      flatShading: true,
     });
     const core = new THREE.Mesh(coreGeometry, coreMaterial);
     scene.add(core);
@@ -59,48 +136,46 @@ export default function ThreeScene() {
     // Wireframe overlay
     const wireGeo = new THREE.IcosahedronGeometry(1.85, 2);
     const wireMat = new THREE.MeshBasicMaterial({
-      color: 0x8b5cf6,
+      color: 0x818cf8,
       wireframe: true,
       transparent: true,
-      opacity: 0.18,
+      opacity: 0.35,
     });
     const wireframe = new THREE.Mesh(wireGeo, wireMat);
     scene.add(wireframe);
 
-    // Outer glow ring 1
+    // Orbit Ring 1
     const ring1Geo = new THREE.TorusGeometry(2.8, 0.02, 16, 100);
     const ring1Mat = new THREE.MeshBasicMaterial({ color: 0x6366f1, transparent: true, opacity: 0.45 });
     const ring1 = new THREE.Mesh(ring1Geo, ring1Mat);
-    ring1.rotation.x = Math.PI / 4;
+    ring1.rotation.x = Math.PI / 3;
+    ring1.rotation.y = Math.PI / 6;
     scene.add(ring1);
 
-    // Orbiting Satellite 1 on Ring 1
     const sat1Geo = new THREE.SphereGeometry(0.12, 16, 16);
     const sat1Mat = new THREE.MeshBasicMaterial({ color: 0x818cf8 });
     const sat1 = new THREE.Mesh(sat1Geo, sat1Mat);
     scene.add(sat1);
 
-    // Outer glow ring 2
+    // Orbit Ring 2
     const ring2Geo = new THREE.TorusGeometry(3.4, 0.015, 16, 100);
     const ring2Mat = new THREE.MeshBasicMaterial({ color: 0x06b6d4, transparent: true, opacity: 0.25 });
     const ring2 = new THREE.Mesh(ring2Geo, ring2Mat);
-    ring2.rotation.x = -Math.PI / 6;
-    ring2.rotation.y = Math.PI / 3;
+    ring2.rotation.x = -Math.PI / 4;
+    ring2.rotation.y = -Math.PI / 4;
     scene.add(ring2);
 
-    // Orbiting Satellite 2 on Ring 2
     const sat2Geo = new THREE.SphereGeometry(0.09, 16, 16);
     const sat2Mat = new THREE.MeshBasicMaterial({ color: 0x06b6d4 });
     const sat2 = new THREE.Mesh(sat2Geo, sat2Mat);
     scene.add(sat2);
 
-    // ========================
-    // PARTICLE FIELD
-    // ========================
-    const particleCount = 350;
+    // Particles System
+    const particleCount = 200;
     const positions = new Float32Array(particleCount * 3);
     const pColors = new Float32Array(particleCount * 3);
-    const colorPalette = [
+
+    const palette = [
       new THREE.Color(0x6366f1),
       new THREE.Color(0x8b5cf6),
       new THREE.Color(0x06b6d4),
@@ -109,17 +184,18 @@ export default function ThreeScene() {
     ];
 
     for (let i = 0; i < particleCount; i++) {
+      const radius = 3.5 + Math.random() * 6.5;
       const theta = Math.random() * Math.PI * 2;
       const phi = Math.acos(2 * Math.random() - 1);
-      const r = 4 + Math.random() * 6;
-      positions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
-      positions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
-      positions[i * 3 + 2] = r * Math.cos(phi);
 
-      const c = colorPalette[Math.floor(Math.random() * colorPalette.length)];
-      pColors[i * 3] = c.r;
-      pColors[i * 3 + 1] = c.g;
-      pColors[i * 3 + 2] = c.b;
+      positions[i * 3] = radius * Math.sin(phi) * Math.cos(theta);
+      positions[i * 3 + 1] = radius * Math.sin(phi) * Math.sin(theta);
+      positions[i * 3 + 2] = radius * Math.cos(phi);
+
+      const color = palette[Math.floor(Math.random() * palette.length)];
+      pColors[i * 3] = color.r;
+      pColors[i * 3 + 1] = color.g;
+      pColors[i * 3 + 2] = color.b;
     }
 
     const particleGeo = new THREE.BufferGeometry();
@@ -129,15 +205,12 @@ export default function ThreeScene() {
       size: 0.06,
       vertexColors: true,
       transparent: true,
-      opacity: 0.8,
-      sizeAttenuation: true,
+      opacity: 0.65,
     });
     const particles = new THREE.Points(particleGeo, particleMat);
     scene.add(particles);
 
-    // ========================
-    // LIGHTING
-    // ========================
+    // Lighting
     const ambientLight = new THREE.AmbientLight(0x1e1b4b, 2);
     scene.add(ambientLight);
 
@@ -146,90 +219,64 @@ export default function ThreeScene() {
     scene.add(pointLight1);
 
     const pointLight2 = new THREE.PointLight(0x06b6d4, 6, 20);
-    pointLight2.position.set(-5, -3, 3);
+    pointLight2.position.set(-5, -5, 5);
     scene.add(pointLight2);
 
     const pointLight3 = new THREE.PointLight(0x8b5cf6, 4, 15);
-    pointLight3.position.set(0, 8, -5);
+    pointLight3.position.set(0, 5, -5);
     scene.add(pointLight3);
 
-    // ========================
-    // MOUSE INTERACTION
-    // ========================
-    let mouseX = 0, mouseY = 0;
-    const handleMouseMove = (e: MouseEvent) => {
-      mouseX = (e.clientX / window.innerWidth - 0.5) * 2;
-      mouseY = -(e.clientY / window.innerHeight - 0.5) * 2;
+    // Interactive mouse movement
+    let mouseX = 0;
+    let mouseY = 0;
+    const handleMouseMove = (event: MouseEvent) => {
+      mouseX = (event.clientX / window.innerWidth - 0.5) * 2;
+      mouseY = (event.clientY / window.innerHeight - 0.5) * 2;
     };
     window.addEventListener('mousemove', handleMouseMove);
 
-    // ========================
-    // ANIMATION LOOP
-    // ========================
+    // Animation Loop
     let frameId: number;
-    const clock = new THREE.Timer(); 
-
+    let clock = 0;
     const animate = () => {
       frameId = requestAnimationFrame(animate);
-      clock.update();
-      const t = clock.getElapsed();
+      clock += 0.01;
 
-      // Continuous, smooth rotation along Y-axis for the main globe (with minor mouse track)
-      core.rotation.y = t * 0.15 + mouseX * 0.2;
-      core.rotation.x = mouseY * 0.2; // secondary response to mouse
-      
-      wireframe.rotation.y = t * 0.12;
-      wireframe.rotation.x = mouseY * 0.1;
+      core.rotation.x += 0.003;
+      core.rotation.y += 0.005;
+      wireframe.rotation.x += 0.003;
+      wireframe.rotation.y += 0.005;
 
-      // Animate the two rings forward and outward on intersecting axes
-      // Ring 1 rotates on X and Y axes
-      ring1.rotation.x = t * 0.12;
-      ring1.rotation.y = t * 0.18;
+      ring1.rotation.z += 0.002;
+      ring2.rotation.z -= 0.0015;
+      particles.rotation.y += 0.0005;
 
-      // Ring 2 rotates on Y and Z axes
-      ring2.rotation.y = -t * 0.15;
-      ring2.rotation.z = t * 0.2;
+      // Satellite 1 orbit
+      const r1 = 2.8;
+      sat1.position.x = Math.cos(clock * 0.8) * r1;
+      sat1.position.z = Math.sin(clock * 0.8) * r1;
+      sat1.position.y = Math.sin(clock * 0.8) * 0.8;
 
-      // Move Orbiting Satellite 1 along Ring 1 path (XY plane rotated by Math.PI / 4 on X)
-      const angle1 = t * 0.45;
-      sat1.position.x = 2.8 * Math.cos(angle1);
-      sat1.position.y = 2.8 * Math.sin(angle1);
-      sat1.position.z = 0;
-      sat1.position.applyAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 4);
+      // Satellite 2 orbit
+      const r2 = 3.4;
+      sat2.position.x = Math.cos(-clock * 0.6 + 1) * r2;
+      sat2.position.y = Math.sin(-clock * 0.6 + 1) * r2;
+      sat2.position.z = Math.cos(-clock * 0.6 + 1) * 0.5;
 
-      // Move Orbiting Satellite 2 along Ring 2 path (XY plane rotated by -Math.PI / 6 on X, Math.PI / 3 on Y)
-      const angle2 = -t * 0.35;
-      sat2.position.x = 3.4 * Math.cos(angle2);
-      sat2.position.y = 3.4 * Math.sin(angle2);
-      sat2.position.z = 0;
-      sat2.position.applyAxisAngle(new THREE.Vector3(1, 0, 0), -Math.PI / 6);
-      sat2.position.applyAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 3);
-
-      particles.rotation.y = t * 0.04;
-      particles.rotation.x = t * 0.015;
-
-      // Slowly animate the primary lighting positions to create dynamic shifting highlights on facets
-      pointLight1.position.x = 6 * Math.cos(t * 0.25);
-      pointLight1.position.z = 6 * Math.sin(t * 0.25);
-      pointLight2.position.y = 5 * Math.sin(t * 0.35);
-
-      // Pulsing glow
-      const pulse = Math.sin(t * 2) * 0.5 + 0.5;
-      coreMaterial.emissiveIntensity = 0.3 + pulse * 0.35;
-
-      // Camera drift
+      // Camera subtle mouse follow
       camera.position.x += (mouseX * 0.5 - camera.position.x) * 0.02;
       camera.position.y += (mouseY * 0.3 - camera.position.y) * 0.02;
       camera.lookAt(0, 0, 0);
 
-      renderer.render(scene, camera);
+      if (renderer) {
+        renderer.render(scene, camera);
+      }
     };
     animate();
 
-    // ========================
-    // RESIZE HANDLER
-    // ========================
+    // Resize Handler
     const handleResize = () => {
+      if (!renderer) return;
       const width = window.innerWidth;
       const height = window.innerHeight;
       camera.aspect = width / height;
@@ -243,12 +290,19 @@ export default function ThreeScene() {
       cancelAnimationFrame(frameId);
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('resize', handleResize);
-      if (mountRef.current && renderer.domElement.parentNode === mountRef.current) {
-        mountRef.current.removeChild(renderer.domElement);
+      if (renderer && renderer.domElement) {
+        renderer.domElement.removeEventListener('webglcontextlost', handleContextLost);
+        if (mountRef.current && renderer.domElement.parentNode === mountRef.current) {
+          mountRef.current.removeChild(renderer.domElement);
+        }
+        renderer.dispose();
       }
-      renderer.dispose();
     };
   }, []);
+
+  if (webGLError) {
+    return <FallbackBackground />;
+  }
 
   return (
     <div
@@ -259,14 +313,22 @@ export default function ThreeScene() {
         left: 0,
         width: '100vw',
         height: '100vh',
-        zIndex: -1, // Sits strictly behind all foreground components
+        zIndex: -1,
         background: 'radial-gradient(ellipse at 50% 30%, #1e1b4b 0%, #020408 60%)',
         overflow: 'hidden',
-        pointerEvents: 'none', // Ensure it never blocks mouse clicks or hovers
+        pointerEvents: 'none',
         display: 'block',
         margin: 0,
-        padding: 0
+        padding: 0,
       }}
     />
+  );
+}
+
+export default function ThreeScene() {
+  return (
+    <ThreeSceneErrorBoundary>
+      <ThreeSceneInner />
+    </ThreeSceneErrorBoundary>
   );
 }
