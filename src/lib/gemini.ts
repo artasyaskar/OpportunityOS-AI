@@ -273,6 +273,10 @@ AUTHENTIC STUDENT WRITING RULES:
 5. NO META-COMMENTARY, ATTACHMENTS, OR GREETINGS:
    - Do NOT write meta commentary like "I've used the following evidence", "The sections written are", or "I've attached my resume".
    - Do NOT include "Dear...", "Sincerely,", or signature placeholders. Return ONLY authentic essay paragraphs.
+6. BANNED CITATIONS & REFERENCE LEAKS (STRICT ZERO TOLERANCE):
+   - NEVER output citation numbers or parenthetical references like "(References 2, 3, 4)", "(References 2, 19, 20)", "[Ref 1]", "[1, 2, 3]", or "(Evidence #2)".
+   - NEVER dump laundry lists of 20+ technologies in a single sentence. Mention at most 3-4 skills naturally inside project stories.
+   - NEVER repeat closing paragraphs or rephrase the exact same sentence multiple times. Every paragraph must be distinct.
 
 Return strictly valid JSON in this exact structure:
 {
