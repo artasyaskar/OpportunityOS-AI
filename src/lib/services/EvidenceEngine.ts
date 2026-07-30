@@ -89,7 +89,10 @@ export class EvidenceEngine {
           }
           if (r.experience && Array.isArray(r.experience)) {
             r.experience.forEach((e: any) => {
-              evidence.push({ type: 'experience', fact: `Worked at ${e.company} as ${e.role} (${e.duration}).`, source: sourceStr, classification: 'Verified' });
+              const companyStr = e.company && e.company !== 'undefined' ? e.company : 'my organization';
+              const roleStr = e.role && e.role !== 'undefined' ? `as a ${e.role}` : 'in a developer role';
+              const durationStr = e.duration && e.duration !== 'undefined' ? `(${e.duration})` : '';
+              evidence.push({ type: 'experience', fact: `Worked at ${companyStr} ${roleStr} ${durationStr}.`.replace(/\s+/g, ' '), source: sourceStr, classification: 'Verified' });
             });
           }
           if (r.projects && Array.isArray(r.projects)) {
