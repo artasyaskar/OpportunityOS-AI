@@ -65,7 +65,7 @@ export class GroqProvider extends AIProvider {
 
     const startTime = Date.now();
     
-    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    let response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -74,11 +74,37 @@ export class GroqProvider extends AIProvider {
       body: JSON.stringify({
         model,
         messages,
-        temperature: options?.temperature ?? 0.1,
+        temperature: options?.temperature ?? 0.7,
         max_tokens: options?.maxTokens,
+        top_p: options?.topP ?? 0.9,
+        frequency_penalty: options?.frequencyPenalty ?? 0.4,
+        presence_penalty: options?.presencePenalty ?? 0.3,
         response_format: options?.responseFormat === 'json' ? { type: 'json_object' } : undefined,
       }),
     });
+
+    // 429 Rate Limit backoff retry
+    if (response.status === 429) {
+      console.warn('[Groq] Hit HTTP 429 Rate Limit. Retrying in 1.2s...');
+      await new Promise(r => setTimeout(r, 1200));
+      response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.apiKey}`,
+        },
+        body: JSON.stringify({
+          model,
+          messages,
+          temperature: options?.temperature ?? 0.7,
+          max_tokens: options?.maxTokens,
+          top_p: options?.topP ?? 0.9,
+          frequency_penalty: options?.frequencyPenalty ?? 0.4,
+          presence_penalty: options?.presencePenalty ?? 0.3,
+          response_format: options?.responseFormat === 'json' ? { type: 'json_object' } : undefined,
+        }),
+      });
+    }
 
     if (!response.ok) {
       const errText = await response.text();
