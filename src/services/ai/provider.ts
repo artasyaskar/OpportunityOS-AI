@@ -4,6 +4,12 @@ export interface AIRequestOptions {
   maxTokens?: number;
   responseFormat?: 'text' | 'json';
   taskType?: string;
+  preferredProvider?: string;
+  // Decoding controls (OpenAI/Groq/OpenRouter + Gemini all support these).
+  // Used to reduce boilerplate and increase lexical variety in creative passes.
+  topP?: number;
+  frequencyPenalty?: number;
+  presencePenalty?: number;
   image?: {
     data: string;
     mimeType: string;
