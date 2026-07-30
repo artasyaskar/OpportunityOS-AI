@@ -22,25 +22,82 @@ function cleanAndParseJSON(text: string): any {
   throw new Error("No parseable JSON structure found");
 }
 
+interface DiscoveredModelCache {
+  models: string[];
+  expiresAt: number;
+}
+
+let modelCache: DiscoveredModelCache | null = null;
+
+/**
+ * Dynamic Model Discovery: Queries Google AI Studio API for available models on the user's API key.
+ * Caches discovered valid models for 1 hour to prevent redundant HTTP requests and 404 guesswork.
+ */
+export async function discoverAvailableModels(apiKey: string, forceRefresh = false): Promise<string[]> {
+  const now = Date.now();
+  if (!forceRefresh && modelCache && modelCache.expiresAt > now && modelCache.models.length > 0) {
+    return modelCache.models;
+  }
+
+  try {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+    if (!res.ok) {
+      console.warn(`[Gemini Discovery] Model discovery HTTP ${res.status}. Falling back to default Flash line.`);
+      return ['gemini-2.0-flash', 'gemini-1.5-flash'];
+    }
+
+    const data = await res.json();
+    const discovered: string[] = [];
+
+    if (Array.isArray(data.models)) {
+      for (const m of data.models) {
+        const supportedMethods = m.supportedGenerationMethods || [];
+        if (supportedMethods.includes('generateContent')) {
+          const cleanName = (m.name || '').replace(/^models\//, '');
+          if (
+            cleanName &&
+            !cleanName.includes('text-embedding') &&
+            !cleanName.includes('aqa') &&
+            !cleanName.includes('imagen') &&
+            !cleanName.includes('tts')
+          ) {
+            discovered.push(cleanName);
+          }
+        }
+      }
+    }
+
+    // Sort to prioritize fast flash models first
+    discovered.sort((a, b) => {
+      if (a === 'gemini-2.0-flash' && b !== 'gemini-2.0-flash') return -1;
+      if (a !== 'gemini-2.0-flash' && b === 'gemini-2.0-flash') return 1;
+      if (a.includes('flash') && !b.includes('flash')) return -1;
+      if (!a.includes('flash') && b.includes('flash')) return 1;
+      return 0;
+    });
+
+    const result = discovered.length > 0 ? discovered : ['gemini-2.0-flash', 'gemini-1.5-flash'];
+    modelCache = {
+      models: result,
+      expiresAt: now + 3600 * 1000, // 1 Hour Cache TTL
+    };
+    console.log(`[Gemini Discovery] Confirmed ${result.length} valid models:`, result.slice(0, 5).join(', '));
+    return result;
+  } catch (e) {
+    console.warn('[Gemini Discovery] Model discovery request failed:', e);
+    return ['gemini-2.0-flash', 'gemini-1.5-flash'];
+  }
+}
+
 export class GeminiProvider extends AIProvider {
   name = 'gemini';
-  private apiKey: string;
-  // Model IDs are env-overridable so they can be updated without a redeploy when
-  // Google rotates model availability. Defaults track the current GA/stable line.
-  // gemini-2.0-flash was shut down 2026-06-01 and gemini-2.5-flash is no longer
-  // available to new API projects (404), so both defaults now target 3.5 Flash.
-  private defaultModel = process.env.GEMINI_FLASH_MODEL || 'gemini-3.5-flash';
-  private defaultReasoningModel = process.env.GEMINI_PRO_MODEL || 'gemini-3.5-flash';
 
   constructor() {
     super();
-    this.apiKey = process.env.GEMINI_API_KEY || '';
   }
 
-  private getModel(options?: AIRequestOptions): string {
-    if (options?.model) return options.model;
-    if (options?.responseFormat === 'json') return this.defaultReasoningModel;
-    return this.defaultModel;
+  private getApiKey(): string {
+    return process.env.GEMINI_API_KEY || '';
   }
 
   private calculateCost(model: string, promptTokens: number, completionTokens: number): number {
@@ -55,14 +112,17 @@ export class GeminiProvider extends AIProvider {
     systemPrompt?: string,
     options?: AIRequestOptions
   ): Promise<AIResponse<string>> {
-    if (!this.apiKey) {
-      throw new Error('Gemini API Key is missing. Configure GEMINI_API_KEY.');
+    const apiKey = this.getApiKey();
+    if (!apiKey) {
+      throw new Error('Gemini API Key is missing. Configure GEMINI_API_KEY in .env.local.');
     }
 
-    const model = this.getModel(options);
-    const contents = [];
-    
-    // In Gemini, system prompt can be passed in systemInstruction field
+    // Dynamic Discovery: Only attempt models confirmed to exist on this account
+    const discovered = await discoverAvailableModels(apiKey);
+    const primaryModel = options?.model || discovered[0] || 'gemini-2.0-flash';
+
+    const startTime = Date.now();
+
     const requestBody: any = {
       contents: [
         {
@@ -81,6 +141,7 @@ export class GeminiProvider extends AIProvider {
       generationConfig: {
         temperature: options?.temperature ?? 0.1,
         maxOutputTokens: options?.maxTokens,
+        ...(options?.topP !== undefined ? { topP: options.topP } : {}),
         responseMimeType: options?.responseFormat === 'json' ? 'application/json' : 'text/plain'
       }
     };
@@ -91,40 +152,54 @@ export class GeminiProvider extends AIProvider {
       };
     }
 
-    const startTime = Date.now();
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${this.apiKey}`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody),
+    try {
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${primaryModel}:generateContent?key=${apiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestBody),
+        }
+      );
+
+      // 401 / 403: Invalid API Key / Unauthorized Project
+      if (response.status === 401 || response.status === 403) {
+        const errText = await response.text();
+        throw new Error(`Gemini Authentication Error (${response.status}): ${errText}`);
       }
-    );
 
-    if (!response.ok) {
-      const errText = await response.text();
-      throw new Error(`Gemini API failure: Status ${response.status} - ${errText}`);
+      // 429: Rate Limit / Quota Exceeded -> Fast Handoff (DO NOT spend 10s retrying)
+      if (response.status === 429) {
+        const errText = await response.text();
+        console.warn(`[Gemini] Hit HTTP 429 Quota Limit on "${primaryModel}". Fast failing over to next healthy provider.`);
+        throw new Error(`Gemini API failure: Status 429 - ${errText.slice(0, 200)}`);
+      }
+
+      if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(`Gemini API failure (${primaryModel}): Status ${response.status} - ${errText}`);
+      }
+
+      const data = await response.json();
+      const latencyMs = Date.now() - startTime;
+
+      const content = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      const usageMetadata = data.usageMetadata || { promptTokenCount: 0, candidatesTokenCount: 0, totalTokenCount: 0 };
+
+      const metadata: AIResponseMetadata = {
+        provider: this.name,
+        model: primaryModel,
+        promptTokens: usageMetadata.promptTokenCount,
+        completionTokens: usageMetadata.candidatesTokenCount,
+        totalTokens: usageMetadata.totalTokenCount,
+        latencyMs,
+        costUSD: this.calculateCost(primaryModel, usageMetadata.promptTokenCount, usageMetadata.candidatesTokenCount),
+      };
+
+      return { content, metadata };
+    } catch (e: any) {
+      throw e;
     }
-
-    const data = await response.json();
-    const latencyMs = Date.now() - startTime;
-
-    const content = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    const usageMetadata = data.usageMetadata || { promptTokenCount: 0, candidatesTokenCount: 0, totalTokenCount: 0 };
-
-    const metadata: AIResponseMetadata = {
-      provider: this.name,
-      model,
-      promptTokens: usageMetadata.promptTokenCount,
-      completionTokens: usageMetadata.candidatesTokenCount,
-      totalTokens: usageMetadata.totalTokenCount,
-      latencyMs,
-      costUSD: this.calculateCost(model, usageMetadata.promptTokenCount, usageMetadata.candidatesTokenCount),
-    };
-
-    return { content, metadata };
   }
 
   async generateJSON<T>(
