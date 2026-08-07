@@ -9,7 +9,7 @@ import { fetchPaymentMerchants, adminUpdateMerchants } from '@/lib/db';
 import { OpportunityRepository } from '@/lib/repositories/OpportunityRepository';
 import { PaymentRequestRepository, PaymentRequest } from '@/lib/repositories/PaymentRequestRepository';
 import { GLOBAL_OPPORTUNITIES } from '@/lib/opportunities-data';
-import { Crown, RefreshCw, TrendingUp, Search, Telescope, Zap, Rocket, Globe, Flame, Database, Cloud, Brain, Sparkles, FileText, Inbox, Landmark, AlertTriangle, CheckCircle } from 'lucide-react';
+import { Crown, RefreshCw, TrendingUp, Search, Telescope, Zap, Rocket, Globe, Flame, Database, Cloud, Brain, Sparkles, FileText, Inbox, Landmark, AlertTriangle, CheckCircle, Users, Shield, Filter } from 'lucide-react';
 
 export default function AdminDashboardPage() {
   const { toast, confirm, prompt, showAILoading, hideAILoading } = useDialog();
@@ -31,6 +31,7 @@ export default function AdminDashboardPage() {
   const [pendingQueue, setPendingQueue] = useState<PaymentRequest[]>([]);
   const [processingIds, setProcessingIds] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState('');
+  const [userFilter, setUserFilter] = useState<'all' | 'monthly' | 'lifetime' | 'free' | 'pro'>('all');
   
   // Opp Intel
   const [dbCount, setDbCount] = useState(0);
@@ -211,6 +212,46 @@ export default function AdminDashboardPage() {
     }
   };
 
+  const isMonthlyUser = (u: any) => {
+    if (u.plan !== 'Paid') return false;
+    if (u.subscriptionType) return u.subscriptionType === 'monthly';
+    if (u.planId === 'founder_lifetime' || u.planId === 'professional_lifetime' || (u.planId && u.planId.includes('lifetime'))) return false;
+    return u.planId === 'professional_monthly' || u.planId === 'pro_monthly' || !u.planId;
+  };
+
+  const isLifetimeUser = (u: any) => {
+    if (u.plan !== 'Paid') return false;
+    if (u.subscriptionType) return u.subscriptionType === 'lifetime';
+    return u.planId === 'founder_lifetime' || u.planId === 'professional_lifetime' || (u.planId && u.planId.includes('lifetime'));
+  };
+
+  const isFreeUser = (u: any) => {
+    if (u.subscriptionType) return u.subscriptionType === 'free';
+    return u.plan === 'Free';
+  };
+
+  const filteredUsers = users.filter(u => {
+    if (userFilter === 'monthly' && !isMonthlyUser(u)) return false;
+    if (userFilter === 'lifetime' && !isLifetimeUser(u)) return false;
+    if (userFilter === 'free' && !isFreeUser(u)) return false;
+    if (userFilter === 'pro' && u.plan !== 'Paid') return false;
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      const nameMatch = (u.name || '').toLowerCase().includes(q);
+      const emailMatch = (u.email || '').toLowerCase().includes(q);
+      const countryMatch = (u.country || '').toLowerCase().includes(q);
+      return nameMatch || emailMatch || countryMatch;
+    }
+    return true;
+  });
+
+  const allCount = users.length;
+  const monthlyCount = users.filter(isMonthlyUser).length;
+  const lifetimeCount = users.filter(isLifetimeUser).length;
+  const freeCount = users.filter(isFreeUser).length;
+  const proCount = users.filter(u => u.plan === 'Paid').length;
+
   return (
     <div style={{ maxWidth: '1200px', margin: '0 auto', paddingBottom: '60px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
@@ -254,25 +295,105 @@ export default function AdminDashboardPage() {
       {activeTab === 'business_intel' && metrics && (
         <>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '16px' }}>
-            {[
-              { label: 'Total Users', value: metrics.totalSignups || 0, color: '#6366f1' },
-              { label: 'Free Users', value: (metrics.totalSignups || 0) - (metrics.paidUsers || 0), color: '#94a3b8' },
-              { 
-                label: 'Pro Users', 
-                value: metrics.paidUsers || 0, 
-                color: '#10b981',
-                subText: `${metrics.monthlyUsers || 0} Monthly • ${metrics.lifetimeUsers || 0} Lifetime` 
-              },
-              { label: 'Total Revenue (PKR)', value: `Rs. ${metrics.totalRevenuePKR?.toLocaleString() || 0}`, color: '#f59e0b' },
-            ].map((stat: any) => (
-              <div key={stat.label} className="glass" style={{ padding: '24px 20px', borderRadius: '16px', textAlign: 'center', border: '1px solid rgba(255,255,255,0.06)' }}>
-                <div style={{ fontSize: '32px', fontWeight: 900, color: stat.color, fontFamily: 'Space Grotesk, sans-serif' }}>{stat.value}</div>
-                {stat.subText ? (
-                  <div style={{ fontSize: '10px', color: stat.color, fontWeight: 700, marginTop: '4px', opacity: 0.8 }}>{stat.subText}</div>
-                ) : null}
-                <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', fontWeight: 700, marginTop: '8px', letterSpacing: '0.5px' }}>{stat.label.toUpperCase()}</div>
+            {/* Total Users Card */}
+            <div 
+              onClick={() => setUserFilter('all')}
+              className="glass" 
+              style={{ 
+                padding: '24px 20px', 
+                borderRadius: '16px', 
+                textAlign: 'center', 
+                border: userFilter === 'all' ? '1px solid rgba(99,102,241,0.6)' : '1px solid rgba(255,255,255,0.06)',
+                background: userFilter === 'all' ? 'rgba(99,102,241,0.1)' : 'rgba(255,255,255,0.02)',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              <div style={{ fontSize: '32px', fontWeight: 900, color: '#6366f1', fontFamily: 'Space Grotesk, sans-serif' }}>{metrics.totalSignups || 0}</div>
+              <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', fontWeight: 700, marginTop: '8px', letterSpacing: '0.5px' }}>TOTAL USERS</div>
+            </div>
+
+            {/* Free Users Card */}
+            <div 
+              onClick={() => setUserFilter('free')}
+              className="glass" 
+              style={{ 
+                padding: '24px 20px', 
+                borderRadius: '16px', 
+                textAlign: 'center', 
+                border: userFilter === 'free' ? '1px solid rgba(148,163,184,0.6)' : '1px solid rgba(255,255,255,0.06)',
+                background: userFilter === 'free' ? 'rgba(148,163,184,0.1)' : 'rgba(255,255,255,0.02)',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              <div style={{ fontSize: '32px', fontWeight: 900, color: '#94a3b8', fontFamily: 'Space Grotesk, sans-serif' }}>{(metrics.totalSignups || 0) - (metrics.paidUsers || 0)}</div>
+              <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', fontWeight: 700, marginTop: '8px', letterSpacing: '0.5px' }}>FREE USERS</div>
+            </div>
+
+            {/* Pro Users Card with Interactive Subtext */}
+            <div 
+              onClick={() => setUserFilter(userFilter === 'pro' ? 'all' : 'pro')}
+              className="glass" 
+              style={{ 
+                padding: '24px 20px', 
+                borderRadius: '16px', 
+                textAlign: 'center', 
+                border: (userFilter === 'pro' || userFilter === 'monthly' || userFilter === 'lifetime') ? '1px solid rgba(16,185,129,0.6)' : '1px solid rgba(255,255,255,0.06)',
+                background: (userFilter === 'pro' || userFilter === 'monthly' || userFilter === 'lifetime') ? 'rgba(16,185,129,0.08)' : 'rgba(255,255,255,0.02)',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              <div style={{ fontSize: '32px', fontWeight: 900, color: '#10b981', fontFamily: 'Space Grotesk, sans-serif' }}>{metrics.paidUsers || 0}</div>
+              
+              {/* Interactive Monthly / Lifetime Subtext Badges */}
+              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', marginTop: '6px' }}>
+                <span 
+                  onClick={(e) => { e.stopPropagation(); setUserFilter('monthly'); }}
+                  style={{
+                    fontSize: '11px',
+                    fontWeight: 800,
+                    color: userFilter === 'monthly' ? '#a855f7' : '#34d399',
+                    background: userFilter === 'monthly' ? 'rgba(168,85,247,0.25)' : 'rgba(16,185,129,0.12)',
+                    padding: '2px 8px',
+                    borderRadius: '10px',
+                    border: userFilter === 'monthly' ? '1px solid rgba(168,85,247,0.5)' : '1px solid transparent',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease'
+                  }}
+                  title="Click to view Monthly Users"
+                >
+                  {metrics.monthlyUsers || monthlyCount} Monthly
+                </span>
+                <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.3)' }}>•</span>
+                <span 
+                  onClick={(e) => { e.stopPropagation(); setUserFilter('lifetime'); }}
+                  style={{
+                    fontSize: '11px',
+                    fontWeight: 800,
+                    color: userFilter === 'lifetime' ? '#fbbf24' : '#34d399',
+                    background: userFilter === 'lifetime' ? 'rgba(245,158,11,0.25)' : 'rgba(16,185,129,0.12)',
+                    padding: '2px 8px',
+                    borderRadius: '10px',
+                    border: userFilter === 'lifetime' ? '1px solid rgba(245,158,11,0.5)' : '1px solid transparent',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease'
+                  }}
+                  title="Click to view Lifetime Users"
+                >
+                  {metrics.lifetimeUsers || lifetimeCount} Lifetime
+                </span>
               </div>
-            ))}
+
+              <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', fontWeight: 700, marginTop: '8px', letterSpacing: '0.5px' }}>PRO USERS</div>
+            </div>
+
+            {/* Total Revenue Card */}
+            <div className="glass" style={{ padding: '24px 20px', borderRadius: '16px', textAlign: 'center', border: '1px solid rgba(255,255,255,0.06)' }}>
+              <div style={{ fontSize: '32px', fontWeight: 900, color: '#f59e0b', fontFamily: 'Space Grotesk, sans-serif' }}>Rs. {metrics.totalRevenuePKR?.toLocaleString() || 0}</div>
+              <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', fontWeight: 700, marginTop: '12px', letterSpacing: '0.5px' }}>TOTAL REVENUE (PKR)</div>
+            </div>
           </div>
           
           {/* Live Recent Conversions Ticker */}
@@ -294,13 +415,205 @@ export default function AdminDashboardPage() {
               </div>
             </div>
           </div>
-        </>
-      )}
+          
+          <div className="glass" style={{ borderRadius: '16px', overflow: 'hidden' }}>
+          {/* User Directory Filter Header Controls */}
+          <div style={{ 
+            padding: '20px 24px', 
+            borderBottom: '1px solid rgba(255,255,255,0.08)',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: '16px',
+            background: 'linear-gradient(180deg, rgba(255,255,255,0.02) 0%, rgba(0,0,0,0) 100%)'
+          }}>
+            <div>
+              <h2 style={{ fontSize: '18px', fontWeight: 800, color: 'white', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span>User Directory</span>
+                <span className="badge badge-indigo" style={{ fontSize: '11px', padding: '2px 8px' }}>
+                  {filteredUsers.length} {filteredUsers.length === 1 ? 'user' : 'users'}
+                </span>
+              </h2>
+              <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.4)', marginTop: '2px' }}>
+                Filter and manage user subscriptions, plans, and account privileges.
+              </p>
+            </div>
 
-      {activeTab === 'business_intel' && (
-        <div className="glass" style={{ borderRadius: '16px', overflow: 'hidden' }}>
-          <div style={{ padding: '20px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-            <h2 style={{ fontSize: '16px', fontWeight: 700, color: 'white' }}>User Directory</h2>
+            {/* Filter Buttons & Search Control Group */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+              {/* Search Bar */}
+              <div style={{ position: 'relative', minWidth: '220px' }}>
+                <Search size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.4)' }} />
+                <input 
+                  type="text" 
+                  placeholder="Search user, email, country..." 
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px 8px 34px',
+                    borderRadius: '10px',
+                    background: 'rgba(0,0,0,0.3)',
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    color: 'white',
+                    fontSize: '12px',
+                    outline: 'none'
+                  }}
+                />
+              </div>
+
+              {/* Segmented Filter Buttons */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(0,0,0,0.3)', padding: '4px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                {/* All Users Button */}
+                <button
+                  onClick={() => setUserFilter('all')}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '6px 12px',
+                    borderRadius: '8px',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                    background: userFilter === 'all' 
+                      ? 'linear-gradient(135deg, rgba(99,102,241,0.3), rgba(79,70,229,0.4))' 
+                      : 'transparent',
+                    color: userFilter === 'all' ? '#ffffff' : 'rgba(255,255,255,0.6)',
+                    border: userFilter === 'all' 
+                      ? '1px solid rgba(99,102,241,0.6)' 
+                      : '1px solid transparent',
+                    boxShadow: userFilter === 'all' ? '0 0 12px rgba(99,102,241,0.3)' : 'none'
+                  }}
+                >
+                  <Users size={13} className={userFilter === 'all' ? 'text-indigo-300' : ''} />
+                  <span>All</span>
+                  <span style={{
+                    fontSize: '10px',
+                    padding: '1px 6px',
+                    borderRadius: '10px',
+                    background: userFilter === 'all' ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.08)',
+                    color: 'white',
+                    fontWeight: 800
+                  }}>
+                    {allCount}
+                  </span>
+                </button>
+
+                {/* Monthly Users Button */}
+                <button
+                  onClick={() => setUserFilter('monthly')}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '6px 12px',
+                    borderRadius: '8px',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                    background: userFilter === 'monthly' 
+                      ? 'linear-gradient(135deg, rgba(168,85,247,0.35), rgba(99,102,241,0.45))' 
+                      : 'transparent',
+                    color: userFilter === 'monthly' ? '#ffffff' : '#c084fc',
+                    border: userFilter === 'monthly' 
+                      ? '1px solid rgba(168,85,247,0.7)' 
+                      : '1px solid transparent',
+                    boxShadow: userFilter === 'monthly' ? '0 0 16px rgba(168,85,247,0.4)' : 'none'
+                  }}
+                >
+                  <Zap size={13} className="text-purple-400" />
+                  <span>Monthly Users</span>
+                  <span style={{
+                    fontSize: '10px',
+                    padding: '1px 6px',
+                    borderRadius: '10px',
+                    background: userFilter === 'monthly' ? 'rgba(255,255,255,0.25)' : 'rgba(168,85,247,0.2)',
+                    color: 'white',
+                    fontWeight: 800
+                  }}>
+                    {monthlyCount}
+                  </span>
+                </button>
+
+                {/* Lifetime Users Button */}
+                <button
+                  onClick={() => setUserFilter('lifetime')}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '6px 12px',
+                    borderRadius: '8px',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                    background: userFilter === 'lifetime' 
+                      ? 'linear-gradient(135deg, rgba(245,158,11,0.35), rgba(217,119,6,0.45))' 
+                      : 'transparent',
+                    color: userFilter === 'lifetime' ? '#ffffff' : '#fbbf24',
+                    border: userFilter === 'lifetime' 
+                      ? '1px solid rgba(245,158,11,0.8)' 
+                      : '1px solid transparent',
+                    boxShadow: userFilter === 'lifetime' ? '0 0 16px rgba(245,158,11,0.4)' : 'none'
+                  }}
+                >
+                  <Crown size={13} className="text-amber-400" />
+                  <span>Lifetime Users</span>
+                  <span style={{
+                    fontSize: '10px',
+                    padding: '1px 6px',
+                    borderRadius: '10px',
+                    background: userFilter === 'lifetime' ? 'rgba(255,255,255,0.25)' : 'rgba(245,158,11,0.2)',
+                    color: 'white',
+                    fontWeight: 800
+                  }}>
+                    {lifetimeCount}
+                  </span>
+                </button>
+
+                {/* Free Users Button */}
+                <button
+                  onClick={() => setUserFilter('free')}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '6px 12px',
+                    borderRadius: '8px',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                    background: userFilter === 'free' 
+                      ? 'linear-gradient(135deg, rgba(148,163,184,0.3), rgba(100,116,139,0.4))' 
+                      : 'transparent',
+                    color: userFilter === 'free' ? '#ffffff' : 'rgba(255,255,255,0.5)',
+                    border: userFilter === 'free' 
+                      ? '1px solid rgba(148,163,184,0.6)' 
+                      : '1px solid transparent',
+                    boxShadow: userFilter === 'free' ? '0 0 12px rgba(148,163,184,0.3)' : 'none'
+                  }}
+                >
+                  <Shield size={13} className="text-slate-400" />
+                  <span>Free</span>
+                  <span style={{
+                    fontSize: '10px',
+                    padding: '1px 6px',
+                    borderRadius: '10px',
+                    background: userFilter === 'free' ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.08)',
+                    color: 'white',
+                    fontWeight: 800
+                  }}>
+                    {freeCount}
+                  </span>
+                </button>
+              </div>
+            </div>
           </div>
           
           {loading && !users.length ? (
@@ -313,49 +626,94 @@ export default function AdminDashboardPage() {
                     <th style={{ padding: '12px 20px', fontSize: '12px', color: 'rgba(255,255,255,0.4)', fontWeight: 600 }}>NAME</th>
                     <th style={{ padding: '12px 20px', fontSize: '12px', color: 'rgba(255,255,255,0.4)', fontWeight: 600 }}>EMAIL</th>
                     <th style={{ padding: '12px 20px', fontSize: '12px', color: 'rgba(255,255,255,0.4)', fontWeight: 600 }}>COUNTRY</th>
-                    <th style={{ padding: '12px 20px', fontSize: '12px', color: 'rgba(255,255,255,0.4)', fontWeight: 600 }}>PLAN</th>
-                    <th style={{ padding: '12px 20px', fontSize: '12px', color: 'rgba(255,255,255,0.4)', fontWeight: 600, textAlign: 'right' }}></th>
+                    <th style={{ padding: '12px 20px', fontSize: '12px', color: 'rgba(255,255,255,0.4)', fontWeight: 600 }}>PLAN STATUS</th>
+                    <th style={{ padding: '12px 20px', fontSize: '12px', color: 'rgba(255,255,255,0.4)', fontWeight: 600, textAlign: 'right' }}>ACTIONS</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {users.map(u => (
-                    <tr key={u.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-                      <td style={{ padding: '12px 20px', fontSize: '14px', color: 'white', fontWeight: 500 }}>{u.name}</td>
-                      <td style={{ padding: '12px 20px', fontSize: '13px', color: 'rgba(255,255,255,0.7)' }}>{u.email}</td>
-                      <td style={{ padding: '12px 20px', fontSize: '13px', color: 'rgba(255,255,255,0.5)' }}>{u.country}</td>
-                      <td style={{ padding: '12px 20px' }}>
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '4px' }}>
-                          <span className={`badge ${u.plan === 'Paid' ? 'badge-emerald' : 'badge-slate'}`} style={{ fontSize: '10px' }}>
-                            {u.plan}
-                          </span>
-                          <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)' }}>
-                            {u.planId === 'professional_monthly' ? 'Monthly' : (u.planId === 'founder_lifetime' || u.planId === 'professional_lifetime' ? 'Lifetime' : 'Free Tier')}
-                          </span>
-                        </div>
-                      </td>
-                      <td style={{ padding: '12px 20px', textAlign: 'right' }}>
-                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', alignItems: 'center', minHeight: '24px' }}>
-                          {u.planId !== 'professional_monthly' && (
-                            <div 
-                              onClick={() => handleGrantPro(u.id, u.email, u.name, 'professional_monthly')}
-                              style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'rgba(255,255,255,0.01)', cursor: 'crosshair' }}
-                              title="Grant Pro Monthly (999)"
-                            />
-                          )}
-                          {u.planId !== 'founder_lifetime' && (
-                            <div 
-                              onClick={() => handleGrantPro(u.id, u.email, u.name, 'founder_lifetime')}
-                              style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'rgba(255,255,255,0.01)', cursor: 'crosshair' }}
-                              title="Grant Founder Lifetime (9999)"
-                            />
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                  {users.length === 0 && !loading && (
+                  {filteredUsers.map(u => {
+                    const monthly = isMonthlyUser(u);
+                    const lifetime = isLifetimeUser(u);
+                    
+                    return (
+                      <tr key={u.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                        <td style={{ padding: '12px 20px', fontSize: '14px', color: 'white', fontWeight: 500 }}>{u.name}</td>
+                        <td style={{ padding: '12px 20px', fontSize: '13px', color: 'rgba(255,255,255,0.7)' }}>{u.email}</td>
+                        <td style={{ padding: '12px 20px', fontSize: '13px', color: 'rgba(255,255,255,0.5)' }}>{u.country}</td>
+                        <td style={{ padding: '12px 20px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            {monthly ? (
+                              <span className="badge" style={{ 
+                                background: 'linear-gradient(135deg, rgba(168,85,247,0.2), rgba(99,102,241,0.2))', 
+                                border: '1px solid rgba(168,85,247,0.4)', 
+                                color: '#c084fc',
+                                fontSize: '10px',
+                                padding: '3px 10px',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px'
+                              }}>
+                                <Zap size={10} className="text-purple-400" /> Monthly Pro
+                              </span>
+                            ) : lifetime ? (
+                              <span className="badge" style={{ 
+                                background: 'linear-gradient(135deg, rgba(245,158,11,0.2), rgba(217,119,6,0.2))', 
+                                border: '1px solid rgba(245,158,11,0.4)', 
+                                color: '#fbbf24',
+                                fontSize: '10px',
+                                padding: '3px 10px',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px'
+                              }}>
+                                <Crown size={10} className="text-amber-400" /> Founder Lifetime
+                              </span>
+                            ) : (
+                              <span className="badge badge-slate" style={{ fontSize: '10px', padding: '3px 10px' }}>
+                                Free Tier
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td style={{ padding: '12px 20px', textAlign: 'right' }}>
+                          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', alignItems: 'center', minHeight: '24px' }}>
+                            {u.planId !== 'professional_monthly' && (
+                              <div 
+                                onClick={() => handleGrantPro(u.id, u.email, u.name, 'professional_monthly')}
+                                style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'rgba(255,255,255,0.01)', cursor: 'crosshair' }}
+                                title="Grant Pro Monthly (999)"
+                              />
+                            )}
+                            {u.planId !== 'founder_lifetime' && (
+                              <div 
+                                onClick={() => handleGrantPro(u.id, u.email, u.name, 'founder_lifetime')}
+                                style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'rgba(255,255,255,0.01)', cursor: 'crosshair' }}
+                                title="Grant Founder Lifetime (9999)"
+                              />
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {filteredUsers.length === 0 && !loading && (
                     <tr>
-                      <td colSpan={5} style={{ padding: '24px', textAlign: 'center', color: 'rgba(255,255,255,0.4)' }}>No users found.</td>
+                      <td colSpan={5} style={{ padding: '40px', textAlign: 'center' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', color: 'rgba(255,255,255,0.4)' }}>
+                          <Filter size={32} className="text-indigo-400" />
+                          <div style={{ fontSize: '14px', fontWeight: 600, color: 'white' }}>No users match the active filter</div>
+                          <div style={{ fontSize: '12px' }}>
+                            {userFilter !== 'all' ? `No users found under "${userFilter.toUpperCase()}" plan status.` : 'No users match your search query.'}
+                          </div>
+                          <button 
+                            onClick={() => { setUserFilter('all'); setSearchQuery(''); }}
+                            className="btn btn-secondary btn-sm"
+                            style={{ marginTop: '8px', fontSize: '12px' }}
+                          >
+                            Reset Filters
+                          </button>
+                        </div>
+                      </td>
                     </tr>
                   )}
                 </tbody>
@@ -363,7 +721,8 @@ export default function AdminDashboardPage() {
             </div>
           )}
         </div>
-      )}
+      </>
+    )}
 
       {activeTab === 'opp_intel' && (
         <div className="card" style={{ padding: '28px' }}>
