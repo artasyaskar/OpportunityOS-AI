@@ -364,7 +364,7 @@ export default function AdminDashboardPage() {
                   }}
                   title="Click to view Monthly Users"
                 >
-                  {metrics.monthlyUsers || monthlyCount} Monthly
+                  {monthlyCount} Monthly
                 </span>
                 <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.3)' }}>•</span>
                 <span 
@@ -382,7 +382,7 @@ export default function AdminDashboardPage() {
                   }}
                   title="Click to view Lifetime Users"
                 >
-                  {metrics.lifetimeUsers || lifetimeCount} Lifetime
+                  {lifetimeCount} Lifetime
                 </span>
               </div>
 
