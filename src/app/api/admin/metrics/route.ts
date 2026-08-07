@@ -101,11 +101,20 @@ export async function GET(req: NextRequest) {
         });
       });
 
-      // Merge subscription state into users list
+      // Merge subscription state into users list with strict type authenticity
       usersList.forEach(user => {
         const sub = subscriptionsSnapshot.docs.find(d => d.id === user.id)?.data();
-        user.plan = sub?.status === 'ACTIVE' || sub?.state === 'ACTIVE' || sub?.status === 'LIFETIME' || sub?.state === 'LIFETIME' ? 'Paid' : 'Free';
+        const isPaid = sub?.status === 'ACTIVE' || sub?.state === 'ACTIVE' || sub?.status === 'LIFETIME' || sub?.state === 'LIFETIME';
+        user.plan = isPaid ? 'Paid' : 'Free';
         user.planId = sub?.planId || null;
+
+        if (!isPaid) {
+          user.subscriptionType = 'free';
+        } else if (sub?.planId === 'founder_lifetime' || sub?.planId === 'professional_lifetime' || (sub?.planId || '').includes('lifetime') || sub?.status === 'LIFETIME' || sub?.state === 'LIFETIME') {
+          user.subscriptionType = 'lifetime';
+        } else {
+          user.subscriptionType = 'monthly';
+        }
       });
 
       // 4. Fetch AI Logs & Metrics
