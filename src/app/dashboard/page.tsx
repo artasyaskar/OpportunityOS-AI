@@ -61,6 +61,10 @@ export default function DashboardPage() {
   const [showInvestorModal, setShowInvestorModal] = useState(false);
   const [profileCompleteness, setProfileCompleteness] = useState<{ score: number; items: any[] }>({ score: 0, items: [] });
   const [upcomingDeadlines, setUpcomingDeadlines] = useState<any[]>([]);
+  const [allDeadlines, setAllDeadlines] = useState<any[]>([]);
+  const [deadlineSearch, setDeadlineSearch] = useState('');
+  const [deadlineSort, setDeadlineSort] = useState<'deadline' | 'score'>('deadline');
+  const [showAllDeadlines, setShowAllDeadlines] = useState(false);
   const [recentUpdates, setRecentUpdates] = useState<any[]>([]);
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
 
@@ -165,44 +169,50 @@ export default function DashboardPage() {
     const networkMultiplier = (1.2 + (apps.length * 0.6) + (readinessScore / 25)).toFixed(1);
     const estimatedStipendValue = totalValueUSD > 0 ? totalValueUSD + 15000 : 25000 + (apps.length * 5000);
       
-    // Dynamically build deadlines from active applications OR matched opportunities if no apps
-    let deadlinesToUse = [];
-    if (apps.length > 0) {
-      deadlinesToUse = apps.map(app => {
+    // Dynamically build deadlines from active applications AND all matched opportunities
+    // Filter out expired deadlines (daysLeft <= 0) to keep the tracker authentic
+    const buildDeadlineEntry = (opp: Opportunity, overrideDeadline?: string, matchScore?: number) => {
+      const deadlineDate = overrideDeadline || opp.deadline;
+      if (!deadlineDate || deadlineDate === 'Unknown' || deadlineDate === 'TBD') return null;
+      const daysLeft = Math.ceil((new Date(deadlineDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+      if (daysLeft <= 0) return null; // Filter expired
+      return {
+        id: opp.id,
+        name: opp.title,
+        type: opp.type,
+        provider: opp.provider,
+        deadline: deadlineDate,
+        daysLeft,
+        probability: matchScore || compResult.score,
+        fundingLevel: opp.fundingLevel,
+        country: opp.country,
+      };
+    };
+
+    // Build from user's active apps first (higher priority)
+    const appDeadlines = apps
+      .map(app => {
         const opp = opportunities.find(o => o.id === app.id);
-        const deadlineDate = app.deadline || opp?.deadline;
-        const daysLeft = deadlineDate ? Math.ceil((new Date(deadlineDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : 30;
-        return {
-          name: opp?.title || 'Unknown Opportunity',
-          deadline: deadlineDate || 'Unknown',
-          daysLeft: daysLeft > 0 ? daysLeft : 0,
-          probability: app.matchScore || compResult.score
-        };
-      });
-    } else {
-      deadlinesToUse = opportunities.slice(0, 4).map(opp => {
-        const deadlineDate = opp.deadline;
-        const daysLeft = deadlineDate ? Math.ceil((new Date(deadlineDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : 30;
-        return {
-          name: opp.title,
-          deadline: deadlineDate || 'Unknown',
-          daysLeft: daysLeft > 0 ? daysLeft : 0,
-          probability: compResult.score
-        };
-      });
-      // Add a fallback placeholder if absolutely empty
-      if (deadlinesToUse.length === 0) {
-        deadlinesToUse = [{
-          name: 'AI Identifying Matches...',
-          deadline: 'TBD',
-          daysLeft: 30,
-          probability: compResult.score
-        }];
-      }
-    }
-    
-    deadlinesToUse.sort((a, b) => a.daysLeft - b.daysLeft);
-    setUpcomingDeadlines(deadlinesToUse.slice(0, 4));
+        if (!opp) return null;
+        return buildDeadlineEntry(opp, app.deadline, app.matchScore);
+      })
+      .filter(Boolean);
+
+    // Build from ALL opportunities (for the full tracker)
+    const allOppDeadlines = opportunities
+      .map(opp => buildDeadlineEntry(opp))
+      .filter(Boolean);
+
+    // Merge: app deadlines first, then remaining non-duplicate opp deadlines
+    const seenIds = new Set(appDeadlines.map((d: any) => d.id));
+    const mergedDeadlines = [
+      ...appDeadlines,
+      ...allOppDeadlines.filter((d: any) => !seenIds.has(d.id))
+    ];
+
+    mergedDeadlines.sort((a: any, b: any) => a.daysLeft - b.daysLeft);
+    setAllDeadlines(mergedDeadlines as any[]);
+    setUpcomingDeadlines(mergedDeadlines.slice(0, 4) as any[]);
 
     setMetrics({
       opportunityScore,
@@ -210,7 +220,7 @@ export default function DashboardPage() {
       portfolioHealth,
       successProbabilityAvg,
       applicationsInProgress: apps.length,
-      deadlinesThisMonth: deadlinesToUse.filter(d => d.daysLeft <= 30).length,
+      deadlinesThisMonth: mergedDeadlines.filter((d: any) => d.daysLeft <= 30).length,
       opportunitiesFound: matchedCount,
       aiConfidence: compResult.score, // derived from real profile completeness, not a constant floor
       potentialValue: potentialValueStr,
@@ -225,6 +235,18 @@ export default function DashboardPage() {
     });
     
     // Generate dynamic updates from opportunities verification data
+    // Use real relative timestamps from lastUpdatedDate
+    const getRelativeTime = (dateStr?: string) => {
+      if (!dateStr) return 'Recently';
+      const diffMs = Date.now() - new Date(dateStr).getTime();
+      const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+      if (diffDays <= 0) return 'Today';
+      if (diffDays === 1) return 'Yesterday';
+      if (diffDays < 7) return `${diffDays}d ago`;
+      if (diffDays < 30) return `${Math.floor(diffDays / 7)}w ago`;
+      return `${Math.floor(diffDays / 30)}mo ago`;
+    };
+
     const updates = opportunities
       .filter(o => o.verificationStatus === 'verified')
       .slice(0, 3)
@@ -232,7 +254,7 @@ export default function DashboardPage() {
         icon: <Check size={14} className="inline" />,
         title: `${o.provider} Verification Complete`,
         desc: `Verified requirements for ${o.title}. Data source updated to official portal guidelines.`,
-        time: 'Today',
+        time: getRelativeTime(o.lastUpdatedDate),
         color: '#10b981'
       }));
     if (updates.length < 3) {
@@ -772,38 +794,53 @@ export default function DashboardPage() {
                     missions.push({
                       day: 'Today',
                       title: `Upload Missing ${missing[0].name}`,
-                      desc: 'Crucial for passing basic eligibility filters',
-                      roi: '+15% Readiness',
+                      desc: `Crucial for passing basic eligibility filters${missing.length > 1 ? ` (${missing.length - 1} more pending)` : ''}`,
+                      roi: `+${Math.min(missing.length * 8, 30)}% Readiness`,
                       color: '#f43f5e'
                     });
                   }
                   
                   const drafts = apps.filter(a => a.stage === 'preparing');
                   if (drafts.length > 0) {
+                    const draftOpp = opportunities.find(o => o.id === drafts[0].id);
                     missions.push({
                       day: 'Today',
-                      title: `Finalize SOP for ${opportunities.find(o => o.id === drafts[0].id)?.title.substring(0, 15) || 'Application'}`,
-                      desc: 'High-leverage action to move pipeline to submission',
+                      title: `Finalize SOP for ${draftOpp?.title.substring(0, 20) || 'Application'}`,
+                      desc: `High-leverage action to move ${drafts.length} pipeline${drafts.length > 1 ? 's' : ''} to submission`,
                       roi: '+22% Win Prob.',
                       color: '#10b981'
                     });
                   } else {
+                    // Dynamic: use actual matched opportunity count and real potential value
+                    const qualifiedCount = Math.max(3, Math.round(metrics.opportunitiesFound * 0.4));
                     missions.push({
                       day: 'Today',
-                      title: 'Analyze 3 Qualified Matches',
-                      desc: 'Identify and save top ROI opportunities',
-                      roi: '+$85k Potential',
+                      title: `Analyze ${qualifiedCount} Qualified Matches`,
+                      desc: `Identify and save top ROI opportunities from ${metrics.opportunitiesFound} matched`,
+                      roi: metrics.potentialValue !== '$0' ? `+${metrics.potentialValue} Potential` : '+$25K Potential',
                       color: '#6366f1'
                     });
                   }
                   
-                  missions.push({
-                    day: 'Tomorrow',
-                    title: 'Expand Leadership Narrative',
-                    desc: 'Bolster your DNA matrix to match elite expectations',
-                    roi: '+12% Profile Score',
-                    color: '#f59e0b'
-                  });
+                  // Dynamic 3rd mission: based on closest deadline or profile gap
+                  const closestDeadline = upcomingDeadlines[0];
+                  if (closestDeadline && closestDeadline.daysLeft <= 30) {
+                    missions.push({
+                      day: closestDeadline.daysLeft <= 3 ? 'Urgent' : closestDeadline.daysLeft <= 7 ? 'This Week' : 'Tomorrow',
+                      title: `Prepare for ${closestDeadline.name.substring(0, 25)}${closestDeadline.name.length > 25 ? '...' : ''}`,
+                      desc: `Deadline in ${closestDeadline.daysLeft} day${closestDeadline.daysLeft !== 1 ? 's' : ''} — ensure all documents are ready`,
+                      roi: `${closestDeadline.daysLeft}d left`,
+                      color: closestDeadline.daysLeft <= 7 ? '#f43f5e' : '#f59e0b'
+                    });
+                  } else {
+                    missions.push({
+                      day: 'Tomorrow',
+                      title: `Strengthen ${missing.length > 0 ? missing[missing.length - 1]?.name || 'Profile' : 'Leadership Narrative'}`,
+                      desc: `Bolster your DNA matrix to match elite selection criteria`,
+                      roi: `+${Math.round(10 + (100 - metrics.readinessScore) * 0.2)}% Profile Score`,
+                      color: '#f59e0b'
+                    });
+                  }
 
                   return missions.map((mission, idx) => (
                     <div key={idx} style={{ position: 'relative', zIndex: 1, display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
@@ -825,52 +862,176 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Upcoming Deadlines */}
+          {/* Verified Deadline Tracker */}
           <div className="card" style={{ padding: '20px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-              <h3 style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '15px', fontWeight: 700, color: 'white' }}>
-                <Clock size={16} className="inline mr-2 text-indigo-400" /> Verified Deadlines
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
+              <h3 style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '15px', fontWeight: 700, color: 'white', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Clock size={16} className="text-indigo-400" /> Deadline Tracker
               </h3>
-              <span className="badge badge-amber">Upcoming</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <button
+                  onClick={() => setDeadlineSort(prev => prev === 'deadline' ? 'score' : 'deadline')}
+                  className="badge"
+                  style={{
+                    fontSize: '10px',
+                    padding: '3px 8px',
+                    background: 'rgba(99,102,241,0.1)',
+                    color: '#818cf8',
+                    border: '1px solid rgba(99,102,241,0.2)',
+                    cursor: 'pointer',
+                  }}
+                  title="Toggle sort by Deadline or Match Score"
+                >
+                  Sort: {deadlineSort === 'deadline' ? '⏳ Date' : '🎯 Score'}
+                </button>
+                <span className="badge badge-amber">{allDeadlines.length} Active</span>
+              </div>
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {upcomingDeadlines.map((item, idx) => (
-                <div key={idx}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', gap: '8px' }}>
-                    <span style={{ fontSize: '12px', color: 'white', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block', minWidth: 0 }}>
-                      {item.name}
-                    </span>
-                    <span
-                      style={{
-                        fontSize: '11px',
-                        fontWeight: 700,
-                        color: item.daysLeft < 30 ? '#f43f5e' : item.daysLeft < 60 ? '#f59e0b' : '#10b981',
-                        flexShrink: 0
-                      }}
-                    >
-                      {item.daysLeft}d
-                    </span>
-                  </div>
-                  <div className="progress-bar">
-                    <div
-                      className="progress-fill"
-                      style={{
-                        width: `${Math.max(10, 100 - item.daysLeft)}%`,
-                        background: `linear-gradient(90deg, ${item.daysLeft < 30 ? '#f43f5e' : '#10b981'}, ${item.daysLeft < 30 ? '#be123c' : '#059669'})`,
-                      }}
-                    />
-                  </div>
-                  <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.3)', marginTop: '3px' }}>
-                    {item.deadline}
-                  </div>
-                </div>
-              ))}
-              {upcomingDeadlines.length === 0 && (
-                <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)', textAlign: 'center', padding: '10px 0' }}>
-                  No imminent deadlines.
-                </div>
+
+            {/* Inline Quick Search Filter */}
+            <div style={{ marginBottom: '12px', position: 'relative' }}>
+              <input
+                type="text"
+                placeholder="Search deadlines..."
+                value={deadlineSearch}
+                onChange={(e) => setDeadlineSearch(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '7px 10px 7px 30px',
+                  borderRadius: '8px',
+                  background: 'rgba(0,0,0,0.25)',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  color: 'white',
+                  fontSize: '11px',
+                  outline: 'none',
+                }}
+              />
+              <Search size={13} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.4)' }} />
+              {deadlineSearch && (
+                <button
+                  onClick={() => setDeadlineSearch('')}
+                  style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.5)', cursor: 'pointer', fontSize: '11px' }}
+                >
+                  ✕
+                </button>
               )}
             </div>
+
+            {/* Deadline List */}
+            {(() => {
+              let displayList = allDeadlines.length > 0 ? allDeadlines : upcomingDeadlines;
+
+              // Filter by search query
+              if (deadlineSearch.trim()) {
+                const q = deadlineSearch.toLowerCase();
+                displayList = displayList.filter(item =>
+                  item.name.toLowerCase().includes(q) ||
+                  (item.provider && item.provider.toLowerCase().includes(q)) ||
+                  (item.type && item.type.toLowerCase().includes(q))
+                );
+              }
+
+              // Apply sorting
+              displayList = [...displayList].sort((a, b) => {
+                if (deadlineSort === 'score') return (b.probability || 0) - (a.probability || 0);
+                return a.daysLeft - b.daysLeft;
+              });
+
+              // Apply pagination toggle
+              const visibleList = showAllDeadlines ? displayList : displayList.slice(0, 4);
+
+              if (visibleList.length === 0) {
+                return (
+                  <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)', textAlign: 'center', padding: '16px 0' }}>
+                    {deadlineSearch ? 'No matching deadlines found.' : 'No imminent deadlines.'}
+                  </div>
+                );
+              }
+
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: showAllDeadlines ? '340px' : 'none', overflowY: showAllDeadlines ? 'auto' : 'visible', paddingRight: showAllDeadlines ? '4px' : '0' }}>
+                  {visibleList.map((item, idx) => {
+                    const urgencyColor = item.daysLeft <= 14 ? '#f43f5e' : item.daysLeft <= 45 ? '#f59e0b' : '#10b981';
+                    const formattedDate = new Date(item.deadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+                    return (
+                      <Link
+                        key={item.id || idx}
+                        href={`/dashboard/opportunities/${item.id || ''}`}
+                        style={{ textDecoration: 'none', display: 'block' }}
+                      >
+                        <div
+                          style={{
+                            padding: '10px',
+                            borderRadius: '8px',
+                            background: 'rgba(255,255,255,0.02)',
+                            border: `1px solid ${urgencyColor}25`,
+                            transition: 'all 0.2s ease',
+                          }}
+                          onMouseEnter={(e) => (e.currentTarget.style.borderColor = `${urgencyColor}60`)}
+                          onMouseLeave={(e) => (e.currentTarget.style.borderColor = `${urgencyColor}25`)}
+                        >
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', gap: '8px', alignItems: 'flex-start' }}>
+                            <span style={{ fontSize: '12px', color: 'white', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block', minWidth: 0 }}>
+                              {item.name}
+                            </span>
+                            <span
+                              style={{
+                                fontSize: '10px',
+                                fontWeight: 700,
+                                color: urgencyColor,
+                                background: `${urgencyColor}15`,
+                                border: `1px solid ${urgencyColor}30`,
+                                padding: '1px 6px',
+                                borderRadius: '4px',
+                                flexShrink: 0
+                              }}
+                            >
+                              {item.daysLeft}d left
+                            </span>
+                          </div>
+                          <div className="progress-bar" style={{ height: '4px', margin: '6px 0' }}>
+                            <div
+                              className="progress-fill"
+                              style={{
+                                width: `${Math.max(8, Math.min(100, 100 - (item.daysLeft / 180) * 100))}%`,
+                                background: `linear-gradient(90deg, ${urgencyColor}, ${urgencyColor}bb)`,
+                              }}
+                            />
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '10px', color: 'rgba(255,255,255,0.4)', marginTop: '4px' }}>
+                            <span>{formattedDate !== 'Invalid Date' ? formattedDate : item.deadline}</span>
+                            {item.probability ? (
+                              <span style={{ color: '#818cf8', fontWeight: 600 }}>🎯 {item.probability}% Match</span>
+                            ) : null}
+                          </div>
+                        </div>
+                      </Link>
+                    );
+                  })}
+
+                  {displayList.length > 4 && (
+                    <button
+                      onClick={() => setShowAllDeadlines(prev => !prev)}
+                      style={{
+                        width: '100%',
+                        padding: '6px',
+                        background: 'rgba(255,255,255,0.03)',
+                        border: '1px border rgba(255,255,255,0.08)',
+                        borderRadius: '6px',
+                        color: '#818cf8',
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        marginTop: '4px',
+                      }}
+                    >
+                      {showAllDeadlines ? 'Show Less ▲' : `View All ${displayList.length} Deadlines ▼`}
+                    </button>
+                  )}
+                </div>
+              );
+            })()}
           </div>
 
           {/* AI Updates Inbox */}

@@ -60,6 +60,7 @@ export default function OpportunitiesPage() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  const [sortBy, setSortBy] = useState<'rank' | 'deadline' | 'funding'>('rank');
   const [expandedExplain, setExpandedExplain] = useState<Record<string, boolean>>({});
 
   const loadFeed = useCallback(async () => {
@@ -130,6 +131,19 @@ export default function OpportunitiesPage() {
         };
       })
     : currentOpportunities;
+
+  // Apply sorting
+  const sortedList = [...filteredList].sort((a, b) => {
+    if (sortBy === 'deadline') {
+      const dateA = a.deadline ? new Date(a.deadline).getTime() : Infinity;
+      const dateB = b.deadline ? new Date(b.deadline).getTime() : Infinity;
+      return dateA - dateB;
+    }
+    if (sortBy === 'funding') {
+      return (b.fundingAmount || 0) - (a.fundingAmount || 0);
+    }
+    return (b.rankScore || b.compatibilityScore || 0) - (a.rankScore || a.compatibilityScore || 0);
+  });
 
   return (
     <div>
@@ -203,18 +217,49 @@ export default function OpportunitiesPage() {
         ))}
       </div>
 
-      {/* Semantic / Natural-Language Search */}
-      <div style={{ marginBottom: '24px' }}>
-        <input
-          className="input"
-          placeholder={'🔍 Try: "fully funded AI scholarships in Germany closing this month"'}
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          style={{ width: '100%', maxWidth: '560px' }}
-        />
+      {/* Semantic / Natural-Language Search & Sort controls */}
+      <div style={{ marginBottom: '24px', display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ flex: 1, minWidth: '280px', maxWidth: '560px' }}>
+          <input
+            className="input"
+            placeholder={'🔍 Try: "fully funded AI scholarships in Germany closing this month"'}
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            style={{ width: '100%' }}
+          />
+        </div>
+
+        {/* Sort selector */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', padding: '6px 12px', borderRadius: '8px' }}>
+          <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.4)', fontWeight: 600 }}>Sort by:</span>
+          {[
+            { id: 'rank', label: '🎯 AI Rank' },
+            { id: 'deadline', label: '⏳ Imminent Deadline' },
+            { id: 'funding', label: '💰 Top Funding' },
+          ].map(opt => (
+            <button
+              key={opt.id}
+              onClick={() => setSortBy(opt.id as any)}
+              style={{
+                background: sortBy === opt.id ? 'rgba(99,102,241,0.2)' : 'transparent',
+                border: sortBy === opt.id ? '1px solid rgba(99,102,241,0.5)' : 'none',
+                color: sortBy === opt.id ? '#818cf8' : 'rgba(255,255,255,0.6)',
+                fontSize: '11px',
+                fontWeight: 600,
+                padding: '4px 8px',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease'
+              }}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+
         {semanticMatches && (
-          <div style={{ padding: '12px 16px', background: 'rgba(99,102,241,0.05)', borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: '12px', color: '#818cf8', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Brain size={14} /> Natural-language search across all {feed?.allRanked.length ?? 0} opportunities · {filteredList.length} match{filteredList.length === 1 ? '' : 'es'}
+          <div style={{ width: '100%', padding: '12px 16px', background: 'rgba(99,102,241,0.05)', borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: '12px', color: '#818cf8', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Brain size={14} /> Natural-language search across all {feed?.allRanked.length ?? 0} opportunities · {sortedList.length} match{sortedList.length === 1 ? '' : 'es'}
           </div>
         )}
       </div>
@@ -242,7 +287,7 @@ export default function OpportunitiesPage() {
           <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '14px', maxWidth: '400px', margin: '0 auto 16px' }}>{loadError}</p>
           <button className="btn btn-outline" style={{ fontSize: '13px', padding: '8px 16px' }} onClick={() => loadFeed()}>Try again</button>
         </div>
-      ) : filteredList.length === 0 ? (
+      ) : sortedList.length === 0 ? (
         <div className="card" style={{ padding: '40px', textAlign: 'center', background: 'rgba(255,255,255,0.02)', border: '1px dashed rgba(255,255,255,0.1)' }}>
           <div style={{ fontSize: '32px', marginBottom: '16px', display: 'flex', justifyContent: 'center' }}><Inbox size={32} className="text-indigo-400" /></div>
           <h3 style={{ color: 'white', marginBottom: '8px' }}>No matches found in this feed</h3>
@@ -252,7 +297,7 @@ export default function OpportunitiesPage() {
         </div>
       ) : (
         <div className="two-col-grid" style={{ gap: '16px' }}>
-        {filteredList.map((opp, index) => {
+        {sortedList.map((opp, index) => {
           const isFree = !subscription || subscription.status === 'FREE' || subscription.planId === 'free';
           const isLocked = isFree && index >= 5; // Show top 5 for free users
 
