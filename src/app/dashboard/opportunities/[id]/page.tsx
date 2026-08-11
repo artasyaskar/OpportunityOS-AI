@@ -221,7 +221,7 @@ export default function OpportunityDetailPage() {
           <h2 style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '15px', fontWeight: 700, color: 'white' }}>
             <Clipboard size={16} className="inline mr-2 text-indigo-400" /> Opportunity Score Breakdown & Fit Analysis
           </h2>
-          <span className="badge badge-indigo" style={{ letterSpacing: '1px' }}>AI CONFIDENCE: 92%</span>
+          <span className="badge badge-indigo" style={{ letterSpacing: '1px' }}>AI CONFIDENCE: {scoreResult.score}%</span>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '12px', marginBottom: '20px' }}>
           {[
@@ -363,7 +363,16 @@ export default function OpportunityDetailPage() {
               {opp.description}
             </p>
             <div style={{ marginTop: '16px', padding: '12px', background: 'rgba(139,92,246,0.1)', borderRadius: '8px', fontSize: '13px', color: '#a78bfa' }}>
-              <strong>AI Strategic Insight:</strong> This program heavily favors candidates who demonstrate leadership. Ensure your SOP highlights specific instances where you led a technical project.
+              <strong>AI Strategic Insight:</strong>{' '}
+              {(() => {
+                const strengths = scoreResult.strengths || [];
+                const weaknesses = scoreResult.weaknesses || [];
+                const recs = scoreResult.recommendations || [];
+                const topStrength = strengths[0] || `strong alignment with ${opp.type || 'this opportunity'}`;
+                const topWeakness = weaknesses[0] || 'completing remaining profile evidence';
+                const topRec = recs[0] || `Tailor your SOP to highlight direct relevance to ${opp.provider || 'the program'}`;
+                return `Your profile shows ${topStrength}. Key focus area: ${topWeakness}. ${topRec}.`;
+              })()}
             </div>
           </div>
 
@@ -422,13 +431,37 @@ export default function OpportunityDetailPage() {
                     {allItems.map((item, i) => {
                       const isReady = item.status === 'Ready';
                       const isWeak = item.status === 'Weak';
+                      // Dynamic "What To Do" action for gaps
+                      const getAction = (label: string, status: string) => {
+                        if (status === 'Ready') return null;
+                        const l = label.toLowerCase();
+                        if (l.includes('gpa') || l.includes('transcript')) return 'Upload your official academic transcript to verify GPA.';
+                        if (l.includes('ielts') || l.includes('toefl') || l.includes('english') || l.includes('language')) return 'Schedule your English proficiency test or upload existing score report.';
+                        if (l.includes('resume') || l.includes('cv')) return 'Upload your latest CV/resume to the Evidence Vault.';
+                        if (l.includes('publication') || l.includes('research')) return 'Submit a research paper, thesis abstract, or project writeup.';
+                        if (l.includes('experience') || l.includes('work')) return 'Add relevant professional experience details to your profile.';
+                        if (l.includes('passport') || l.includes('citizenship')) return 'Upload passport scan or citizenship documentation.';
+                        if (l.includes('recommendation') || l.includes('reference')) return 'Request recommendation letters from professors or supervisors.';
+                        if (l.includes('skill') || l.includes('cloud') || l.includes('aws') || l.includes('certification')) return 'Complete a relevant certification course or add skills to your profile.';
+                        if (l.includes('leadership')) return 'Document specific leadership roles, team sizes, and impact metrics.';
+                        return `Provide evidence or documentation for: ${label}.`;
+                      };
+                      const action = getAction(item.label, item.status);
                       return (
-                        <div key={i} style={{ display: 'flex', gap: '12px', alignItems: 'center', padding: '10px 14px', borderRadius: '10px', background: isReady ? 'rgba(16,185,129,0.04)' : isWeak ? 'rgba(245,158,11,0.04)' : 'rgba(244,63,94,0.04)', border: `1px solid ${isReady ? 'rgba(16,185,129,0.15)' : isWeak ? 'rgba(245,158,11,0.15)' : 'rgba(244,63,94,0.15)'}` }}>
-                          <span style={{ fontSize: '18px' }}>{item.icon}</span>
-                          <span style={{ flex: 1, fontSize: '13px', color: 'rgba(255,255,255,0.7)' }}>{item.label}</span>
-                          <span style={{ fontSize: '12px', fontWeight: 700, color: isReady ? '#10b981' : isWeak ? '#f59e0b' : '#f43f5e' }}>
-                            {isReady ? <Check size={12} className="inline mr-1" /> : isWeak ? <AlertTriangle size={12} className="inline mr-1" /> : <X size={12} className="inline mr-1" />}{item.status}
-                          </span>
+                        <div key={i} style={{ padding: '10px 14px', borderRadius: '10px', background: isReady ? 'rgba(16,185,129,0.04)' : isWeak ? 'rgba(245,158,11,0.04)' : 'rgba(244,63,94,0.04)', border: `1px solid ${isReady ? 'rgba(16,185,129,0.15)' : isWeak ? 'rgba(245,158,11,0.15)' : 'rgba(244,63,94,0.15)'}` }}>
+                          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                            <span style={{ fontSize: '18px' }}>{item.icon}</span>
+                            <span style={{ flex: 1, fontSize: '13px', color: 'rgba(255,255,255,0.7)' }}>{item.label}</span>
+                            <span style={{ fontSize: '12px', fontWeight: 700, color: isReady ? '#10b981' : isWeak ? '#f59e0b' : '#f43f5e' }}>
+                              {isReady ? <Check size={12} className="inline mr-1" /> : isWeak ? <AlertTriangle size={12} className="inline mr-1" /> : <X size={12} className="inline mr-1" />}{item.status}
+                            </span>
+                          </div>
+                          {action && (
+                            <div style={{ marginTop: '6px', paddingLeft: '30px', fontSize: '11px', color: 'rgba(255,255,255,0.5)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              <Zap size={10} className="text-indigo-400" style={{ flexShrink: 0 }} />
+                              <span><strong style={{ color: '#818cf8' }}>What to do:</strong> {action}</span>
+                            </div>
+                          )}
                         </div>
                       );
                     })}

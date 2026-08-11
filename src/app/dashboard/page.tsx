@@ -10,7 +10,8 @@ import { ActivityTimeline } from '@/components/ui/ActivityTimeline';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { useProfile } from '@/components/auth/ProfileContext';
 import { usePipeline } from '@/components/auth/PipelineContext';
-import { Loader2, Sparkles, Check, Hand, Briefcase, Newspaper, Telescope, DollarSign, TrendingUp, Zap, Target, Globe, Landmark, Laptop, Rocket, Trophy, CheckCircle, Search, Plane, Shield, GraduationCap, FileText, Microscope, Mic, Pin, Bot, Network, Download, ShieldCheck, ZapIcon, Info, Mail, Clock, AlertCircle, FileEdit, Activity, Map } from 'lucide-react';
+import { useDialog } from '@/components/ui/DialogProvider';
+import { Loader2, Sparkles, Check, Hand, Briefcase, Newspaper, Telescope, DollarSign, TrendingUp, Zap, Target, Globe, Landmark, Laptop, Rocket, Trophy, CheckCircle, Search, Plane, Shield, GraduationCap, FileText, Microscope, Mic, Pin, Bot, Network, Download, ShieldCheck, ZapIcon, Info, Mail, Clock, AlertCircle, FileEdit, Activity, Map, Copy, FileDown, X } from 'lucide-react';
 
 function ScoreRing({ score, size = 100, label }: { score: number; size?: number; label: string }) {
   const { color } = getScoreLabel(score);
@@ -58,7 +59,10 @@ export default function DashboardPage() {
     potentialValue: '$0',
   });
   const [userName, setUserName] = useState('User');
-  const [showInvestorModal, setShowInvestorModal] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [copiedReport, setCopiedReport] = useState(false);
+  const [downloadingPDF, setDownloadingPDF] = useState(false);
+  const { toast } = useDialog();
   const [profileCompleteness, setProfileCompleteness] = useState<{ score: number; items: any[] }>({ score: 0, items: [] });
   const [upcomingDeadlines, setUpcomingDeadlines] = useState<any[]>([]);
   const [allDeadlines, setAllDeadlines] = useState<any[]>([]);
@@ -90,7 +94,7 @@ export default function DashboardPage() {
     let country = 'Global';
     let skillsCount = 3;
     let profileData: any = null;
-    
+
     // Load real user name and data from onboarding profile (Firestore)
     if (profile) {
       profileData = profile;
@@ -99,7 +103,7 @@ export default function DashboardPage() {
         setUserName(profile.name.split(' ')[0]);
       }
       if (profile.country) country = profile.country;
-      
+
       // Use real data from user profile if available, rather than hardcoded defaults
       if (profile.gpa) {
         const parsed = parseFloat(profile.gpa);
@@ -118,11 +122,11 @@ export default function DashboardPage() {
     const gpaPercent = Math.min((gpa / 4.0) * 100, 100);
     const opportunityScore = Math.round(55 + (gpaPercent * 0.35) + Math.min(skillsCount * 2, 10));
     const readinessScore = compResult.score;
-    
+
     const successProbabilityAvg = apps.length > 0
       ? Math.round(apps.reduce((sum, a) => sum + (a.matchScore || compResult.score), 0) / apps.length)
       : Math.round(50 + (gpaPercent * 0.2));
-      
+
     const portfolioHealth = apps.length > 0
       ? Math.round(60 + Math.min(apps.length * 8, 35))
       : 0;
@@ -162,13 +166,13 @@ export default function DashboardPage() {
     const potentialValueStr = totalValueUSD > 0
       ? `$${(totalValueUSD / 1000).toFixed(0)}K`
       : '$0';
-      
+
     // Calculate dynamic projections based on user profile and pipeline
     const baseSalary = Math.round(40 + (gpaPercent * 0.2));
     const projectedSalary = Math.round(baseSalary + 30 + (apps.length * 15) + (opportunityScore * 0.5));
     const networkMultiplier = (1.2 + (apps.length * 0.6) + (readinessScore / 25)).toFixed(1);
     const estimatedStipendValue = totalValueUSD > 0 ? totalValueUSD + 15000 : 25000 + (apps.length * 5000);
-      
+
     // Dynamically build deadlines from active applications AND all matched opportunities
     // Filter out expired deadlines (daysLeft <= 0) to keep the tracker authentic
     const buildDeadlineEntry = (opp: Opportunity, overrideDeadline?: string, matchScore?: number) => {
@@ -233,7 +237,7 @@ export default function DashboardPage() {
       // @ts-ignore
       estimatedStipendValue: `$${(estimatedStipendValue / 1000).toFixed(0)}K+`
     });
-    
+
     // Generate dynamic updates from opportunities verification data
     // Use real relative timestamps from lastUpdatedDate
     const getRelativeTime = (dateStr?: string) => {
@@ -338,12 +342,13 @@ export default function DashboardPage() {
             </p>
           </div>
           <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-             <button 
-              onClick={() => setShowInvestorModal(true)}
+            <button
+              onClick={() => setShowReportModal(true)}
               className="btn btn-ghost btn-sm"
-              style={{ display: 'flex', alignItems: 'center', gap: '6px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.02)', whiteSpace: 'nowrap' }}
+              style={{ display: 'flex', alignItems: 'center', gap: '6px', border: '1px solid rgba(99,102,241,0.3)', background: 'rgba(99,102,241,0.06)', color: 'white', whiteSpace: 'nowrap' }}
+              title="Generate & View AI Executive Strategy Report"
             >
-              <Briefcase size={16} className="inline mr-2" /> Investor Mode (PDF Export)
+              <Sparkles size={16} className="inline mr-1 text-indigo-400" /> AI Executive Report
             </button>
             <Link href="/dashboard/opportunities" className="btn btn-primary btn-sm" style={{ whiteSpace: 'nowrap' }}>
               + New Application
@@ -383,6 +388,73 @@ export default function DashboardPage() {
           </Link>
         </div>
       </div>
+
+      {(() => {
+        const hasProfile = !!(profile && (profile.name || profile.field));
+        const hasCvUploaded = !!(profile?.resumeFile || documents.some((d: any) => d.source?.toLowerCase?.()?.includes('resume') || d.type?.toLowerCase?.()?.includes('resume')));
+        const hasMatchedOpps = opportunities.length > 0 && metrics.opportunitiesFound > 0;
+        const hasReviewedGap = apps && apps.length > 0;
+        const hasStartedApp = apps && apps.length > 0 && apps.some((a: any) => a.stage && a.stage !== 'discovered');
+
+        const journeySteps = [
+          { label: 'Profile Created', done: hasProfile, href: '/onboarding', icon: <Shield size={14} /> },
+          { label: 'CV Uploaded', done: hasCvUploaded, href: '/dashboard/vault', icon: <FileText size={14} /> },
+          { label: 'AI Matched Opportunities', done: hasMatchedOpps, href: '/dashboard/opportunities', icon: <Telescope size={14} /> },
+          { label: 'Gap Analysis Reviewed', done: hasReviewedGap, href: '/dashboard/roadmap', icon: <Target size={14} /> },
+          { label: 'Application Started', done: hasStartedApp, href: '/dashboard/builder', icon: <Rocket size={14} /> },
+        ];
+        const completedCount = journeySteps.filter(s => s.done).length;
+        const progressPct = Math.round((completedCount / journeySteps.length) * 100);
+
+        return (
+          <div className="card-magnetic glow-border page-transition" style={{ padding: '16px 20px', marginBottom: '24px', border: '1px solid rgba(99,102,241,0.2)', background: 'linear-gradient(135deg, rgba(99,102,241,0.04) 0%, rgba(139,92,246,0.03) 100%)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+              <h3 style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '12px', fontWeight: 700, color: 'white', letterSpacing: '1px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Sparkles size={14} className="text-indigo-400" /> YOUR OPPORTUNITYOS JOURNEY
+              </h3>
+              <span className="badge badge-indigo" style={{ fontSize: '9px' }}>{completedCount}/{journeySteps.length} COMPLETE</span>
+            </div>
+            {/* Progress bar */}
+            <div style={{ width: '100%', height: '4px', borderRadius: '4px', background: 'rgba(255,255,255,0.06)', marginBottom: '14px', overflow: 'hidden' }}>
+              <div style={{ width: `${progressPct}%`, height: '100%', borderRadius: '4px', background: 'linear-gradient(90deg, #6366f1, #8b5cf6)', transition: 'width 1s ease' }} />
+            </div>
+            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+              {journeySteps.map((step, idx) => (
+                <Link
+                  key={step.label}
+                  href={step.href}
+                  style={{
+                    flex: 1,
+                    minWidth: '140px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '8px 12px',
+                    borderRadius: '10px',
+                    background: step.done ? 'rgba(16,185,129,0.08)' : 'rgba(255,255,255,0.03)',
+                    border: `1px solid ${step.done ? 'rgba(16,185,129,0.2)' : 'rgba(255,255,255,0.06)'}`,
+                    textDecoration: 'none',
+                    transition: 'all 0.2s ease',
+                  }}
+                >
+                  <div style={{
+                    width: '24px', height: '24px', borderRadius: '50%', flexShrink: 0,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    background: step.done ? '#10b981' : 'rgba(255,255,255,0.06)',
+                    color: step.done ? 'white' : 'rgba(255,255,255,0.3)',
+                    fontSize: '10px', fontWeight: 800,
+                  }}>
+                    {step.done ? <Check size={12} /> : (idx + 1)}
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '11px', fontWeight: 600, color: step.done ? '#10b981' : 'rgba(255,255,255,0.5)' }}>{step.label}</div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* EXECUTIVE OPPORTUNITY DASHBOARD METRICS */}
       <div className="metrics-grid page-transition" style={{ gap: '16px', marginBottom: '24px' }}>
@@ -430,12 +502,12 @@ export default function DashboardPage() {
             { id: 'accepted', label: 'Accepted', count: 0, active: false },
             { id: 'won', label: 'Won / Acquired', count: 0, active: false }
           ].map((stage, idx) => (
-            <div 
-              key={stage.id} 
+            <div
+              key={stage.id}
               className="glass-sm"
-              style={{ 
-                padding: '12px', 
-                borderRadius: '8px', 
+              style={{
+                padding: '12px',
+                borderRadius: '8px',
                 textAlign: 'center',
                 border: stage.id === 'prepared' ? '1px solid rgba(99,102,241,0.35)' : '1px solid rgba(255,255,255,0.05)',
                 background: stage.id === 'prepared' ? 'rgba(99,102,241,0.06)' : 'rgba(255,255,255,0.01)',
@@ -542,7 +614,7 @@ export default function DashboardPage() {
               </h3>
               <span className="badge badge-indigo" style={{ fontSize: '9px' }}>AI SCAN ACTIVE</span>
             </div>
-            
+
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               {recentUpdates.map((update, idx) => (
                 <div key={idx} style={{ display: 'flex', gap: '8px', fontSize: '12px', alignItems: 'flex-start' }}>
@@ -785,11 +857,11 @@ export default function DashboardPage() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', position: 'relative' }}>
                 {/* Vertical timeline line */}
                 <div style={{ position: 'absolute', left: '11px', top: '10px', bottom: '10px', width: '2px', background: 'rgba(255,255,255,0.05)', zIndex: 0 }} />
-                
+
                 {(() => {
                   const missions = [];
                   const missing = profileCompleteness.items.filter(i => i.status === 'missing');
-                  
+
                   if (missing.length > 0) {
                     missions.push({
                       day: 'Today',
@@ -799,7 +871,7 @@ export default function DashboardPage() {
                       color: '#f43f5e'
                     });
                   }
-                  
+
                   const drafts = apps.filter(a => a.stage === 'preparing');
                   if (drafts.length > 0) {
                     const draftOpp = opportunities.find(o => o.id === drafts[0].id);
@@ -821,7 +893,7 @@ export default function DashboardPage() {
                       color: '#6366f1'
                     });
                   }
-                  
+
                   // Dynamic 3rd mission: based on closest deadline or profile gap
                   const closestDeadline = upcomingDeadlines[0];
                   if (closestDeadline && closestDeadline.daysLeft <= 30) {
@@ -1118,57 +1190,360 @@ export default function DashboardPage() {
               ))}
             </div>
           </div>
-        </div>
-      </div>
-      {showInvestorModal && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 99999, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(16px)' }}>
-          <div className="card-magnetic glow-border page-transition" style={{ width: '450px', padding: '32px', background: 'var(--bg-secondary)', border: '1px solid rgba(16,185,129,0.3)', borderRadius: '20px', boxShadow: '0 24px 64px rgba(0,0,0,0.8)', textAlign: 'center' }}>
-            <div style={{ fontSize: '48px', marginBottom: '16px', display: 'flex', justifyContent: 'center' }}><Briefcase size={48} className="text-emerald-400" /></div>
-            <h3 style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '22px', fontWeight: 800, color: 'white', marginBottom: '8px' }}>
-              Investor Mode & Live Analytics
+
+          {/* PLATFORM INTELLIGENCE — Real Dynamic Metrics */}
+          <div className="card" style={{ padding: '20px' }}>
+            <h3 style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '15px', fontWeight: 700, color: 'white', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Globe size={16} className="text-indigo-400" /> Platform Intelligence
             </h3>
-            <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '12px', marginBottom: '24px' }}>
-              DEMO MODE • Real-time simulated indicators of global usage
-            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              {(() => {
+                const totalOpps = opportunities.length;
+                const categories = new Set(opportunities.map((o: Opportunity) => o.type).filter(Boolean));
+                const countries = new Set(opportunities.map((o: Opportunity) => o.country).filter(Boolean));
+                const providers = new Set(opportunities.map((o: Opportunity) => o.provider).filter(Boolean));
+
+                return [
+                  { label: 'OPPORTUNITIES INDEXED', value: totalOpps.toLocaleString(), color: '#6366f1', icon: <Telescope size={14} className="text-indigo-400" /> },
+                  { label: 'CATEGORIES TRACKED', value: categories.size.toString(), color: '#8b5cf6', icon: <Target size={14} className="text-purple-400" /> },
+                  { label: 'COUNTRIES COVERED', value: countries.size.toString(), color: '#10b981', icon: <Globe size={14} className="text-emerald-400" /> },
+                  { label: 'PROVIDERS', value: providers.size.toString(), color: '#06b6d4', icon: <Landmark size={14} className="text-cyan-400" /> },
+                ].map(stat => (
+                  <div key={stat.label} className="glass-sm" style={{ padding: '12px', borderRadius: '10px', textAlign: 'center' }}>
+                    <div style={{ marginBottom: '4px' }}>{stat.icon}</div>
+                    <div style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '18px', fontWeight: 800, color: stat.color }}>{stat.value}</div>
+                    <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.35)', fontWeight: 600, marginTop: '2px' }}>{stat.label}</div>
+                  </div>
+                ));
+              })()}
+            </div>
+          </div>
+
+        </div>{/* close dashboard-sidebar-panels */}
+      </div>{/* close dashboard-layout-grid */}
+
+      {/* AI EXECUTIVE STRATEGY REPORT MODAL */}
+      {showReportModal && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 99999, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(16px)', padding: '20px' }}>
+          <div className="card-magnetic glow-border page-transition" style={{ width: '100%', maxWidth: '640px', maxHeight: '90vh', overflowY: 'auto', background: 'var(--bg-secondary)', border: '1px solid rgba(99,102,241,0.3)', borderRadius: '20px', padding: '28px', boxShadow: '0 24px 64px rgba(0,0,0,0.8)' }}>
             
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '28px', textAlign: 'left' }}>
-              <div className="glass-sm" style={{ padding: '12px 16px', borderRadius: '10px' }}>
-                <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)' }}>ACTIVE USERS</div>
-                <div style={{ fontSize: '20px', fontWeight: 800, color: 'white', marginTop: '2px' }}>1,320</div>
+            {/* Modal Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '16px' }}>
+              <div>
+                <div style={{ fontSize: '10px', fontWeight: 800, color: '#818cf8', letterSpacing: '1.5px', marginBottom: '4px' }}>AI EXECUTIVE BRIEFING • LIVE REPORT</div>
+                <h2 style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '20px', fontWeight: 800, color: 'white', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Sparkles size={20} className="text-indigo-400" /> Executive Opportunity Strategy
+                </h2>
+                <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.4)', marginTop: '2px' }}>Prepared for {userName} • Generated from Live Opportunity DNA</div>
               </div>
-              <div className="glass-sm" style={{ padding: '12px 16px', borderRadius: '10px' }}>
-                <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)' }}>APPLICATIONS BUILT</div>
-                <div style={{ fontSize: '20px', fontWeight: 800, color: 'white', marginTop: '2px' }}>9,284</div>
+              <button
+                onClick={() => setShowReportModal(false)}
+                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', borderRadius: '50%', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Live Metrics Grid */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px', marginBottom: '16px' }}>
+              <div className="glass-sm" style={{ padding: '12px', borderRadius: '10px', textAlign: 'center' }}>
+                <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.4)', fontWeight: 700 }}>READINESS</div>
+                <div style={{ fontSize: '18px', fontWeight: 800, color: '#10b981', marginTop: '2px' }}>{metrics.readinessScore}%</div>
               </div>
-              <div className="glass-sm" style={{ padding: '12px 16px', borderRadius: '10px' }}>
-                <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)' }}>TRACKED DB</div>
-                <div style={{ fontSize: '20px', fontWeight: 800, color: 'white', marginTop: '2px' }}>100,000+</div>
+              <div className="glass-sm" style={{ padding: '12px', borderRadius: '10px', textAlign: 'center' }}>
+                <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.4)', fontWeight: 700 }}>MATCHED OPPS</div>
+                <div style={{ fontSize: '18px', fontWeight: 800, color: '#6366f1', marginTop: '2px' }}>{metrics.opportunitiesFound}</div>
               </div>
-              <div className="glass-sm" style={{ padding: '12px 16px', borderRadius: '10px' }}>
-                <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)' }}>COUNTRIES</div>
-                <div style={{ fontSize: '20px', fontWeight: 800, color: 'white', marginTop: '2px' }}>185</div>
+              <div className="glass-sm" style={{ padding: '12px', borderRadius: '10px', textAlign: 'center' }}>
+                <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.4)', fontWeight: 700 }}>PORTFOLIO VAL</div>
+                <div style={{ fontSize: '18px', fontWeight: 800, color: '#06b6d4', marginTop: '2px' }}>{metrics.potentialValue}</div>
+              </div>
+              <div className="glass-sm" style={{ padding: '12px', borderRadius: '10px', textAlign: 'center' }}>
+                <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.4)', fontWeight: 700 }}>AVG PROBABILITY</div>
+                <div style={{ fontSize: '18px', fontWeight: 800, color: '#8b5cf6', marginTop: '2px' }}>{metrics.successProbabilityAvg}%</div>
               </div>
             </div>
 
-            <div style={{ display: 'flex', gap: '12px' }}>
-              <button 
-                onClick={() => {
-                  setShowInvestorModal(false);
-                  setTimeout(() => typeof window !== 'undefined' && window.print(), 100);
+            {/* Candidate DNA Profile Box */}
+            <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '14px 16px', marginBottom: '16px' }}>
+              <div style={{ fontSize: '10px', fontWeight: 700, color: '#818cf8', marginBottom: '8px', letterSpacing: '0.5px' }}>CANDIDATE PROFILE DNA</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '12px', color: 'rgba(255,255,255,0.7)' }}>
+                <div><span style={{ color: 'rgba(255,255,255,0.4)' }}>Field of Study:</span> <strong style={{ color: 'white' }}>{profile?.field || 'Engineering & AI'}</strong></div>
+                <div><span style={{ color: 'rgba(255,255,255,0.4)' }}>GPA Metric:</span> <strong style={{ color: 'white' }}>{profile?.gpa || '3.5'}</strong></div>
+                <div><span style={{ color: 'rgba(255,255,255,0.4)' }}>Target Region:</span> <strong style={{ color: 'white' }}>{profile?.country || 'Global'}</strong></div>
+                <div><span style={{ color: 'rgba(255,255,255,0.4)' }}>Evidence Files:</span> <strong style={{ color: '#10b981' }}>{documents.length} Verified</strong></div>
+              </div>
+            </div>
+
+            {/* Strategic Summary Box */}
+            <div style={{ background: 'rgba(99,102,241,0.04)', border: '1px solid rgba(99,102,241,0.15)', borderRadius: '12px', padding: '16px', marginBottom: '20px' }}>
+              <div style={{ fontSize: '11px', fontWeight: 700, color: '#818cf8', marginBottom: '8px', letterSpacing: '0.5px' }}>EXECUTIVE ANALYSIS SUMMARY</div>
+              <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.8)', lineHeight: 1.6, margin: 0 }}>
+                {userName}'s Opportunity Profile in <strong>{profile?.field || 'Engineering & AI'}</strong> is currently operating at <strong>{metrics.readinessScore}% evidence completeness</strong>. 
+                Our AI Chief Officer has indexed <strong>{metrics.opportunitiesFound} matching opportunities</strong> globally, representing an estimated funding portfolio of <strong>{metrics.potentialValue}</strong> with an average success projection of <strong>{metrics.successProbabilityAvg}%</strong>.
+              </p>
+            </div>
+
+            {/* Top Matched Opportunities List */}
+            {opportunities.length > 0 && (
+              <div style={{ marginBottom: '20px' }}>
+                <div style={{ fontSize: '11px', fontWeight: 700, color: 'rgba(255,255,255,0.5)', marginBottom: '10px', letterSpacing: '0.5px' }}>TOP RANKED TARGET OPPORTUNITIES</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {opportunities.slice(0, 3).map((opp, idx) => (
+                    <div key={opp.id || idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', borderRadius: '10px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                      <div>
+                        <div style={{ fontSize: '13px', fontWeight: 700, color: 'white' }}>{opp.title}</div>
+                        <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', marginTop: '2px' }}>{opp.provider} • {opp.country || 'Global'}</div>
+                      </div>
+                      <span className="badge badge-indigo" style={{ fontSize: '11px' }}>{opp.fundingLevel || 'Full Funding'}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Modal Actions */}
+            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', paddingTop: '12px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+              <button
+                disabled={downloadingPDF}
+                onClick={async () => {
+                  try {
+                    setDownloadingPDF(true);
+                    toast('Generating Executive PDF report...');
+
+                    const { jsPDF } = await import('jspdf');
+                    const doc = new jsPDF({
+                      orientation: 'portrait',
+                      unit: 'pt',
+                      format: 'a4'
+                    });
+
+                    const pageWidth = doc.internal.pageSize.getWidth();
+                    const margin = 40;
+                    const contentWidth = pageWidth - (margin * 2);
+
+                    const primaryIndigo = [99, 102, 241];
+                    const textDark = [15, 23, 42];
+                    const textMuted = [100, 116, 139];
+                    const bgLight = [248, 250, 252];
+                    const borderLight = [226, 232, 240];
+                    const accentGreen = [16, 185, 129];
+                    const accentPurple = [139, 92, 246];
+
+                    let y = 45;
+
+                    // --- HEADER ---
+                    doc.setFont('helvetica', 'bold');
+                    doc.setFontSize(22);
+                    doc.setTextColor(textDark[0], textDark[1], textDark[2]);
+                    doc.text('Executive Strategy Report', margin, y);
+
+                    doc.setFont('helvetica', 'bold');
+                    doc.setFontSize(14);
+                    doc.setTextColor(primaryIndigo[0], primaryIndigo[1], primaryIndigo[2]);
+                    doc.text('OpportunityOS AI', pageWidth - margin, y, { align: 'right' });
+
+                    y += 18;
+                    doc.setFont('helvetica', 'bold');
+                    doc.setFontSize(9);
+                    doc.setTextColor(textMuted[0], textMuted[1], textMuted[2]);
+                    doc.text(`PREPARED FOR ${userName.toUpperCase()} • CONFIDENTIAL OPPORTUNITY DNA`, margin, y);
+
+                    y += 15;
+                    doc.setDrawColor(primaryIndigo[0], primaryIndigo[1], primaryIndigo[2]);
+                    doc.setLineWidth(2);
+                    doc.line(margin, y, pageWidth - margin, y);
+
+                    y += 25;
+
+                    // --- METRICS GRID (4 CARDS) ---
+                    const cardGap = 10;
+                    const cardWidth = (contentWidth - (cardGap * 3)) / 4;
+                    const cardHeight = 50;
+
+                    const metricsData = [
+                      { label: 'READINESS', val: `${metrics.readinessScore}%`, color: accentGreen },
+                      { label: 'MATCHED OPPS', val: `${metrics.opportunitiesFound}`, color: primaryIndigo },
+                      { label: 'PORTFOLIO VAL', val: `${metrics.potentialValue}`, color: [6, 182, 212] },
+                      { label: 'AVG WIN CHANCE', val: `${metrics.successProbabilityAvg}%`, color: accentPurple }
+                    ];
+
+                    metricsData.forEach((m, idx) => {
+                      const x = margin + idx * (cardWidth + cardGap);
+                      doc.setFillColor(bgLight[0], bgLight[1], bgLight[2]);
+                      doc.setDrawColor(borderLight[0], borderLight[1], borderLight[2]);
+                      doc.setLineWidth(1);
+                      doc.roundedRect(x, y, cardWidth, cardHeight, 6, 6, 'FD');
+
+                      doc.setFont('helvetica', 'bold');
+                      doc.setFontSize(8);
+                      doc.setTextColor(textMuted[0], textMuted[1], textMuted[2]);
+                      doc.text(m.label, x + cardWidth / 2, y + 16, { align: 'center' });
+
+                      doc.setFont('helvetica', 'bold');
+                      doc.setFontSize(15);
+                      doc.setTextColor(m.color[0], m.color[1], m.color[2]);
+                      doc.text(m.val, x + cardWidth / 2, y + 38, { align: 'center' });
+                    });
+
+                    y += cardHeight + 25;
+
+                    // --- EXECUTIVE ASSESSMENT SUMMARY BOX ---
+                    doc.setFillColor(238, 242, 255);
+                    doc.setDrawColor(199, 210, 254);
+                    doc.roundedRect(margin, y, contentWidth, 65, 8, 8, 'FD');
+
+                    doc.setFont('helvetica', 'bold');
+                    doc.setFontSize(10);
+                    doc.setTextColor(49, 46, 129);
+                    doc.text('EXECUTIVE ASSESSMENT SUMMARY', margin + 14, y + 18);
+
+                    doc.setFont('helvetica', 'normal');
+                    doc.setFontSize(9.5);
+                    doc.setTextColor(30, 41, 59);
+                    const summaryText = `${userName}'s Opportunity Profile in ${profile?.field || 'Electrical Engineering'} is operating at ${metrics.readinessScore}% evidence completeness with ${documents.length} verified evidence document(s) connected. Our AI Chief Officer has indexed ${metrics.opportunitiesFound} matching opportunities globally, representing an estimated funding portfolio of ${metrics.potentialValue} with an average success projection of ${metrics.successProbabilityAvg}%.`;
+                    
+                    const splitSummary = doc.splitTextToSize(summaryText, contentWidth - 28);
+                    doc.text(splitSummary, margin + 14, y + 34);
+
+                    y += 85;
+
+                    // --- CANDIDATE DNA PROFILE SUMMARY ---
+                    doc.setFillColor(primaryIndigo[0], primaryIndigo[1], primaryIndigo[2]);
+                    doc.rect(margin, y, 4, 14, 'F');
+
+                    doc.setFont('helvetica', 'bold');
+                    doc.setFontSize(11);
+                    doc.setTextColor(textDark[0], textDark[1], textDark[2]);
+                    doc.text('CANDIDATE PROFILE DNA SUMMARY', margin + 12, y + 11);
+
+                    y += 22;
+
+                    doc.setFillColor(bgLight[0], bgLight[1], bgLight[2]);
+                    doc.setDrawColor(borderLight[0], borderLight[1], borderLight[2]);
+                    doc.roundedRect(margin, y, contentWidth, 75, 8, 8, 'FD');
+
+                    doc.setFont('helvetica', 'normal');
+                    doc.setFontSize(9.5);
+                    doc.setTextColor(51, 65, 85);
+
+                    const col1X = margin + 16;
+                    const col2X = margin + contentWidth / 2 + 10;
+
+                    // Row 1
+                    doc.setFont('helvetica', 'bold'); doc.text('Candidate Name:', col1X, y + 20);
+                    doc.setFont('helvetica', 'normal'); doc.text(userName, col1X + 95, y + 20);
+
+                    doc.setFont('helvetica', 'bold'); doc.text('Field of Study:', col2X, y + 20);
+                    doc.setFont('helvetica', 'normal'); doc.text(profile?.field || 'Electrical Engineering', col2X + 85, y + 20);
+
+                    // Row 2
+                    doc.setFont('helvetica', 'bold'); doc.text('GPA Metric:', col1X, y + 40);
+                    doc.setFont('helvetica', 'normal'); doc.text(profile?.gpa || '3.0/4.0', col1X + 95, y + 40);
+
+                    doc.setFont('helvetica', 'bold'); doc.text('Target Region:', col2X, y + 40);
+                    doc.setFont('helvetica', 'normal'); doc.text(profile?.country || 'Global', col2X + 85, y + 40);
+
+                    // Row 3
+                    doc.setFont('helvetica', 'bold'); doc.text('Vault Files:', col1X, y + 60);
+                    doc.setFont('helvetica', 'normal'); doc.text(`${documents.length} File(s) Connected`, col1X + 95, y + 60);
+
+                    doc.setFont('helvetica', 'bold'); doc.text('Active Pipelines:', col2X, y + 60);
+                    doc.setFont('helvetica', 'normal'); doc.text(`${apps.length} Application(s) Active`, col2X + 85, y + 60);
+
+                    y += 95;
+
+                    // --- TOP RANKED TARGET OPPORTUNITIES ---
+                    doc.setFillColor(primaryIndigo[0], primaryIndigo[1], primaryIndigo[2]);
+                    doc.rect(margin, y, 4, 14, 'F');
+
+                    doc.setFont('helvetica', 'bold');
+                    doc.setFontSize(11);
+                    doc.setTextColor(textDark[0], textDark[1], textDark[2]);
+                    doc.text('TOP RANKED TARGET OPPORTUNITIES', margin + 12, y + 11);
+
+                    y += 22;
+
+                    const topOpps = opportunities.slice(0, 4);
+                    topOpps.forEach(opp => {
+                      doc.setFillColor(255, 255, 255);
+                      doc.setDrawColor(borderLight[0], borderLight[1], borderLight[2]);
+                      doc.roundedRect(margin, y, contentWidth, 38, 6, 6, 'FD');
+
+                      doc.setFont('helvetica', 'bold');
+                      doc.setFontSize(10);
+                      doc.setTextColor(15, 23, 42);
+                      doc.text(opp.title, margin + 14, y + 16);
+
+                      doc.setFont('helvetica', 'normal');
+                      doc.setFontSize(8.5);
+                      doc.setTextColor(100, 116, 139);
+                      doc.text(`${opp.provider} • ${opp.country || 'Global'}`, margin + 14, y + 28);
+
+                      // Funding Badge
+                      doc.setFont('helvetica', 'bold');
+                      doc.setFontSize(8);
+                      doc.setTextColor(55, 48, 163);
+                      doc.text(opp.fundingLevel || 'Full Funding', pageWidth - margin - 14, y + 22, { align: 'right' });
+
+                      y += 44;
+                    });
+
+                    // --- FOOTER ---
+                    const footerY = doc.internal.pageSize.getHeight() - 35;
+                    doc.setDrawColor(borderLight[0], borderLight[1], borderLight[2]);
+                    doc.setLineWidth(0.5);
+                    doc.line(margin, footerY, pageWidth - margin, footerY);
+
+                    doc.setFont('helvetica', 'normal');
+                    doc.setFontSize(8);
+                    doc.setTextColor(148, 163, 184);
+                    doc.text(`Generated by OpportunityOS AI Operating System • ${new Date().toLocaleDateString()} • Verified Strategic Intelligence Document`, pageWidth / 2, footerY + 15, { align: 'center' });
+
+                    // SAVE DIRECTLY TO LOCAL DISK!
+                    const fileName = `OpportunityOS_Executive_Report_${userName.replace(/\s+/g, '_')}.pdf`;
+                    doc.save(fileName);
+                    toast(`PDF downloaded directly: ${fileName}`);
+                  } catch (err: any) {
+                    console.error('jsPDF direct generation error:', err);
+                    toast(`Could not generate PDF: ${err?.message || 'Unknown error'}`);
+                  } finally {
+                    setDownloadingPDF(false);
+                  }
                 }}
-                className="btn btn-primary" 
-                style={{ flex: 1, justifyContent: 'center' }}
+                className="btn btn-primary"
+                style={{ flex: 1, justifyContent: 'center', padding: '10px 16px', fontSize: '13px' }}
               >
-                <Download size={14} className="inline mr-2" /> Export Briefing PDF
+                {downloadingPDF ? <Loader2 size={14} className="inline mr-1 animate-spin" /> : <Download size={14} className="inline mr-1" />}
+                {downloadingPDF ? 'Downloading PDF...' : 'Download PDF Report'}
               </button>
-              <button 
-                onClick={() => setShowInvestorModal(false)}
-                className="btn btn-ghost" 
-                style={{ border: '1px solid rgba(255,255,255,0.1)' }}
+
+              <button
+                onClick={() => {
+                  const reportText = `# EXECUTIVE OPPORTUNITY STRATEGY REPORT\nPrepared for: ${userName}\nField: ${profile?.field || 'Engineering & AI'}\nGPA: ${profile?.gpa || '3.5'}\nDate: ${new Date().toLocaleDateString()}\n\n## Key Metrics\n- Readiness Score: ${metrics.readinessScore}%\n- Matched Opportunities: ${metrics.opportunitiesFound}\n- Estimated Portfolio Value: ${metrics.potentialValue}\n- Success Probability Average: ${metrics.successProbabilityAvg}%\n- Vault Files Connected: ${documents.length}\n\n## Top Target Opportunities\n${opportunities.slice(0, 4).map(o => `- ${o.title} (${o.provider}, ${o.country || 'Global'})`).join('\n')}\n\nGenerated by OpportunityOS AI Operating System.`;
+                  if (typeof navigator !== 'undefined' && navigator.clipboard) {
+                    navigator.clipboard.writeText(reportText);
+                    setCopiedReport(true);
+                    toast('Strategy Report copied to clipboard!');
+                    setTimeout(() => setCopiedReport(false), 2500);
+                  }
+                }}
+                className="btn btn-secondary"
+                style={{ justifyContent: 'center', padding: '10px 16px', fontSize: '13px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}
+              >
+                {copiedReport ? <Check size={14} className="inline mr-1" /> : <Copy size={14} className="inline mr-1" />}
+                {copiedReport ? 'Copied!' : 'Copy Text'}
+              </button>
+
+              <button
+                onClick={() => setShowReportModal(false)}
+                className="btn btn-ghost"
+                style={{ border: '1px solid rgba(255,255,255,0.1)', padding: '10px 16px', fontSize: '13px' }}
               >
                 Close
               </button>
             </div>
+
           </div>
         </div>
       )}

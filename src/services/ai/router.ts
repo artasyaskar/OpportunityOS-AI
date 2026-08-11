@@ -263,17 +263,20 @@ class AIRouter {
         }
       }
 
-      if (options?.userId) {
+      try {
         adminDb.collection('agent_logs').add({
           agentName,
-          userId: options.userId,
-          provider: result.metadata.provider,
-          model: result.metadata.model,
-          latencyMs: result.metadata.latencyMs,
-          tokensUsed: result.metadata.totalTokens,
-          retryCount: result.metadata.retryCount,
+          userId: options?.userId || 'system',
+          provider: result.metadata.provider || 'gemini',
+          model: result.metadata.model || 'gemini-1.5-flash',
+          latencyMs: result.metadata.latencyMs || 0,
+          tokensUsed: result.metadata.totalTokens || 0,
+          retryCount: result.metadata.retryCount || 0,
+          action: `Executed ${agentName} (${options?.taskType || 'reasoning'})`,
           timestamp: new Date()
         }).catch(console.error);
+      } catch (err) {
+        console.error('Failed to log agent execution:', err);
       }
 
       return result;

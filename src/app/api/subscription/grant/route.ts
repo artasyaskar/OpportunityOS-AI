@@ -101,17 +101,6 @@ export async function POST(req: NextRequest) {
     const profileData = profileSnap.data() || {};
     const userName = profileData.name || profileData.email || uid;
 
-    // Notify admin naturally to simulate a payment receipt submission
-    await adminDb.collection('notifications').add({
-      userId: 'admin',
-      title: 'New Payment Receipt',
-      message: `${userName} submitted a payment receipt for ${planId}.`,
-      type: 'PAYMENT_SUBMITTED',
-      link: '/dashboard/admin',
-      createdAt: now,
-      read: false,
-    });
-
     // Notify the user that their account was upgraded
     await adminDb.collection('notifications').add({
       userId: uid,

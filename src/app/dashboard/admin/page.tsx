@@ -31,6 +31,7 @@ export default function AdminDashboardPage() {
   const [pendingQueue, setPendingQueue] = useState<PaymentRequest[]>([]);
   const [processingIds, setProcessingIds] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState('');
+  const [aiLogSearch, setAiLogSearch] = useState('');
   const [userFilter, setUserFilter] = useState<'all' | 'monthly' | 'lifetime' | 'free' | 'pro'>('all');
   
   // Opp Intel
@@ -93,11 +94,12 @@ export default function AdminDashboardPage() {
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    if (password === 'Naina2006') {
+    const normalized = password.trim().toLowerCase();
+    if (normalized === 'xprizegemini' || normalized === 'geminixprize' || normalized === 'buildwithgemini' || normalized === 'geminixprize2026') {
       setIsAuthenticated(true);
       fetchData();
     } else {
-      setError('Incorrect password');
+      setError('Incorrect admin key.');
     }
   };
 
@@ -184,33 +186,7 @@ export default function AdminDashboardPage() {
     );
   }
 
-  const handleGrantPro = async (userId: string, userEmail: string, userName: string, planId: string) => {
-    try {
-      const token = await getIdToken();
-      if (!token) return toast('Session expired.');
 
-      const res = await fetch('/api/admin/grant-plan', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          userId,
-          userEmail,
-          userName,
-          planId
-        })
-      });
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to grant plan');
-      
-      fetchData(); // Refresh metrics and directory
-    } catch (err: any) {
-      toast(err.message);
-    }
-  };
 
   const isMonthlyUser = (u: any) => {
     if (u.plan !== 'Paid') return false;
@@ -411,7 +387,7 @@ export default function AdminDashboardPage() {
                 }
               `}</style>
               <div style={{ display: 'inline-block', animation: 'marquee-scroll 15s linear infinite', fontSize: '13px', color: 'rgba(255,255,255,0.7)' }}>
-                A user from Pakistan just upgraded to Professional Monthly via Easypaisa • New user registered from Unknown • Founder Lifetime plan requested via Manual Bank Transfer...
+                A user from Pakistan just upgraded to Professional Monthly via Askari Bank • New user registered from Unknown • Founder Lifetime plan requested via Manual Bank Transfer...
               </div>
             </div>
           </div>
@@ -627,7 +603,6 @@ export default function AdminDashboardPage() {
                     <th style={{ padding: '12px 20px', fontSize: '12px', color: 'rgba(255,255,255,0.4)', fontWeight: 600 }}>EMAIL</th>
                     <th style={{ padding: '12px 20px', fontSize: '12px', color: 'rgba(255,255,255,0.4)', fontWeight: 600 }}>COUNTRY</th>
                     <th style={{ padding: '12px 20px', fontSize: '12px', color: 'rgba(255,255,255,0.4)', fontWeight: 600 }}>PLAN STATUS</th>
-                    <th style={{ padding: '12px 20px', fontSize: '12px', color: 'rgba(255,255,255,0.4)', fontWeight: 600, textAlign: 'right' }}>ACTIONS</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -675,30 +650,12 @@ export default function AdminDashboardPage() {
                             )}
                           </div>
                         </td>
-                        <td style={{ padding: '12px 20px', textAlign: 'right' }}>
-                          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', alignItems: 'center', minHeight: '24px' }}>
-                            {u.planId !== 'professional_monthly' && (
-                              <div 
-                                onClick={() => handleGrantPro(u.id, u.email, u.name, 'professional_monthly')}
-                                style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'rgba(255,255,255,0.01)', cursor: 'crosshair' }}
-                                title="Grant Pro Monthly (999)"
-                              />
-                            )}
-                            {u.planId !== 'founder_lifetime' && (
-                              <div 
-                                onClick={() => handleGrantPro(u.id, u.email, u.name, 'founder_lifetime')}
-                                style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'rgba(255,255,255,0.01)', cursor: 'crosshair' }}
-                                title="Grant Founder Lifetime (9999)"
-                              />
-                            )}
-                          </div>
-                        </td>
                       </tr>
                     );
                   })}
                   {filteredUsers.length === 0 && !loading && (
                     <tr>
-                      <td colSpan={5} style={{ padding: '40px', textAlign: 'center' }}>
+                      <td colSpan={4} style={{ padding: '40px', textAlign: 'center' }}>
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', color: 'rgba(255,255,255,0.4)' }}>
                           <Filter size={32} className="text-indigo-400" />
                           <div style={{ fontSize: '14px', fontWeight: 600, color: 'white' }}>No users match the active filter</div>
@@ -854,27 +811,86 @@ export default function AdminDashboardPage() {
 
       {activeTab === 'ai_logs' && (
         <div className="card" style={{ padding: '28px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-            <h3 style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '18px', fontWeight: 700, color: 'white', display: 'flex', alignItems: 'center' }}>
-              <FileText size={20} className="text-slate-300 mr-2" /> AI Executive Timeline (Live Trace)
-            </h3>
-            <span className="badge badge-indigo">Live Streaming</span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
+            <div>
+              <h3 style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '18px', fontWeight: 700, color: 'white', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <FileText size={20} className="text-indigo-400" /> AI Executive Timeline (Live Trace)
+              </h3>
+              <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.4)', marginTop: '2px' }}>
+                Real-time audit log of all AI Agent inferences, models, latency & token usage
+              </p>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <input
+                type="text"
+                placeholder="Search Agent, Model, or Action..."
+                value={aiLogSearch}
+                onChange={(e) => setAiLogSearch(e.target.value)}
+                style={{
+                  padding: '8px 12px',
+                  borderRadius: '8px',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  background: 'rgba(0,0,0,0.2)',
+                  color: 'white',
+                  fontSize: '13px',
+                  width: '240px'
+                }}
+              />
+              <span className="badge badge-indigo" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span className="pulse-dot" style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#818cf8' }} /> LIVE TRACE
+              </span>
+            </div>
           </div>
           
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
-            {(aiMetrics?.logs || []).map((log: any, i: number) => (
-              <div key={i} style={{ display: 'flex', gap: '16px', padding: '16px', borderBottom: '1px solid rgba(255,255,255,0.06)', alignItems: 'center' }}>
-                <div style={{ fontSize: '12px', fontFamily: 'monospace', color: '#10b981', flexShrink: 0 }}>[{log.time}]</div>
-                <div style={{ width: '140px', fontSize: '13px', fontWeight: 600, color: '#818cf8', flexShrink: 0 }}>{log.agent}</div>
-                <div style={{ flex: 1, fontSize: '13px', color: 'rgba(255,255,255,0.7)' }}>{log.action}</div>
-                <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)', fontFamily: 'monospace' }}>{log.ms}</div>
-              </div>
-            ))}
-            {(!aiMetrics?.logs || aiMetrics.logs.length === 0) && (
-              <div style={{ padding: '24px', textAlign: 'center', color: 'rgba(255,255,255,0.4)' }}>
-                No active AI traces found yet.
-              </div>
-            )}
+            {(() => {
+              const allLogs = aiMetrics?.logs || [];
+              const filteredLogs = allLogs.filter((log: any) =>
+                (log.agent || '').toLowerCase().includes(aiLogSearch.toLowerCase()) ||
+                (log.action || '').toLowerCase().includes(aiLogSearch.toLowerCase()) ||
+                (log.model || '').toLowerCase().includes(aiLogSearch.toLowerCase()) ||
+                (log.provider || '').toLowerCase().includes(aiLogSearch.toLowerCase())
+              );
+
+              if (filteredLogs.length === 0) {
+                return (
+                  <div style={{ padding: '36px', textAlign: 'center', color: 'rgba(255,255,255,0.4)' }}>
+                    No AI execution traces matching your search criteria.
+                  </div>
+                );
+              }
+
+              return filteredLogs.map((log: any, i: number) => {
+                const isGroq = (log.provider || '').toLowerCase().includes('groq');
+                const isGemini = (log.provider || '').toLowerCase().includes('gemini');
+                const providerColor = isGroq ? '#f43f5e' : isGemini ? '#6366f1' : '#10b981';
+
+                return (
+                  <div key={log.id || i} style={{ display: 'flex', gap: '16px', padding: '14px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)', alignItems: 'center', flexWrap: 'wrap' }}>
+                    <div style={{ fontSize: '12px', fontFamily: 'monospace', color: '#10b981', flexShrink: 0, minWidth: '70px' }}>[{log.time}]</div>
+                    <div style={{ width: '160px', fontSize: '13px', fontWeight: 700, color: 'white', flexShrink: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <Brain size={14} className="text-indigo-400" />
+                      <span>{log.agent}</span>
+                    </div>
+                    <div style={{ flex: 1, minWidth: '200px', fontSize: '13px', color: 'rgba(255,255,255,0.8)' }}>
+                      {log.action}
+                      {log.model && <span style={{ marginLeft: '8px', fontSize: '11px', color: 'rgba(255,255,255,0.4)', fontFamily: 'monospace' }}>({log.model})</span>}
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
+                      <span className="badge" style={{ background: `${providerColor}15`, border: `1px solid ${providerColor}30`, color: providerColor, fontSize: '10px', fontWeight: 700, textTransform: 'uppercase' }}>
+                        {log.provider || 'gemini'}
+                      </span>
+                      {log.tokens > 0 && (
+                        <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', fontFamily: 'monospace' }}>
+                          {log.tokens.toLocaleString()} tokens
+                        </span>
+                      )}
+                      <div style={{ fontSize: '11px', color: '#818cf8', fontFamily: 'monospace', fontWeight: 600 }}>{log.ms}</div>
+                    </div>
+                  </div>
+                );
+              });
+            })()}
           </div>
         </div>
       )}

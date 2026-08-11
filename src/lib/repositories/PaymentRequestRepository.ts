@@ -10,11 +10,7 @@ export enum PaymentStatus {
 
 export enum PaymentProvider {
   MANUAL = 'manual',
-  STRIPE = 'stripe',
-  LEMONSQUEEZY = 'lemonsqueezy',
-  PADDLE = 'paddle',
-  EASYPAISA = 'easypaisa',
-  JAZZCASH = 'jazzcash'
+  ASKARI = 'askari'
 }
 
 export interface PaymentRequest {
@@ -45,19 +41,35 @@ export class PaymentRequestRepository {
       status: PaymentStatus.PENDING,
       submittedAt: new Date().toISOString()
     };
-    
+
     // Firestore does not allow undefined values. Remove them.
     const sanitizedData = Object.fromEntries(
       Object.entries(newRequest).filter(([_, v]) => v !== undefined)
     );
-    
+
     await setDoc(reqRef, sanitizedData);
+
+    try {
+      const notifRef = doc(collection(db, 'notifications'));
+      await setDoc(notifRef, {
+        userId: 'admin',
+        title: 'New Payment Receipt Submitted',
+        message: `${requestData.userName || requestData.userEmail} submitted a payment receipt for ${requestData.planId}.`,
+        type: 'PAYMENT_SUBMITTED',
+        link: '/dashboard/admin',
+        read: false,
+        createdAt: new Date().toISOString()
+      });
+    } catch (err) {
+      console.error('Failed to notify admin on payment request:', err);
+    }
+
     return reqRef.id;
   }
 
   static async getUserRequests(uid: string): Promise<PaymentRequest[]> {
     const q = query(
-      collection(db, 'payment_requests'), 
+      collection(db, 'payment_requests'),
       where('uid', '==', uid)
     );
     const snap = await getDocs(q);
@@ -87,7 +99,7 @@ export class PaymentRequestRepository {
 
   static async hasPendingRequest(uid: string): Promise<boolean> {
     const q = query(
-      collection(db, 'payment_requests'), 
+      collection(db, 'payment_requests'),
       where('uid', '==', uid),
       where('status', '==', PaymentStatus.PENDING)
     );
@@ -97,18 +109,18 @@ export class PaymentRequestRepository {
 
   static async approvePaymentRequest(reqId: string, adminNotes?: string): Promise<void> {
     const reqRef = doc(db, 'payment_requests', reqId);
-    
+
     await runTransaction(db, async (transaction) => {
       const reqDoc = await transaction.get(reqRef);
       if (!reqDoc.exists()) throw new Error('Payment Request not found');
-      
+
       const data = reqDoc.data() as PaymentRequest;
       if (data.status !== PaymentStatus.PENDING) throw new Error('Payment Request is not pending');
 
       const uid = data.uid;
       const subRef = doc(db, 'subscriptions', uid);
       const subDoc = await transaction.get(subRef);
-      
+
       const isLifetime = data.planId === 'founder_lifetime';
       let endDate: string | null = null;
       if (!isLifetime) {
@@ -166,18 +178,18 @@ export class PaymentRequestRepository {
 
   static async rejectPaymentRequest(reqId: string, reason: string): Promise<void> {
     const reqRef = doc(db, 'payment_requests', reqId);
-    
+
     await runTransaction(db, async (transaction) => {
       const reqDoc = await transaction.get(reqRef);
       if (!reqDoc.exists()) throw new Error('Payment Request not found');
-      
+
       const data = reqDoc.data() as PaymentRequest;
       if (data.status !== PaymentStatus.PENDING) throw new Error('Payment Request is not pending');
 
       const uid = data.uid;
       const subRef = doc(db, 'subscriptions', uid);
       const subDoc = await transaction.get(subRef);
-      
+
       // Update Subscription (revert to FREE if it was UNDER_REVIEW, else leave alone)
       if (subDoc.exists() && subDoc.data().status === 'UNDER_REVIEW') {
         transaction.update(subRef, {

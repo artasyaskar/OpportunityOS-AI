@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useDialog } from '@/components/ui/DialogProvider';
 import Link from 'next/link';
 import { useAuth } from '@/components/auth/AuthProvider';
@@ -103,7 +103,7 @@ export default function SettingsPage() {
   // Guided checkout wizard state
   const [checkoutStep, setCheckoutStep] = useState<number>(1);
   const [selectedPlan, setSelectedPlan] = useState<string>('professional_monthly');
-  const [selectedProvider, setSelectedProvider] = useState<string>('easypaisa');
+  const [selectedProvider, setSelectedProvider] = useState<string>('askari');
   const [orderId, setOrderId] = useState<string>('');
   const [paymentRef, setPaymentRef] = useState<string>('');
   const [promoOpen, setPromoOpen] = useState(false);
@@ -113,8 +113,7 @@ export default function SettingsPage() {
   
   // Clipboards feedback alert
   const [copyAlert, setCopyAlert] = useState<string>('');
-
-  // Auto-verification timeline state
+  const verificationRef = useRef<HTMLDivElement>(null);
   const [verificationStatus, setVerificationStatus] = useState<'idle' | 'running' | 'auto_success' | 'fallback_proof' | 'uploading'>('idle');
   const [autoVerifyStep, setAutoVerifyStep] = useState(0);
   const [trxIdInput, setTrxIdInput] = useState('');
@@ -122,6 +121,14 @@ export default function SettingsPage() {
   
   const [merchants, setMerchants] = useState<PaymentMerchantConfig[]>([]);
   const [paymentRequests, setPaymentRequests] = useState<PaymentRequest[]>([]);
+
+  useEffect(() => {
+    if (verificationStatus !== 'idle') {
+      setTimeout(() => {
+        verificationRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 50);
+    }
+  }, [verificationStatus]);
 
   useEffect(() => {
     // Populate from remote/local profile when loaded
@@ -972,16 +979,25 @@ export default function SettingsPage() {
                 <button onClick={() => setCheckoutStep(1)} className="btn btn-ghost">← Back to Plans</button>
               </div>
 
-              {/* The Stripe Limitation Notice */}
-              <div style={{ padding: '24px', background: 'rgba(99,102,241,0.05)', border: '1px solid rgba(99,102,241,0.2)', borderRadius: '16px', marginBottom: '32px', display: 'flex', gap: '20px', alignItems: 'flex-start' }}>
-                <div style={{ marginBottom: '16px', display: 'flex' }}><CreditCard size={32} className="text-indigo-400 drop-shadow-md" /></div>
-                <div>
-                  <h4 style={{ fontSize: '16px', fontWeight: 700, color: 'white', marginBottom: '8px' }}>Important Payment Notice</h4>
-                  <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.7)', lineHeight: 1.6, marginBottom: '16px' }}>
-                    Stripe and automated international USD payments are currently not personally available in Pakistan. While we work on fully integrating them in the future, we have set up a seamless manual approval process for our Pakistani users.
+              {/* Regional Payment Corridor Notice for Hackathon Judges */}
+              <div style={{ padding: '24px', background: 'linear-gradient(135deg, rgba(99,102,241,0.08), rgba(168,85,247,0.05))', border: '1px solid rgba(99,102,241,0.25)', borderRadius: '16px', marginBottom: '32px', display: 'flex', gap: '20px', alignItems: 'flex-start' }}>
+                <div style={{ padding: '12px', background: 'rgba(99,102,241,0.15)', borderRadius: '12px', flexShrink: 0 }}>
+                  <CreditCard size={28} className="text-indigo-400 drop-shadow-md" />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px', flexWrap: 'wrap' }}>
+                    <h4 style={{ fontSize: '16px', fontWeight: 800, color: 'white' }}>Important Regional Payment Notice</h4>
+                    <span className="badge badge-indigo" style={{ fontSize: '10px', padding: '3px 8px', fontWeight: 700 }}>
+                      Region Corridor Note
+                    </span>
+                  </div>
+                  
+                  <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.75)', lineHeight: 1.6, marginBottom: '12px' }}>
+                    Automated international USD payment processing (via Stripe / PayPal) is currently not personally available in Pakistan. To ensure seamless access for users, OpportunityOS-AI provides a secure local banking corridor via <strong>Askari Bank of Pakistan (IBAN Direct Transfer)</strong>.
                   </p>
-                  <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.7)', lineHeight: 1.6 }}>
-                    Please select a local payment corridor below. You will be provided with the exact <strong>PKR equivalent</strong> amount to transfer. Alternatively, you can always manually email your payment receipt to <a href="mailto:artasyaskar@gmail.com" style={{ color: '#818cf8', textDecoration: 'none', fontWeight: 600 }}>artasyaskar@gmail.com</a> for instant manual approval.
+                  
+                  <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.75)', lineHeight: 1.6 }}>
+                    Please transfer the exact <strong>PKR equivalent</strong> to our official Askari Bank account below. After completing the transfer, enter your transaction reference ID or upload your receipt for verification. Alternatively, you can email your receipt to <a href="mailto:artasyaskar@gmail.com" style={{ color: '#818cf8', textDecoration: 'none', fontWeight: 600 }}>artasyaskar@gmail.com</a> for fast-track approval.
                   </p>
                 </div>
               </div>
@@ -1039,7 +1055,7 @@ export default function SettingsPage() {
                 <button onClick={() => setCheckoutStep(2)} className="btn btn-ghost">← Payment Corridors</button>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '32px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '24px' }}>
                 {/* Account card details */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                   
@@ -1098,15 +1114,7 @@ export default function SettingsPage() {
                     </div>
                   </div>
 
-                  {/* Deep link prefill apps */}
-                  <a
-                    href="https://easypaisa.com.pk"
-                    target="_blank"
-                    className="btn btn-secondary"
-                    style={{ width: '100%', justifyContent: 'center', padding: '16px', fontSize: '14px' }}
-                  >
-                    <Smartphone size={14} className="inline mr-2" /> Open Wallet App
-                  </a>
+
                 </div>
 
                 {/* Promo Code & Verification */}
@@ -1156,7 +1164,7 @@ export default function SettingsPage() {
 
           {/* Verification Timeline status checks */}
           {verificationStatus !== 'idle' && (
-            <div className="card" style={{ padding: '28px' }}>
+            <div ref={verificationRef} className="card" style={{ padding: '28px', scrollMarginTop: '24px' }}>
               <h3 style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '18px', fontWeight: 700, color: 'white', marginBottom: '16px' }}>
                 <ShieldCheck size={18} className="inline mr-2 text-indigo-400" /> AI Transaction Verification Corridor
               </h3>
@@ -1199,7 +1207,7 @@ export default function SettingsPage() {
 
               {/* Fallback Form requested only if auto-verify fails */}
               {verificationStatus === 'fallback_proof' && (
-                <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '32px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '24px' }}>
                   <div>
                     <h4 style={{ fontSize: '18px', fontWeight: 800, color: 'white', marginBottom: '12px' }}>Manual Receipt Verification</h4>
                     <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.6)', lineHeight: 1.5, marginBottom: '24px' }}>
