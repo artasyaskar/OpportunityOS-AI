@@ -20,6 +20,14 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
+  async rewrites() {
+    return [
+      {
+        source: '/__/auth/:path*',
+        destination: 'https://opportunityos-ai.firebaseapp.com/__/auth/:path*',
+      },
+    ];
+  },
   async headers() {
     return [
       {
