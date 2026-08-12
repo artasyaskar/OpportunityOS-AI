@@ -72,7 +72,11 @@ export default function UpgradeModal({ isOpen, onClose }: UpgradeModalProps) {
                   <li className="flex items-start">
                     <svg className={`w-6 h-6 mr-3 shrink-0 ${isPro ? 'text-indigo-400' : 'text-gray-600'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
                     <span className={`text-base font-medium ${isPro ? 'text-gray-200' : 'text-gray-400'}`}>
-                      {plan.aiLimitDaily === 999 ? 'Unlimited AI Generations' : '100 Free AI Credits'}
+                      {plan.id === 'founder_lifetime' 
+                        ? 'Permanent Unlimited AI Access (Never Expires)' 
+                        : isPro 
+                          ? '30 Days Unlimited AI Access' 
+                          : '1,000 Free Credits / 24h (250 per AI run)'}
                     </span>
                   </li>
                   <li className="flex items-start">
