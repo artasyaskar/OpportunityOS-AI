@@ -1,6 +1,8 @@
 import { AIProvider, AIResponse, AIRequestOptions, AIResponseMetadata } from './provider';
 
-function cleanAndParseJSON(text: string): any {
+function cleanAndParseJSON(input: any): any {
+  if (typeof input === 'object' && input !== null) return input;
+  const text = typeof input === 'string' ? input : String(input || '');
   const trimmed = text.trim();
   try { return JSON.parse(trimmed); } catch (e) {}
   const jsonBlockRegex = /```json\s*([\s\S]*?)\s*```/;
@@ -113,15 +115,102 @@ export class GeminiProvider extends AIProvider {
     options?: AIRequestOptions
   ): Promise<AIResponse<string>> {
     const apiKey = this.getApiKey();
-    if (!apiKey) {
-      throw new Error('Gemini API Key is missing. Configure GEMINI_API_KEY in .env.local.');
+    const useVertex = process.env.GOOGLE_GENAI_USE_VERTEXAI === 'true' || Boolean(process.env.GOOGLE_CLOUD_PROJECT || process.env.GOOGLE_APPLICATION_CREDENTIALS);
+    const projectId = process.env.GOOGLE_CLOUD_PROJECT || process.env.GCP_PROJECT_ID || 'gen-lang-client-0120944305';
+    const location = process.env.GOOGLE_CLOUD_LOCATION || process.env.GCP_LOCATION || 'us-central1';
+
+    if (!apiKey && !useVertex) {
+      throw new Error('Gemini Credentials missing. Configure GEMINI_API_KEY or GOOGLE_APPLICATION_CREDENTIALS in .env.local.');
     }
 
-    // Dynamic Discovery: Only attempt models confirmed to exist on this account
+    const startTime = Date.now();
+
+    // 1. TRY OFFICIAL @google/genai SDK IN VERTEX AI MODE (GCP $300 CREDITS)
+    if (useVertex) {
+      try {
+        const path = await import('path');
+        let googleAuthOptions: any = undefined;
+
+        // Support inline JSON string (Vercel env var) or local file path
+        const jsonEnv = process.env.GOOGLE_SERVICE_ACCOUNT_JSON || 
+          (process.env.GOOGLE_APPLICATION_CREDENTIALS && process.env.GOOGLE_APPLICATION_CREDENTIALS.trim().startsWith('{') ? process.env.GOOGLE_APPLICATION_CREDENTIALS : null);
+
+        if (jsonEnv) {
+          try {
+            const parsedCreds = typeof jsonEnv === 'string' ? JSON.parse(jsonEnv) : jsonEnv;
+            googleAuthOptions = { credentials: parsedCreds };
+          } catch (jsonErr) {
+            console.warn('[GeminiProvider] Failed to parse GOOGLE_SERVICE_ACCOUNT_JSON:', jsonErr);
+          }
+        } else if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+          if (!path.isAbsolute(process.env.GOOGLE_APPLICATION_CREDENTIALS)) {
+            process.env.GOOGLE_APPLICATION_CREDENTIALS = path.resolve(process.cwd(), process.env.GOOGLE_APPLICATION_CREDENTIALS);
+          }
+        }
+
+        const { GoogleGenAI } = await import('@google/genai');
+        const ai = new GoogleGenAI({
+          vertexai: true,
+          project: projectId,
+          location: location,
+          ...(googleAuthOptions ? { googleAuthOptions } : {})
+        });
+
+        const modelName = options?.model || 'gemini-2.5-flash';
+        
+        const contents: any[] = [];
+        if (options?.image) {
+          contents.push({
+            role: 'user',
+            parts: [
+              { text: prompt },
+              { inlineData: { data: options.image.data, mimeType: options.image.mimeType } }
+            ]
+          });
+        } else {
+          contents.push(prompt);
+        }
+
+        const resp = await ai.models.generateContent({
+          model: modelName,
+          contents: contents.length === 1 && typeof contents[0] === 'string' ? contents[0] : contents,
+          config: {
+            temperature: options?.temperature ?? 0.1,
+            maxOutputTokens: options?.maxTokens,
+            ...(options?.topP !== undefined ? { topP: options.topP } : {}),
+            ...(systemPrompt ? { systemInstruction: systemPrompt } : {}),
+            ...(options?.responseFormat === 'json' ? { responseMimeType: 'application/json' } : {})
+          }
+        });
+
+        const content = resp.text || '';
+        const usageMetadata = resp.usageMetadata || { promptTokenCount: 0, candidatesTokenCount: 0, totalTokenCount: 0 };
+        const latencyMs = Date.now() - startTime;
+
+        return {
+          content,
+          metadata: {
+            provider: 'gemini-vertex',
+            model: modelName,
+            promptTokens: usageMetadata.promptTokenCount || 0,
+            completionTokens: usageMetadata.candidatesTokenCount || 0,
+            totalTokens: usageMetadata.totalTokenCount || 0,
+            latencyMs,
+            costUSD: this.calculateCost(modelName, usageMetadata.promptTokenCount || 0, usageMetadata.candidatesTokenCount || 0)
+          }
+        };
+      } catch (vertexErr: any) {
+        console.warn(`[GeminiProvider] Vertex AI attempt failed: ${vertexErr?.message || vertexErr}. Falling back to AI Studio API Key.`);
+      }
+    }
+
+    // 2. FALLBACK TO GOOGLE AI STUDIO API KEY REST API
+    if (!apiKey) {
+      throw new Error('Gemini API Key missing and Vertex AI unavailable.');
+    }
+
     const discovered = await discoverAvailableModels(apiKey);
     const primaryModel = options?.model || discovered[0] || 'gemini-2.0-flash';
-
-    const startTime = Date.now();
 
     const requestBody: any = {
       contents: [
