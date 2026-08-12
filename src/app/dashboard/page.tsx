@@ -390,64 +390,71 @@ export default function DashboardPage() {
       </div>
 
       {(() => {
-        const hasProfile = !!(profile && (profile.name || profile.field));
-        const hasCvUploaded = !!(profile?.resumeFile || documents.some((d: any) => d.source?.toLowerCase?.()?.includes('resume') || d.type?.toLowerCase?.()?.includes('resume')));
-        const hasMatchedOpps = opportunities.length > 0 && metrics.opportunitiesFound > 0;
-        const hasReviewedGap = apps && apps.length > 0;
-        const hasStartedApp = apps && apps.length > 0 && apps.some((a: any) => a.stage && a.stage !== 'discovered');
+        const step1 = !!(profile && (profile.name || profile.field || profile.education || profile.country));
+        const rawCvUploaded = !!(profile?.resumeFile || documents.some((d: any) => d.source?.toLowerCase?.()?.includes('resume') || d.type?.toLowerCase?.()?.includes('resume')));
+        const rawMatchedOpps = opportunities.length > 0 && metrics.opportunitiesFound > 0;
+        const rawReviewedGap = apps && apps.length > 0;
+        const rawStartedApp = apps && apps.length > 0 && apps.some((a: any) => a.stage && a.stage !== 'discovered');
+
+        // Sequential Progression Logic: Steps must complete sequentially (1 -> 2 -> 3 -> 4 -> 5).
+        // Reaching an advanced stage (e.g. initiating an application) naturally implies preceding steps are fulfilled.
+        const step2 = step1 && (rawCvUploaded || rawReviewedGap || rawStartedApp || documents.length > 0);
+        const step3 = step2 && (rawMatchedOpps || rawReviewedGap || rawStartedApp || opportunities.length > 0);
+        const step4 = step3 && (rawReviewedGap || rawStartedApp);
+        const step5 = step4 && rawStartedApp;
 
         const journeySteps = [
-          { label: 'Profile Created', done: hasProfile, href: '/onboarding', icon: <Shield size={14} /> },
-          { label: 'CV Uploaded', done: hasCvUploaded, href: '/dashboard/vault', icon: <FileText size={14} /> },
-          { label: 'AI Matched Opportunities', done: hasMatchedOpps, href: '/dashboard/opportunities', icon: <Telescope size={14} /> },
-          { label: 'Gap Analysis Reviewed', done: hasReviewedGap, href: '/dashboard/roadmap', icon: <Target size={14} /> },
-          { label: 'Application Started', done: hasStartedApp, href: '/dashboard/builder', icon: <Rocket size={14} /> },
+          { label: 'Profile Created', done: step1, href: '/onboarding', icon: <Shield size={14} /> },
+          { label: 'CV Uploaded', done: step2, href: '/dashboard/vault', icon: <FileText size={14} /> },
+          { label: 'AI Matched Opportunities', done: step3, href: '/dashboard/opportunities', icon: <Telescope size={14} /> },
+          { label: 'Gap Analysis Reviewed', done: step4, href: '/dashboard/roadmap', icon: <Target size={14} /> },
+          { label: 'Application Started', done: step5, href: '/dashboard/builder', icon: <Rocket size={14} /> },
         ];
         const completedCount = journeySteps.filter(s => s.done).length;
         const progressPct = Math.round((completedCount / journeySteps.length) * 100);
 
         return (
-          <div className="card-magnetic glow-border page-transition" style={{ padding: '16px 20px', marginBottom: '24px', border: '1px solid rgba(99,102,241,0.2)', background: 'linear-gradient(135deg, rgba(99,102,241,0.04) 0%, rgba(139,92,246,0.03) 100%)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-              <h3 style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '12px', fontWeight: 700, color: 'white', letterSpacing: '1px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div className="card-magnetic glow-border page-transition" style={{ padding: '18px 20px', marginBottom: '24px', border: '1px solid rgba(99,102,241,0.2)', background: 'linear-gradient(135deg, rgba(99,102,241,0.06) 0%, rgba(139,92,246,0.04) 100%)', borderRadius: '16px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
+              <h3 style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '12px', fontWeight: 700, color: 'white', letterSpacing: '1px', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
                 <Sparkles size={14} className="text-indigo-400" /> YOUR OPPORTUNITYOS JOURNEY
               </h3>
-              <span className="badge badge-indigo" style={{ fontSize: '9px' }}>{completedCount}/{journeySteps.length} COMPLETE</span>
+              <span className="badge badge-indigo" style={{ fontSize: '9px', fontWeight: 700 }}>{completedCount}/{journeySteps.length} COMPLETE</span>
             </div>
             {/* Progress bar */}
-            <div style={{ width: '100%', height: '4px', borderRadius: '4px', background: 'rgba(255,255,255,0.06)', marginBottom: '14px', overflow: 'hidden' }}>
-              <div style={{ width: `${progressPct}%`, height: '100%', borderRadius: '4px', background: 'linear-gradient(90deg, #6366f1, #8b5cf6)', transition: 'width 1s ease' }} />
+            <div style={{ width: '100%', height: '5px', borderRadius: '4px', background: 'rgba(255,255,255,0.06)', marginBottom: '16px', overflow: 'hidden' }}>
+              <div style={{ width: `${progressPct}%`, height: '100%', borderRadius: '4px', background: 'linear-gradient(90deg, #10b981, #6366f1, #8b5cf6)', transition: 'width 0.8s ease' }} />
             </div>
-            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '10px' }}>
               {journeySteps.map((step, idx) => (
                 <Link
                   key={step.label}
                   href={step.href}
                   style={{
-                    flex: 1,
-                    minWidth: '140px',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '8px',
-                    padding: '8px 12px',
-                    borderRadius: '10px',
-                    background: step.done ? 'rgba(16,185,129,0.08)' : 'rgba(255,255,255,0.03)',
-                    border: `1px solid ${step.done ? 'rgba(16,185,129,0.2)' : 'rgba(255,255,255,0.06)'}`,
+                    gap: '10px',
+                    padding: '10px 12px',
+                    borderRadius: '12px',
+                    background: step.done ? 'rgba(16,185,129,0.09)' : 'rgba(255,255,255,0.03)',
+                    border: `1px solid ${step.done ? 'rgba(16,185,129,0.3)' : 'rgba(255,255,255,0.07)'}`,
                     textDecoration: 'none',
                     transition: 'all 0.2s ease',
                   }}
+                  className="hover:scale-[1.02] hover:border-indigo-400/50"
                 >
                   <div style={{
-                    width: '24px', height: '24px', borderRadius: '50%', flexShrink: 0,
+                    width: '26px', height: '26px', borderRadius: '50%', flexShrink: 0,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    background: step.done ? '#10b981' : 'rgba(255,255,255,0.06)',
-                    color: step.done ? 'white' : 'rgba(255,255,255,0.3)',
-                    fontSize: '10px', fontWeight: 800,
+                    background: step.done ? '#10b981' : 'rgba(255,255,255,0.08)',
+                    color: step.done ? 'white' : 'rgba(255,255,255,0.4)',
+                    fontSize: '11px', fontWeight: 800,
+                    boxShadow: step.done ? '0 0 10px rgba(16,185,129,0.4)' : 'none'
                   }}>
-                    {step.done ? <Check size={12} /> : (idx + 1)}
+                    {step.done ? <Check size={13} /> : (idx + 1)}
                   </div>
-                  <div>
-                    <div style={{ fontSize: '11px', fontWeight: 600, color: step.done ? '#10b981' : 'rgba(255,255,255,0.5)' }}>{step.label}</div>
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div style={{ fontSize: '11px', fontWeight: 700, color: step.done ? '#10b981' : 'rgba(255,255,255,0.7)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{step.label}</div>
                   </div>
                 </Link>
               ))}
