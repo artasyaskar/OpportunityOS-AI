@@ -49,6 +49,23 @@ export default function DashboardHeader() {
   const [documents, setDocuments] = useState<any[]>([]);
   const [draggedNotifId, setDraggedNotifId] = useState<string | null>(null);
   const [dragOverNotifId, setDragOverNotifId] = useState<string | null>(null);
+  const [creditData, setCreditData] = useState<{ credits: number; isUnlimited: boolean; hoursUntilReset: number } | null>(null);
+
+  useEffect(() => {
+    if (!user?.uid) return;
+    fetch(`/api/user/credits?uid=${user.uid}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data?.credits !== undefined) {
+          setCreditData({
+            credits: data.credits,
+            isUnlimited: data.isUnlimited,
+            hoursUntilReset: data.hoursUntilReset || 24
+          });
+        }
+      })
+      .catch(console.error);
+  }, [user?.uid]);
 
   const handleDragEnd = () => {
     if (draggedNotifId && dragOverNotifId && draggedNotifId !== dragOverNotifId) {
@@ -353,27 +370,34 @@ export default function DashboardHeader() {
           )}
 
           {/* AI Credits Pill */}
-          {profile?.aiCredits !== undefined && (
-            <button
-              onClick={openUpgradeModal}
-              style={{
-                background: 'linear-gradient(135deg, rgba(99,102,241,0.1), rgba(168,85,247,0.1))',
-                border: '1px solid rgba(99,102,241,0.3)',
-                borderRadius: '20px',
-                padding: '4px 12px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease',
-              }}
-              className="hover:border-indigo-400 hover:shadow-[0_0_10px_rgba(99,102,241,0.3)]"
-            >
-              <Zap size={13} color="#a5b4fc" aria-hidden="true" />
-              <span style={{ fontSize: '13px', fontWeight: 600, color: '#e2e8f0' }}>{profile.aiCredits}</span>
-              <span style={{ fontSize: '11px', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Credits</span>
-            </button>
-          )}
+          <button
+            onClick={openUpgradeModal}
+            title={creditData?.isUnlimited ? "Pro Plan: Unlimited AI Generations" : `${creditData?.credits ?? 1000} credits available. 1,000 credits renew every 24 hours (250 credits / AI generation).`}
+            style={{
+              background: creditData?.isUnlimited
+                ? 'linear-gradient(135deg, rgba(168,85,247,0.2), rgba(236,72,153,0.2))'
+                : 'linear-gradient(135deg, rgba(99,102,241,0.15), rgba(168,85,247,0.15))',
+              border: creditData?.isUnlimited
+                ? '1px solid rgba(168,85,247,0.5)'
+                : '1px solid rgba(99,102,241,0.3)',
+              borderRadius: '20px',
+              padding: '4px 12px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+            }}
+            className="hover:border-indigo-400 hover:shadow-[0_0_10px_rgba(99,102,241,0.3)]"
+          >
+            <Zap size={13} color={creditData?.isUnlimited ? '#c084fc' : '#a5b4fc'} aria-hidden="true" />
+            <span style={{ fontSize: '13px', fontWeight: 700, color: '#e2e8f0' }}>
+              {creditData?.isUnlimited ? '∞ UNLIMITED' : (creditData?.credits ?? profile?.aiCredits ?? 1000)}
+            </span>
+            <span style={{ fontSize: '11px', color: creditData?.isUnlimited ? '#c084fc' : '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 600 }}>
+              {creditData?.isUnlimited ? 'PRO' : 'Credits / 24h'}
+            </span>
+          </button>
 
           <div style={{ position: 'relative' }} ref={notificationRef}>
             <button
