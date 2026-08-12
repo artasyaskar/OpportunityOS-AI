@@ -9,12 +9,11 @@ type TaskType = 'complex_reasoning' | 'fast_chat' | 'document_generation' | 'gen
 
 const ROUTES: Record<string, string[]> = {
   VISION: ['gemini', 'openrouter'],
-  RESUME_PARSING: ['groq', 'gemini', 'openrouter'],
-  // Document generation prefers Gemini first (most human, authentic student voice) -> Groq -> OpenRouter
+  RESUME_PARSING: ['gemini', 'groq', 'openrouter'],
   DOCUMENT_GENERATION: ['gemini', 'groq', 'openrouter'],
-  GENERAL_CHAT: ['groq', 'gemini', 'openrouter'],
+  GENERAL_CHAT: ['gemini', 'groq', 'openrouter'],
   COMPLEX_REASONING: ['gemini', 'groq', 'openrouter'],
-  DEFAULT: ['groq', 'gemini', 'openrouter']
+  DEFAULT: ['gemini', 'groq', 'openrouter']
 };
 
 interface ProviderHealth {
@@ -101,7 +100,7 @@ class AIRouter {
 
     for (const name of sequence) {
       if (name === 'groq' && !process.env.GROQ_API_KEY) continue;
-      if (name === 'gemini' && !process.env.GEMINI_API_KEY) continue;
+      if (name === 'gemini' && !process.env.GEMINI_API_KEY && !process.env.GOOGLE_APPLICATION_CREDENTIALS && !process.env.GCP_PROJECT_ID) continue;
       if (name === 'openrouter' && !process.env.OPENROUTER_API_KEY) continue;
       if (this.isProviderHealthy(name)) return name;
     }
@@ -160,7 +159,7 @@ class AIRouter {
 
     for (const providerName of providerSequence) {
       if (providerName === 'groq' && !process.env.GROQ_API_KEY) continue;
-      if (providerName === 'gemini' && !process.env.GEMINI_API_KEY) continue;
+      if (providerName === 'gemini' && !process.env.GEMINI_API_KEY && !process.env.GOOGLE_APPLICATION_CREDENTIALS && !process.env.GCP_PROJECT_ID) continue;
       if (providerName === 'openrouter' && !process.env.OPENROUTER_API_KEY) continue;
 
       if (!this.isProviderHealthy(providerName)) {
@@ -185,8 +184,12 @@ class AIRouter {
         const start = Date.now();
         try {
           const responsePromise = operation(provider);
-          // Fast timeouts: 10s for Groq/Gemini/OpenRouter to give single-pass generations time to complete
-          const timeoutMs = options?.image ? 45000 : 10000;
+          // Generous timeouts: 60s for document generation/complex reasoning/parsing, 60s for vision, 30s for general chat
+          const timeoutMs = options?.image 
+            ? 60000 
+            : (options?.taskType === 'document_generation' || options?.taskType === 'resume_parsing' || options?.taskType === 'complex_reasoning') 
+              ? 60000 
+              : 30000;
           const timeoutPromise = new Promise<never>((_, reject) =>
             setTimeout(() => reject(new Error(`AI Request Timeout (${timeoutMs / 1000}s)`)), timeoutMs)
           );
@@ -198,6 +201,14 @@ class AIRouter {
           const latency = Date.now() - start;
           this.updateHealth(providerName, true, latency);
           fallbackTrace.push({ provider: providerName, status: 'Success', attempt, latencyMs: latency });
+
+          if (options?.userId && result) {
+            try {
+              await CreditManager.deductCredits(options.userId, options.taskType as any);
+            } catch (deductErr) {
+              console.warn('[AI Router] Credit deduction error:', deductErr);
+            }
+          }
           break; // Success
         } catch (error: any) {
           const duration = Date.now() - start;
@@ -268,10 +279,11 @@ class AIRouter {
           agentName,
           userId: options?.userId || 'system',
           provider: result.metadata.provider || 'gemini',
-          model: result.metadata.model || 'gemini-1.5-flash',
-          latencyMs: result.metadata.latencyMs || 0,
+          model: result.metadata.model || 'gemini-2.5-flash',
+          latencyMs: result.metadata.latencyMs || (Date.now() - overallStart),
           tokensUsed: result.metadata.totalTokens || 0,
           retryCount: result.metadata.retryCount || 0,
+          status: 'success',
           action: `Executed ${agentName} (${options?.taskType || 'reasoning'})`,
           timestamp: new Date()
         }).catch(console.error);
@@ -285,6 +297,23 @@ class AIRouter {
     // 3. Graceful Error Fallback
     this.printLatencyTrace(agentName, fallbackTrace);
     
+    try {
+      adminDb.collection('agent_logs').add({
+        agentName,
+        userId: options?.userId || 'system',
+        provider: 'failed',
+        model: 'n/a',
+        latencyMs: Date.now() - overallStart,
+        tokensUsed: 0,
+        retryCount: fallbackTrace.length,
+        status: 'failed',
+        action: `Attempted ${agentName} (${options?.taskType || 'reasoning'})`,
+        timestamp: new Date()
+      }).catch(console.error);
+    } catch (err) {
+      console.error('Failed to log failed agent execution:', err);
+    }
+
     if (options?.userId) {
       adminDb.collection('infrastructure_logs').add({
         agentName,
