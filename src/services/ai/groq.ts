@@ -1,6 +1,8 @@
 import { AIProvider, AIResponse, AIRequestOptions, AIResponseMetadata } from './provider';
 
-function cleanAndParseJSON(text: string): any {
+function cleanAndParseJSON(input: any): any {
+  if (typeof input === 'object' && input !== null) return input;
+  const text = typeof input === 'string' ? input : String(input || '');
   const trimmed = text.trim();
   try { return JSON.parse(trimmed); } catch (e) {}
   const jsonBlockRegex = /```json\s*([\s\S]*?)\s*```/;
