@@ -4,13 +4,20 @@ import { getAuth } from 'firebase/auth';
 import { initializeFirestore, getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
+const getAuthDomain = () => {
+  if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
+    return window.location.hostname;
+  }
+  return process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || 'opportunityos-ai.firebaseapp.com';
+};
+
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || 'demo-api-key',
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || 'demo.firebaseapp.com',
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'demo-project',
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || 'demo.appspot.com',
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || '123456789',
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || '1:123456789:web:abc123',
+  authDomain: getAuthDomain(),
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'opportunityos-ai',
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || 'opportunityos-ai.appspot.com',
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || '917369350876',
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || '1:917369350876:web:b10de25c6eb9ae29372219',
 };
 
 // Initialize Firebase (avoid duplicate initialization)
