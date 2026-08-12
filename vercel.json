@@ -4,6 +4,12 @@
   "buildCommand": "npm run build",
   "installCommand": "npm install",
   "regions": ["iad1"],
+  "rewrites": [
+    {
+      "source": "/__/auth/:path*",
+      "destination": "https://opportunityos-ai.firebaseapp.com/__/auth/:path*"
+    }
+  ],
   "headers": [
     {
       "source": "/(.*)",
