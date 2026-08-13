@@ -52,16 +52,29 @@ export default function DashboardHeader() {
   const [creditData, setCreditData] = useState<{ credits: number; isUnlimited: boolean; hoursUntilReset: number } | null>(null);
 
   useEffect(() => {
+    if (user?.uid) {
+      const cached = localStorage.getItem(`creditData_${user.uid}`);
+      if (cached) {
+        try {
+          setCreditData(JSON.parse(cached));
+        } catch(e) {}
+      }
+    }
+  }, [user?.uid]);
+
+  useEffect(() => {
     if (!user?.uid) return;
     fetch(`/api/user/credits?uid=${user.uid}`)
       .then(res => res.json())
       .then(data => {
         if (data?.credits !== undefined) {
-          setCreditData({
+          const newData = {
             credits: data.credits,
             isUnlimited: data.isUnlimited,
             hoursUntilReset: data.hoursUntilReset || 24
-          });
+          };
+          setCreditData(newData);
+          localStorage.setItem(`creditData_${user.uid}`, JSON.stringify(newData));
         }
       })
       .catch(console.error);
@@ -372,7 +385,7 @@ export default function DashboardHeader() {
           {/* AI Credits Pill */}
           <button
             onClick={openUpgradeModal}
-            title={creditData?.isUnlimited ? "Pro Plan: Unlimited AI Generations" : `${creditData?.credits ?? 1000} credits available. 1,000 credits renew every 24 hours (250 credits / AI generation).`}
+            title={creditData?.isUnlimited ? "Pro Plan: Unlimited AI Generations" : creditData === null ? "Loading credits..." : `${creditData.credits} credits available. 1,000 credits renew every 24 hours (250 credits / AI generation).`}
             style={{
               background: creditData?.isUnlimited
                 ? 'linear-gradient(135deg, rgba(168,85,247,0.2), rgba(236,72,153,0.2))'
@@ -387,15 +400,21 @@ export default function DashboardHeader() {
               gap: '6px',
               cursor: 'pointer',
               transition: 'all 0.2s ease',
+              minWidth: creditData === null ? '120px' : 'auto',
+              justifyContent: 'center'
             }}
             className="hover:border-indigo-400 hover:shadow-[0_0_10px_rgba(99,102,241,0.3)]"
           >
             <Zap size={13} color={creditData?.isUnlimited ? '#c084fc' : '#a5b4fc'} aria-hidden="true" />
-            <span style={{ fontSize: '13px', fontWeight: 700, color: '#e2e8f0' }}>
-              {creditData?.isUnlimited ? '∞ UNLIMITED' : (creditData?.credits ?? profile?.aiCredits ?? 1000)}
+            <span style={{ fontSize: '13px', fontWeight: 700, color: '#e2e8f0', display: 'flex', alignItems: 'center' }}>
+              {creditData === null ? (
+                <div style={{ width: '32px', height: '14px', background: 'rgba(255,255,255,0.1)', borderRadius: '4px', animation: 'pulse 1.5s infinite' }} />
+              ) : creditData.isUnlimited ? '∞ UNLIMITED' : creditData.credits}
             </span>
-            <span style={{ fontSize: '11px', color: creditData?.isUnlimited ? '#c084fc' : '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 600 }}>
-              {creditData?.isUnlimited ? 'PRO' : 'Credits / 24h'}
+            <span style={{ fontSize: '11px', color: creditData?.isUnlimited ? '#c084fc' : '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 600, display: 'flex', alignItems: 'center', marginLeft: '2px' }}>
+              {creditData === null ? (
+                <div style={{ width: '48px', height: '10px', background: 'rgba(255,255,255,0.05)', borderRadius: '2px', animation: 'pulse 1.5s infinite' }} />
+              ) : creditData.isUnlimited ? 'PRO' : 'Credits / 24h'}
             </span>
           </button>
 
