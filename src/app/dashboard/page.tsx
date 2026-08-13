@@ -391,17 +391,10 @@ export default function DashboardPage() {
 
       {(() => {
         const step1 = !!(profile && (profile.name || profile.field || profile.education || profile.country));
-        const rawCvUploaded = !!(profile?.resumeFile || documents.some((d: any) => d.source?.toLowerCase?.()?.includes('resume') || d.type?.toLowerCase?.()?.includes('resume')));
-        const rawMatchedOpps = opportunities.length > 0 && metrics.opportunitiesFound > 0;
-        const rawReviewedGap = apps && apps.length > 0;
-        const rawStartedApp = apps && apps.length > 0 && apps.some((a: any) => a.stage && a.stage !== 'discovered');
-
-        // Sequential Progression Logic: Steps must complete sequentially (1 -> 2 -> 3 -> 4 -> 5).
-        // Reaching an advanced stage (e.g. initiating an application) naturally implies preceding steps are fulfilled.
-        const step2 = step1 && (rawCvUploaded || rawReviewedGap || rawStartedApp || documents.length > 0);
-        const step3 = step2 && (rawMatchedOpps || rawReviewedGap || rawStartedApp || opportunities.length > 0);
-        const step4 = step3 && (rawReviewedGap || rawStartedApp);
-        const step5 = step4 && rawStartedApp;
+        const step2 = !!(profile?.resumeFile || documents.some((d: any) => d.source?.toLowerCase?.()?.includes('resume') || d.type?.toLowerCase?.()?.includes('resume') || d.name?.toLowerCase?.()?.includes('resume') || d.name?.toLowerCase?.()?.includes('cv')));
+        const step3 = opportunities.length > 0 && metrics.opportunitiesFound > 0;
+        const step4 = apps && apps.length > 0;
+        const step5 = apps && apps.length > 0 && apps.some((a: any) => a.stage && a.stage !== 'discovered');
 
         const journeySteps = [
           { label: 'Profile Created', done: step1, href: '/onboarding', icon: <Shield size={14} /> },
@@ -436,22 +429,22 @@ export default function DashboardPage() {
                     gap: '10px',
                     padding: '10px 12px',
                     borderRadius: '12px',
-                    background: step.done ? 'rgba(16,185,129,0.09)' : 'rgba(255,255,255,0.03)',
-                    border: `1px solid ${step.done ? 'rgba(16,185,129,0.3)' : 'rgba(255,255,255,0.07)'}`,
+                    background: step.done ? 'rgba(16,185,129,0.09)' : 'rgba(239,68,68,0.05)',
+                    border: `1px solid ${step.done ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.2)'}`,
                     textDecoration: 'none',
                     transition: 'all 0.2s ease',
                   }}
-                  className="hover:scale-[1.02] hover:border-indigo-400/50"
+                  className={`hover:scale-[1.02] ${step.done ? 'hover:border-emerald-400/50' : 'hover:border-red-400/50'}`}
                 >
                   <div style={{
                     width: '26px', height: '26px', borderRadius: '50%', flexShrink: 0,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    background: step.done ? '#10b981' : 'rgba(255,255,255,0.08)',
-                    color: step.done ? 'white' : 'rgba(255,255,255,0.4)',
+                    background: step.done ? '#10b981' : 'rgba(239,68,68,0.1)',
+                    color: step.done ? 'white' : '#ef4444',
                     fontSize: '11px', fontWeight: 800,
                     boxShadow: step.done ? '0 0 10px rgba(16,185,129,0.4)' : 'none'
                   }}>
-                    {step.done ? <Check size={13} /> : (idx + 1)}
+                    {step.done ? <Check size={14} strokeWidth={3} /> : <X size={14} strokeWidth={3} />}
                   </div>
                   <div style={{ minWidth: 0, flex: 1 }}>
                     <div style={{ fontSize: '11px', fontWeight: 700, color: step.done ? '#10b981' : 'rgba(255,255,255,0.7)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{step.label}</div>
