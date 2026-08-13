@@ -16,7 +16,16 @@ export async function POST(req: NextRequest) {
       instructions: string;
       profile: UserProfile;
     };
-    if (profile) profile.userId = userId;
+    const safeProfile = profile || ({ name: 'Applicant', userId } as any);
+    if (safeProfile) safeProfile.userId = userId;
+
+    const safeOpp = opportunity || {
+      id: 'opp_general',
+      title: 'Global Scholarship & Fellowship Program',
+      provider: 'Global Institution',
+      type: 'Scholarship',
+      description: 'Competitive international program requiring personalized application materials.'
+    };
 
     // Fetch actual evidence from verified documents
     let evidence: any[] = [];
@@ -30,7 +39,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const result = await runApplicationBuilderAgent(type, opportunity, profile, instructions, evidence);
+    const result = await runApplicationBuilderAgent(type || 'Personal Statement', safeOpp, safeProfile, instructions || '', evidence);
     return NextResponse.json({
       content: result.essayText,
       explanations: result.explanations,

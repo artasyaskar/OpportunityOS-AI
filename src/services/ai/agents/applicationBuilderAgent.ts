@@ -493,8 +493,9 @@ export async function runApplicationBuilderAgent(
   const abVariant = telemetry.getABVariant();
   const userName = (profile as any).name || (profile as any).fullName || (profile as any).displayName || '';
 
+  const safeOpp = opportunity || { id: 'opp_default', title: 'Target Program', provider: 'Global Organization', type: 'Scholarship', description: 'General Competitive Opportunity' };
   // 0. GENERATIVE RESPONSE CACHING (300ms return for repeat requests)
-  const cacheKey = `essay_${profile.userId || 'anon'}_${opportunity.id}_${Buffer.from(instructions || '').toString('base64').slice(0, 16)}`;
+  const cacheKey = `essay_${profile?.userId || 'anon'}_${safeOpp.id}_${Buffer.from(instructions || '').toString('base64').slice(0, 16)}`;
   const cached = essayMemoryCache.get(cacheKey);
   if (cached && cached.expiresAt > Date.now()) {
     console.log(`[ApplicationBuilder] Memory cache hit for ${cacheKey}. Returning generated draft in <10ms!`);
@@ -507,7 +508,7 @@ export async function runApplicationBuilderAgent(
 
   // ===== 1. PROGRAMMATIC PRE-PROCESSING (0 LLM) =====
   const preStart = Date.now();
-  const compressedOpp = compressOpportunity(opportunity) as Opportunity;
+  const compressedOpp = compressOpportunity(safeOpp) as Opportunity;
 
   const [opportunityValues, styleProfile] = await Promise.all([
     Promise.resolve(analyzeOpportunity(compressedOpp)),
@@ -617,7 +618,7 @@ export async function runApplicationBuilderAgent(
     timestamp: new Date().toISOString(),
     agentName: 'ApplicationBuilderAgent',
     userId: profile.userId,
-    opportunityId: opportunity.id,
+    opportunityId: safeOpp.id,
     latency: {
       preProcessingMs,
       strategistMs,

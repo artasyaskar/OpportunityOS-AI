@@ -34,8 +34,8 @@ export async function runProbabilityEngine(
     { 
       format: 'json', 
       taskType: 'complex_reasoning', 
-      cacheKey: `probability_${opportunity.id}_${evidenceContext?.length}`,
-      userId: profile.userId
+      cacheKey: `probability_${opportunity?.id || 'opp_default'}_${evidenceContext?.length}`,
+      userId: profile?.userId
     }
   );
   return response.content;

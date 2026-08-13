@@ -33,7 +33,7 @@ export async function runGapAnalysisAgent(
         'You are the Gap Analysis Agent.'
       );
     },
-    { format: 'json', taskType: 'complex_reasoning', cacheKey: `gap_${opportunity.id}_${evidenceContext?.length}`, userId: profile.userId }
+    { format: 'json', taskType: 'complex_reasoning', cacheKey: `gap_${opportunity?.id || 'opp_default'}_${evidenceContext?.length}`, userId: profile?.userId }
   );
   return response.content;
 }

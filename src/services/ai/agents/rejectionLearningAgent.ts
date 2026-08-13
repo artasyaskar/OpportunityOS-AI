@@ -24,7 +24,7 @@ export async function runRejectionLearningAgent(
         'You are the Rejection Learning Agent.'
       );
     },
-    { format: 'json', taskType: 'complex_reasoning', cacheKey: `rejection_${opportunity.id}_${rejection.substring(0,20)}`, userId: profile.userId }
+    { format: 'json', taskType: 'complex_reasoning', cacheKey: `rejection_${opportunity?.id || 'opp_default'}_${rejection ? rejection.substring(0,20) : 'none'}`, userId: profile?.userId }
   );
   return response.content;
 }

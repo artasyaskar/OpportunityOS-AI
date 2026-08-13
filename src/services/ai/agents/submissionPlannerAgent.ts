@@ -25,7 +25,7 @@ export async function runSubmissionPlannerAgent(
         'You are the Submission Planner Agent.'
       );
     },
-    { format: 'json', taskType: 'complex_reasoning', cacheKey: `planner_${opportunity.id}_${daysUntilDeadline}`, userId }
+    { format: 'json', taskType: 'complex_reasoning', cacheKey: `planner_${opportunity?.id || 'opp_default'}_${daysUntilDeadline}`, userId }
   );
   return response.content;
 }

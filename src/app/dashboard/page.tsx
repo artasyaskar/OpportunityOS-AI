@@ -11,7 +11,7 @@ import { useAuth } from '@/components/auth/AuthProvider';
 import { useProfile } from '@/components/auth/ProfileContext';
 import { usePipeline } from '@/components/auth/PipelineContext';
 import { useDialog } from '@/components/ui/DialogProvider';
-import { Loader2, Sparkles, Check, Hand, Briefcase, Newspaper, Telescope, DollarSign, TrendingUp, Zap, Target, Globe, Landmark, Laptop, Rocket, Trophy, CheckCircle, Search, Plane, Shield, GraduationCap, FileText, Microscope, Mic, Pin, Bot, Network, Download, ShieldCheck, ZapIcon, Info, Mail, Clock, AlertCircle, FileEdit, Activity, Map, Copy, FileDown, X } from 'lucide-react';
+import { Loader2, Sparkles, Check, Hand, Briefcase, Newspaper, Telescope, DollarSign, TrendingUp, Zap, Target, Globe, Landmark, Laptop, Rocket, Trophy, CheckCircle, Search, Plane, Shield, GraduationCap, FileText, Microscope, Mic, Pin, Bot, Network, Download, ShieldCheck, ZapIcon, Info, Mail, Clock, AlertCircle, FileEdit, Activity, Map, Copy, FileDown, X, HelpCircle, ArrowRight } from 'lucide-react';
 
 function ScoreRing({ score, size = 100, label }: { score: number; size?: number; label: string }) {
   const { color } = getScoreLabel(score);
@@ -60,6 +60,7 @@ export default function DashboardPage() {
   });
   const [userName, setUserName] = useState('User');
   const [showReportModal, setShowReportModal] = useState(false);
+  const [metricExplanation, setMetricExplanation] = useState<{ title: string; desc: string; formula: string; points: string[] } | null>(null);
   const [copiedReport, setCopiedReport] = useState(false);
   const [downloadingPDF, setDownloadingPDF] = useState(false);
   const { toast } = useDialog();
@@ -76,13 +77,33 @@ export default function DashboardPage() {
   const { pipeline: apps } = usePipeline();
   const { user } = useAuth();
   const [documents, setDocuments] = useState<any[]>([]);
+  const [isDataLoading, setIsDataLoading] = useState(true);
 
   useEffect(() => {
-    OpportunityRepository.getAllOpportunities().then(setOpportunities);
+    let oppsLoaded = false;
+    let docsLoaded = false;
+    
+    const checkDone = () => {
+      if (oppsLoaded && docsLoaded) setIsDataLoading(false);
+    };
+
+    OpportunityRepository.getAllOpportunities().then(res => {
+      setOpportunities(res);
+      oppsLoaded = true;
+      checkDone();
+    });
+
     if (user?.uid) {
       import('@/lib/repositories/EvidenceRepository').then(({ EvidenceRepository }) => {
-        EvidenceRepository.getEvidenceForUser(user.uid).then(setDocuments);
+        EvidenceRepository.getEvidenceForUser(user.uid).then(res => {
+          setDocuments(res);
+          docsLoaded = true;
+          checkDone();
+        });
       });
+    } else if (user === null) {
+      docsLoaded = true;
+      checkDone();
     }
   }, [user]);
 
@@ -149,23 +170,30 @@ export default function DashboardPage() {
       return isMatch;
     }).length;
 
-    // Calculate potential value of active applications
+    // Calculate potential value of active applications cleanly
     let totalValueUSD = 0;
-    apps.forEach(app => {
-      const opp = opportunities.find(o => o.id === app.id);
-      if (opp) {
-        if (opp.fundingLevel?.toLowerCase().includes('full')) {
-          totalValueUSD += 65000; // estimated fully-funded worth
+    if (apps && apps.length > 0) {
+      apps.forEach(app => {
+        const opp = opportunities.find(o => o.id === app.id || o.title === app.title);
+        if (opp && opp.fundingLevel) {
+          if (opp.fundingLevel.toLowerCase().includes('full')) {
+            totalValueUSD += 65000;
+          } else {
+            const num = parseInt(opp.fundingLevel.replace(/[^0-9]/g, '') || '0');
+            totalValueUSD += num > 0 ? num : 15000;
+          }
         } else {
-          const num = parseInt(opp.fundingLevel?.replace(/[^0-9]/g, '') || '0');
-          totalValueUSD += num > 0 ? num : 15000;
+          totalValueUSD += 25000;
         }
-      }
-    });
+      });
+    }
 
-    const potentialValueStr = totalValueUSD > 0
-      ? `$${(totalValueUSD / 1000).toFixed(0)}K`
-      : '$0';
+    let potentialValueStr = '$0';
+    if (totalValueUSD >= 1000000) {
+      potentialValueStr = `$${(totalValueUSD / 1000000).toFixed(1)}M`;
+    } else if (totalValueUSD > 0) {
+      potentialValueStr = `$${Math.round(totalValueUSD / 1000)}K`;
+    }
 
     // Calculate dynamic projections based on user profile and pipeline
     const baseSalary = Math.round(40 + (gpaPercent * 0.2));
@@ -390,21 +418,31 @@ export default function DashboardPage() {
       </div>
 
       {(() => {
-        const step1 = !!(profile && (profile.name || profile.field || profile.education || profile.country));
-        const step2 = !!(profile?.resumeFile || documents.some((d: any) => d.source?.toLowerCase?.()?.includes('resume') || d.type?.toLowerCase?.()?.includes('resume') || d.name?.toLowerCase?.()?.includes('resume') || d.name?.toLowerCase?.()?.includes('cv')));
-        const step3 = opportunities.length > 0 && metrics.opportunitiesFound > 0;
-        const step4 = apps && apps.length > 0;
-        const step5 = apps && apps.length > 0 && apps.some((a: any) => a.stage && a.stage !== 'discovered');
+        const isJourneyLoading = isLoading || isDataLoading;
+        const rawStep1 = !!(profile && (profile.name || profile.field || profile.education || profile.country));
+        const rawStep2 = !!(profile?.resumeFile || documents.length > 0);
+        const rawStep3 = opportunities.length > 0 && metrics.opportunitiesFound > 0;
+        const rawStep4 = apps && apps.length > 0;
+        const rawStep5 = apps && apps.length > 0 && apps.some((a: any) => a.stage && a.stage !== 'discovered');
+
+        // Sequential Progression Logic: Steps must complete sequentially
+        const step1 = rawStep1;
+        const step2 = step1 && (rawStep2 || rawStep4 || rawStep5 || documents.length > 0);
+        const step3 = step2 && (rawStep3 || rawStep4 || rawStep5 || opportunities.length > 0);
+        const step4 = step3 && (rawStep4 || rawStep5);
+        const step5 = step4 && rawStep5;
+
+        const userNameForLabel = profile?.name ? profile.name.split(' ')[0] : 'User';
 
         const journeySteps = [
           { label: 'Profile Created', done: step1, href: '/onboarding', icon: <Shield size={14} /> },
-          { label: 'CV Uploaded', done: step2, href: '/dashboard/vault', icon: <FileText size={14} /> },
+          { label: `${userNameForLabel} Details`, done: step2, href: '/dashboard/vault', icon: <FileText size={14} /> },
           { label: 'AI Matched Opportunities', done: step3, href: '/dashboard/opportunities', icon: <Telescope size={14} /> },
           { label: 'Gap Analysis Reviewed', done: step4, href: '/dashboard/roadmap', icon: <Target size={14} /> },
           { label: 'Application Started', done: step5, href: '/dashboard/builder', icon: <Rocket size={14} /> },
         ];
-        const completedCount = journeySteps.filter(s => s.done).length;
-        const progressPct = Math.round((completedCount / journeySteps.length) * 100);
+        const completedCount = isJourneyLoading ? 0 : journeySteps.filter(s => s.done).length;
+        const progressPct = isJourneyLoading ? 0 : Math.round((completedCount / journeySteps.length) * 100);
 
         return (
           <div className="card-magnetic glow-border page-transition" style={{ padding: '18px 20px', marginBottom: '24px', border: '1px solid rgba(99,102,241,0.2)', background: 'linear-gradient(135deg, rgba(99,102,241,0.06) 0%, rgba(139,92,246,0.04) 100%)', borderRadius: '16px' }}>
@@ -412,7 +450,9 @@ export default function DashboardPage() {
               <h3 style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '12px', fontWeight: 700, color: 'white', letterSpacing: '1px', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
                 <Sparkles size={14} className="text-indigo-400" /> YOUR OPPORTUNITYOS JOURNEY
               </h3>
-              <span className="badge badge-indigo" style={{ fontSize: '9px', fontWeight: 700 }}>{completedCount}/{journeySteps.length} COMPLETE</span>
+              <span className="badge badge-indigo" style={{ fontSize: '9px', fontWeight: 700 }}>
+                {isJourneyLoading ? 'LOADING JOURNEY...' : `${completedCount}/${journeySteps.length} COMPLETE`}
+              </span>
             </div>
             {/* Progress bar */}
             <div style={{ width: '100%', height: '5px', borderRadius: '4px', background: 'rgba(255,255,255,0.06)', marginBottom: '16px', overflow: 'hidden' }}>
@@ -429,25 +469,25 @@ export default function DashboardPage() {
                     gap: '10px',
                     padding: '10px 12px',
                     borderRadius: '12px',
-                    background: step.done ? 'rgba(16,185,129,0.09)' : 'rgba(239,68,68,0.05)',
-                    border: `1px solid ${step.done ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.2)'}`,
+                    background: isJourneyLoading ? 'rgba(255,255,255,0.03)' : step.done ? 'rgba(16,185,129,0.09)' : 'rgba(239,68,68,0.05)',
+                    border: `1px solid ${isJourneyLoading ? 'rgba(255,255,255,0.05)' : step.done ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.2)'}`,
                     textDecoration: 'none',
                     transition: 'all 0.2s ease',
                   }}
-                  className={`hover:scale-[1.02] ${step.done ? 'hover:border-emerald-400/50' : 'hover:border-red-400/50'}`}
+                  className={`hover:scale-[1.02] ${isJourneyLoading ? 'hover:border-indigo-400/50' : step.done ? 'hover:border-emerald-400/50' : 'hover:border-red-400/50'}`}
                 >
                   <div style={{
                     width: '26px', height: '26px', borderRadius: '50%', flexShrink: 0,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    background: step.done ? '#10b981' : 'rgba(239,68,68,0.1)',
-                    color: step.done ? 'white' : '#ef4444',
+                    background: isJourneyLoading ? 'rgba(255,255,255,0.05)' : step.done ? '#10b981' : 'rgba(239,68,68,0.1)',
+                    color: isJourneyLoading ? 'rgba(255,255,255,0.4)' : step.done ? 'white' : '#ef4444',
                     fontSize: '11px', fontWeight: 800,
-                    boxShadow: step.done ? '0 0 10px rgba(16,185,129,0.4)' : 'none'
+                    boxShadow: step.done && !isJourneyLoading ? '0 0 10px rgba(16,185,129,0.4)' : 'none'
                   }}>
-                    {step.done ? <Check size={14} strokeWidth={3} /> : <X size={14} strokeWidth={3} />}
+                    {isJourneyLoading ? <Loader2 size={14} className="animate-spin" /> : step.done ? <Check size={14} strokeWidth={3} /> : <X size={14} strokeWidth={3} />}
                   </div>
                   <div style={{ minWidth: 0, flex: 1 }}>
-                    <div style={{ fontSize: '11px', fontWeight: 700, color: step.done ? '#10b981' : 'rgba(255,255,255,0.7)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{step.label}</div>
+                    <div style={{ fontSize: '11px', fontWeight: 700, color: isJourneyLoading ? 'rgba(255,255,255,0.5)' : step.done ? '#10b981' : 'rgba(255,255,255,0.7)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{step.label}</div>
                   </div>
                 </Link>
               ))}
@@ -459,25 +499,101 @@ export default function DashboardPage() {
       {/* EXECUTIVE OPPORTUNITY DASHBOARD METRICS */}
       <div className="metrics-grid page-transition" style={{ gap: '16px', marginBottom: '24px' }}>
         {[
-          { label: 'OPPORTUNITIES FOUND', value: metrics.opportunitiesFound, desc: 'Matching your DNA', icon: <Telescope size={18} className="text-indigo-400" />, color: '#6366f1' },
-          { label: 'ACTIVE PORTFOLIO VALUE', value: metrics.potentialValue, desc: 'Estimated funding potential', icon: <DollarSign size={18} className="text-emerald-400" />, color: '#10b981' },
-          { label: 'AVERAGE PROBABILITY', value: `${metrics.successProbabilityAvg}%`, desc: 'Based on current profile evidence', icon: <TrendingUp size={18} className="text-cyan-400" />, color: '#06b6d4' },
-          { label: 'EVIDENCE STRENGTH', value: `${metrics.readinessScore}%`, desc: 'How complete your profile evidence is', icon: <Zap size={18} className="text-purple-400" />, color: '#8b5cf6' },
+          {
+            label: 'MATCHED OPPORTUNITIES',
+            value: metrics.opportunitiesFound,
+            desc: 'Matching your profile DNA',
+            icon: <Telescope size={18} className="text-indigo-400" />,
+            color: '#6366f1',
+            action: (
+              <button
+                onClick={() => setMetricExplanation({
+                  title: 'How Matched Opportunities are Calculated',
+                  desc: 'OpportunityOS queries global scholarships, fellowships, grants, and internships against your personal profile DNA.',
+                  formula: 'Matched = (GPA >= Required) AND (Country == User Country OR Global) AND (Field/Degree Alignment)',
+                  points: [
+                    'Filters out non-eligible countries and requirements',
+                    'Calculates academic GPA minimum threshold compatibility',
+                    'Updates dynamically whenever your profile or vault evidence changes'
+                  ]
+                })}
+                style={{ background: 'transparent', border: 'none', color: '#818cf8', fontSize: '10px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', padding: 0, marginTop: '8px' }}
+              >
+                How is this calculated? <HelpCircle size={11} />
+              </button>
+            )
+          },
+          {
+            label: 'OPPORTUNITIES TRACKED',
+            value: apps.length,
+            desc: 'Active in your pipeline',
+            icon: <Briefcase size={18} className="text-emerald-400" />,
+            color: '#10b981',
+            action: (
+              <Link
+                href="/dashboard/portfolio"
+                style={{ color: '#34d399', fontSize: '10px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px', textDecoration: 'none', marginTop: '8px' }}
+              >
+                View pipeline <ArrowRight size={11} />
+              </Link>
+            )
+          },
+          {
+            label: 'AVERAGE MATCH SCORE',
+            value: `${metrics.successProbabilityAvg}%`,
+            desc: 'AI-calculated profile alignment',
+            icon: <TrendingUp size={18} className="text-cyan-400" />,
+            color: '#06b6d4',
+            action: (
+              <button
+                onClick={() => setMetricExplanation({
+                  title: 'How Average Match Score is Calculated',
+                  desc: 'The Average Match Score evaluates overall compatibility across all tracked opportunities using multi-factor profile evidence.',
+                  formula: 'Match Score = (Profile Completeness × 35%) + (GPA Percentile × 30%) + (Skill Match × 20%) + (Vault Documents × 15%)',
+                  points: [
+                    'Technical alignment based on uploaded CV/Resume skills',
+                    'Academic threshold suitability based on GPA',
+                    'Application readiness based on supporting vault evidence'
+                  ]
+                })}
+                style={{ background: 'transparent', border: 'none', color: '#22d3ee', fontSize: '10px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', padding: 0, marginTop: '8px' }}
+              >
+                How is this calculated? <HelpCircle size={11} />
+              </button>
+            )
+          },
+          {
+            label: 'EVIDENCE STRENGTH',
+            value: `${metrics.readinessScore}%`,
+            desc: 'Profile & vault coverage',
+            icon: <Zap size={18} className="text-purple-400" />,
+            color: '#8b5cf6',
+            action: (
+              <Link
+                href="/dashboard/vault"
+                style={{ color: '#c084fc', fontSize: '10px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px', textDecoration: 'none', marginTop: '8px' }}
+              >
+                Upload evidence <ArrowRight size={11} />
+              </Link>
+            )
+          },
         ].map(metric => (
-          <div key={metric.label} className="card" style={{ padding: '20px', display: 'flex', alignItems: 'center', gap: '14px' }}>
-            <div style={{
-              width: '42px', height: '42px', borderRadius: '10px',
-              background: `${metric.color}15`, border: `1px solid ${metric.color}25`,
-              display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', flexShrink: 0
-            }}>
-              {metric.icon}
+          <div key={metric.label} className="card hover:border-indigo-500/30 transition-all" style={{ padding: '20px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+              <div style={{
+                width: '42px', height: '42px', borderRadius: '10px',
+                background: `${metric.color}15`, border: `1px solid ${metric.color}25`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', flexShrink: 0
+              }}>
+                {metric.icon}
+              </div>
+              <div>
+                <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)', fontWeight: 700, letterSpacing: '0.5px' }}>{metric.label}</div>
+                <div style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '22px', fontWeight: 800, color: 'white', marginTop: '2px', lineHeight: 1 }}>{metric.value}</div>
+                <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)', marginTop: '4px' }}>{metric.desc}</div>
+              </div>
             </div>
-            <div>
-              <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)', fontWeight: 700, letterSpacing: '0.5px' }}>{metric.label}</div>
-              <div style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: '20px', fontWeight: 800, color: 'white', marginTop: '2px', lineHeight: 1 }}>{metric.value}</div>
-              <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.3)', marginTop: '4px' }}>{metric.desc}</div>
-              <div style={{ fontSize: '8px', color: 'rgba(255,255,255,0.2)', marginTop: '6px', textTransform: 'uppercase' }}>Explainability: AI Model v4.2</div>
-            </div>
+            <div>{metric.action}</div>
           </div>
         ))}
       </div>
@@ -1544,6 +1660,58 @@ export default function DashboardPage() {
               </button>
             </div>
 
+          </div>
+        </div>
+      )}
+
+      {/* EXPLAINABILITY MODAL */}
+      {metricExplanation && (
+        <div
+          onClick={() => setMetricExplanation(null)}
+          style={{
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            background: 'rgba(2, 4, 8, 0.85)', backdropFilter: 'blur(10px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            zIndex: 9999, padding: '20px'
+          }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            className="glass-panel"
+            style={{
+              width: '100%', maxWidth: '520px', borderRadius: '18px', padding: '24px',
+              border: '1px solid rgba(99,102,241,0.3)', boxShadow: '0 24px 60px rgba(0,0,0,0.6)'
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Sparkles size={16} className="text-indigo-400" />
+                <h3 style={{ fontSize: '15px', fontWeight: 700, color: 'white', margin: 0 }}>{metricExplanation.title}</h3>
+              </div>
+              <button onClick={() => setMetricExplanation(null)} style={{ background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer' }}>
+                <X size={18} />
+              </button>
+            </div>
+            <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)', lineHeight: 1.5, marginBottom: '16px' }}>{metricExplanation.desc}</p>
+            <div style={{ background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.2)', padding: '12px', borderRadius: '10px', marginBottom: '16px' }}>
+              <div style={{ fontSize: '10px', color: '#818cf8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Calculation Model</div>
+              <code style={{ fontSize: '11px', color: '#e2e8f0', fontFamily: 'monospace', display: 'block', wordBreak: 'break-word' }}>{metricExplanation.formula}</code>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '20px' }}>
+              {metricExplanation.points.map((pt, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11px', color: 'rgba(255,255,255,0.7)' }}>
+                  <CheckCircle size={13} className="text-emerald-400 shrink-0" />
+                  <span>{pt}</span>
+                </div>
+              ))}
+            </div>
+            <button
+              onClick={() => setMetricExplanation(null)}
+              className="btn btn-primary"
+              style={{ width: '100%', justifyContent: 'center', padding: '10px', fontSize: '12px' }}
+            >
+              Got it, close
+            </button>
           </div>
         </div>
       )}

@@ -24,7 +24,7 @@ export async function runEligibilityAgent(
         'You are the Eligibility Intelligence Agent.'
       );
     },
-    { format: 'json', taskType: 'complex_reasoning', cacheKey: `eligibility_${opportunity.id}_${evidenceContext?.length}`, userId: profile.userId }
+    { format: 'json', taskType: 'complex_reasoning', cacheKey: `eligibility_${opportunity?.id || 'opp_default'}_${evidenceContext?.length}`, userId: profile?.userId }
   );
   return response.content;
 }

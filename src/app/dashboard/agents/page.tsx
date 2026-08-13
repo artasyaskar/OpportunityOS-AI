@@ -90,7 +90,7 @@ export default function AgentsDashboard() {
     setIsRunning(true);
     setResultData(null);
 
-    const targetOpportunity = allOpps.find(o => o.id === targetOppId) || allOpps[0];
+    const targetOpportunity = allOpps.find(o => o.id === targetOppId) || allOpps[0] || SEED_OPPORTUNITIES[0];
 
     try {
       // Setup payload based on agent needs
