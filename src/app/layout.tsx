@@ -116,14 +116,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" data-scroll-behavior="smooth" suppressHydrationWarning className={`${inter.variable} ${spaceGrotesk.variable}`}>
-      <head>
-        {process.env.NEXT_PUBLIC_VERCEL_ENV === 'production' && (
-          <Script
-            src="https://www.googletagmanager.com/gtag/js?id=G-YOURMEASUREMENTID"
-            strategy="afterInteractive"
-          />
-        )}
-      </head>
+      <head />
       <body className={process.env.NEXT_PUBLIC_PRESENTATION_MODE === 'true' ? 'presentation-mode' : ''}>
         <JsonLd data={[organizationJsonLd(), websiteJsonLd()]} />
         <Providers>
