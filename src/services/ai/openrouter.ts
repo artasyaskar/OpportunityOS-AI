@@ -1,12 +1,12 @@
 import { AIProvider, AIResponse, AIRequestOptions, AIResponseMetadata } from './provider';
 
 const FREE_MODELS_POOL = [
-  'openrouter/auto',
   'google/gemini-2.0-flash-lite-001',
-  'meta-llama/llama-3.1-8b-instruct',
-  'deepseek/deepseek-chat',
-  'qwen/qwen-2.5-72b-instruct',
-  'mistralai/mistral-small-24b-instruct-2501',
+  'meta-llama/llama-3.3-70b-instruct:free',
+  'meta-llama/llama-3.1-8b-instruct:free',
+  'mistralai/mistral-small-24b-instruct-2501:free',
+  'deepseek/deepseek-chat:free',
+  'openrouter/auto',
 ];
 
 export class OpenRouterProvider implements AIProvider {

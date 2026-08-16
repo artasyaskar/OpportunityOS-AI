@@ -11,6 +11,7 @@ interface Message {
   text: string;
   evidenceUsed?: string[];
   confidenceScore?: number;
+  coordinatedAgents?: string[];
 }
 
 export default function ExecutiveAdvisorWidget() {
@@ -28,7 +29,8 @@ export default function ExecutiveAdvisorWidget() {
   const [messages, setMessages] = useState<Message[]>([
     { 
       sender: 'ai', 
-      text: "Good afternoon. I've synced your latest opportunity data. How can I help you strategize today?" 
+      text: "Good afternoon. I am your AI Chief Opportunity Officer. I actively coordinate 12 specialized models behind the scenes to maximize your global win rate. How can we strategize today?",
+      coordinatedAgents: ["Discovery Agent (#01)", "Strategist Agent (#05)"]
     }
   ]);
 
@@ -192,7 +194,8 @@ export default function ExecutiveAdvisorWidget() {
         sender: 'ai', 
         text: data.reply || 'I am unable to provide a strategic recommendation at this time.',
         evidenceUsed: data.evidenceUsed,
-        confidenceScore: data.confidenceScore
+        confidenceScore: data.confidenceScore,
+        coordinatedAgents: data.coordinatedAgents
       }]);
     } catch (e: any) {
       console.error(e);
@@ -358,8 +361,20 @@ export default function ExecutiveAdvisorWidget() {
                 }}
               >
                 {msg.text}
-                {msg.sender === 'ai' && (msg.evidenceUsed || msg.confidenceScore) && (
+                {msg.sender === 'ai' && (msg.evidenceUsed || msg.confidenceScore || msg.coordinatedAgents) && (
                   <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px dashed rgba(255,255,255,0.1)', fontSize: '10px' }}>
+                    {msg.coordinatedAgents && msg.coordinatedAgents.length > 0 && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap', marginBottom: '6px' }}>
+                        <span style={{ fontSize: '9px', fontWeight: 700, color: '#818cf8', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                          ⚡ Coordinated:
+                        </span>
+                        {msg.coordinatedAgents.map((agentName, i) => (
+                          <span key={i} style={{ fontSize: '9px', background: 'rgba(99,102,241,0.18)', color: '#a5b4fc', padding: '2px 6px', borderRadius: '4px', border: '1px solid rgba(99,102,241,0.3)' }}>
+                            {agentName}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                     {msg.confidenceScore && (
                       <div style={{ color: msg.confidenceScore > 80 ? '#10b981' : '#f59e0b', fontWeight: 600, marginBottom: '4px' }}>
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}><Zap size={10} /> Confidence: {msg.confidenceScore}%</span>

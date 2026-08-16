@@ -9,9 +9,10 @@ export async function POST(req: NextRequest) {
   const { uid } = guard;
   try {
     const body = await req.json();
-    const profile = body.profile as UserProfile;
+    const profile = (body.profile || { name: 'Applicant' }) as UserProfile;
     profile.userId = uid;
-    const result = await runReadinessAgent(profile);
+    const evidenceContext = body.evidenceContext as string | undefined;
+    const result = await runReadinessAgent(profile, evidenceContext);
     return NextResponse.json(result);
   } catch (error: any) {
     if (error?.name === 'InsufficientCreditsError') return NextResponse.json({ requireUpgrade: true, error: 'Insufficient AI Credits' }, { status: 402 });

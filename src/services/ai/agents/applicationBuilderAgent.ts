@@ -35,7 +35,9 @@ function applyStyleRules(text: string): { cleaned: string; flags: string[]; appl
 // JSON PARSING UTILITIES
 // =============================================================================
 
-function cleanAndParseJSON(text: string): any {
+function cleanAndParseJSON(input: any): any {
+  if (typeof input === 'object' && input !== null) return input;
+  const text = typeof input === 'string' ? input : String(input || '');
   const trimmed = text.trim();
   
   const safeParse = (str: string) => {
@@ -400,8 +402,17 @@ async function runSinglePassWriter(
   const styleStr = serializeStyle(voiceProfile);
   const voiceContext = buildVoiceContext(voiceProfile);
 
+  const TYPE_TITLES: Record<string, string> = {
+    sop: 'Statement of Purpose (SOP)',
+    personal_statement: 'Personal Statement',
+    cover_letter: 'Cover Letter',
+    research_statement: 'Research Statement',
+    essay: 'Scholarship Essay'
+  };
+  const humanType = TYPE_TITLES[type.toLowerCase()] || type;
+
   const prompt = PROMPTS.APPLICATION_BUILDER_SINGLE_PASS(
-    type,
+    humanType,
     opportunityStr,
     valuesStr,
     evidenceList,
@@ -494,8 +505,9 @@ export async function runApplicationBuilderAgent(
   const userName = (profile as any).name || (profile as any).fullName || (profile as any).displayName || '';
 
   const safeOpp = opportunity || { id: 'opp_default', title: 'Target Program', provider: 'Global Organization', type: 'Scholarship', description: 'General Competitive Opportunity' };
-  // 0. GENERATIVE RESPONSE CACHING (300ms return for repeat requests)
-  const cacheKey = `essay_${profile?.userId || 'anon'}_${safeOpp.id}_${Buffer.from(instructions || '').toString('base64').slice(0, 16)}`;
+  const normalizedType = (type || 'sop').toLowerCase().trim().replace(/[^a-z0-9]/g, '_');
+  // 0. GENERATIVE RESPONSE CACHING (Distinct per user, opportunity, document type, and instructions)
+  const cacheKey = `essay_${profile?.userId || 'anon'}_${safeOpp.id}_${normalizedType}_${Buffer.from(instructions || '').toString('base64').slice(0, 16)}`;
   const cached = essayMemoryCache.get(cacheKey);
   if (cached && cached.expiresAt > Date.now()) {
     console.log(`[ApplicationBuilder] Memory cache hit for ${cacheKey}. Returning generated draft in <10ms!`);

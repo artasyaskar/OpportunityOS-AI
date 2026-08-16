@@ -257,6 +257,13 @@ Special Instructions from Applicant:
 ${instructions}`,
     `Write a complete, authentic ${type} draft from the student's perspective.
 
+DOCUMENT TYPE SPECIFIC DIRECTIVES:
+- If Statement of Purpose (SOP): Focus strictly on academic trajectory, technical foundations, research interests, and why this specific program/faculty/curriculum directly enables the applicant's research goals.
+- If Personal Statement: Focus on personal backstory, pivotal formative moments, core values, personal resilience, and the human motivations driving their academic pursuits.
+- If Cover Letter: Structure as clean formal paragraphs demonstrating direct qualification fit for the program/organization with concrete project highlights.
+- If Research Statement: Emphasize research methodologies, experimental questions, published/evaluated work, and prospective thesis direction.
+- If Scholarship Essay: Emphasize community impact, merit foundations, leadership potential, and how this scholarship empowers the applicant to give back.
+
 AUTHENTIC STUDENT WRITING RULES:
 1. PERSONAL & REFLECTIVE TONE:
    - Write like a real student explaining their journey to an admissions committee. Sound personal, thoughtful, and direct.

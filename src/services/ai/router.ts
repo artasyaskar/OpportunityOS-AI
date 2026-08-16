@@ -52,7 +52,7 @@ class AIRouter {
   private updateHealth(provider: string, success: boolean, latencyMs: number = 0, statusCode?: number) {
     const h = this.health[provider];
     if (!h) return;
-    
+
     h.callsCount++;
     if (success) {
       h.successCount++;
@@ -173,7 +173,7 @@ class AIRouter {
       } catch {
         continue;
       }
-      
+
       let attempt = 0;
       // Instant failover for Gemini/OpenRouter to speed up fallback, only retry Groq which is fast
       const maxAttempts = providerName === 'groq' ? 2 : 1;
@@ -185,10 +185,10 @@ class AIRouter {
         try {
           const responsePromise = operation(provider);
           // Generous timeouts: 60s for document generation/complex reasoning/parsing, 60s for vision, 30s for general chat
-          const timeoutMs = options?.image 
-            ? 60000 
-            : (options?.taskType === 'document_generation' || options?.taskType === 'resume_parsing' || options?.taskType === 'complex_reasoning') 
-              ? 60000 
+          const timeoutMs = options?.image
+            ? 60000
+            : (options?.taskType === 'document_generation' || options?.taskType === 'resume_parsing' || options?.taskType === 'complex_reasoning')
+              ? 60000
               : 30000;
           const timeoutPromise = new Promise<never>((_, reject) =>
             setTimeout(() => reject(new Error(`AI Request Timeout (${timeoutMs / 1000}s)`)), timeoutMs)
@@ -197,7 +197,7 @@ class AIRouter {
           result = await Promise.race([responsePromise, timeoutPromise]);
           result.metadata.retryCount = attempt - 1;
           result.metadata.cached = false;
-          
+
           const latency = Date.now() - start;
           this.updateHealth(providerName, true, latency);
           fallbackTrace.push({ provider: providerName, status: 'Success', attempt, latencyMs: latency });
@@ -213,15 +213,15 @@ class AIRouter {
         } catch (error: any) {
           const duration = Date.now() - start;
           lastError = error;
-          
+
           let statusCode = 500;
           const msg = error.message || '';
           if (msg.includes('Status 503') || msg.includes('Overloaded')) statusCode = 503;
           if (msg.includes('Status 429')) statusCode = 429;
-          
+
           this.updateHealth(providerName, false, duration, statusCode);
           fallbackTrace.push({ provider: providerName, status: 'Failed', attempt, latencyMs: duration, error: error.message });
-          
+
           const isPermanentForProvider =
             msg.includes('API Error') ||
             msg.includes('Status 400') ||
@@ -296,7 +296,7 @@ class AIRouter {
 
     // 3. Graceful Error Fallback
     this.printLatencyTrace(agentName, fallbackTrace);
-    
+
     try {
       adminDb.collection('agent_logs').add({
         agentName,

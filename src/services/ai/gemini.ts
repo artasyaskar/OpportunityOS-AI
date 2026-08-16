@@ -156,49 +156,65 @@ export class GeminiProvider extends AIProvider {
           ...(googleAuthOptions ? { googleAuthOptions } : {})
         });
 
-        const modelName = options?.model || 'gemini-2.5-flash';
-        
-        const contents: any[] = [];
-        if (options?.image) {
-          contents.push({
-            role: 'user',
-            parts: [
-              { text: prompt },
-              { inlineData: { data: options.image.data, mimeType: options.image.mimeType } }
-            ]
-          });
-        } else {
-          contents.push(prompt);
+        const candidateModels = options?.model 
+          ? [options.model] 
+          : ['gemini-2.5-flash', 'gemini-1.5-flash', 'gemini-flash-latest'];
+
+        let lastVertexErr: any = null;
+        for (const modelName of candidateModels) {
+          try {
+            const contents: any[] = [];
+            if (options?.image) {
+              contents.push({
+                role: 'user',
+                parts: [
+                  { text: prompt },
+                  { inlineData: { data: options.image.data, mimeType: options.image.mimeType } }
+                ]
+              });
+            } else {
+              contents.push(prompt);
+            }
+
+            const resp = await ai.models.generateContent({
+              model: modelName,
+              contents: contents.length === 1 && typeof contents[0] === 'string' ? contents[0] : contents,
+              config: {
+                temperature: options?.temperature ?? 0.1,
+                maxOutputTokens: options?.maxTokens || 4096,
+                ...(options?.topP !== undefined ? { topP: options.topP } : {}),
+                ...(systemPrompt ? { systemInstruction: systemPrompt } : {}),
+                ...(options?.responseFormat === 'json' ? { responseMimeType: 'application/json' } : {})
+              }
+            });
+
+            const content = resp.text || '';
+            const usageMetadata = resp.usageMetadata || { promptTokenCount: 0, candidatesTokenCount: 0, totalTokenCount: 0 };
+            const latencyMs = Date.now() - startTime;
+
+            return {
+              content,
+              metadata: {
+                provider: 'gemini-vertex',
+                model: modelName,
+                promptTokens: usageMetadata.promptTokenCount || 0,
+                completionTokens: usageMetadata.candidatesTokenCount || 0,
+                totalTokens: usageMetadata.totalTokenCount || 0,
+                latencyMs,
+                costUSD: this.calculateCost(modelName, usageMetadata.promptTokenCount || 0, usageMetadata.candidatesTokenCount || 0)
+              }
+            };
+          } catch (modelErr: any) {
+            lastVertexErr = modelErr;
+            const errMsg = String(modelErr?.message || modelErr);
+            if (errMsg.includes('404') || errMsg.includes('NOT_FOUND')) {
+              console.warn(`[GeminiProvider] Vertex model ${modelName} returned 404. Trying next candidate...`);
+              continue;
+            }
+            throw modelErr;
+          }
         }
-
-        const resp = await ai.models.generateContent({
-          model: modelName,
-          contents: contents.length === 1 && typeof contents[0] === 'string' ? contents[0] : contents,
-          config: {
-            temperature: options?.temperature ?? 0.1,
-            maxOutputTokens: options?.maxTokens,
-            ...(options?.topP !== undefined ? { topP: options.topP } : {}),
-            ...(systemPrompt ? { systemInstruction: systemPrompt } : {}),
-            ...(options?.responseFormat === 'json' ? { responseMimeType: 'application/json' } : {})
-          }
-        });
-
-        const content = resp.text || '';
-        const usageMetadata = resp.usageMetadata || { promptTokenCount: 0, candidatesTokenCount: 0, totalTokenCount: 0 };
-        const latencyMs = Date.now() - startTime;
-
-        return {
-          content,
-          metadata: {
-            provider: 'gemini-vertex',
-            model: modelName,
-            promptTokens: usageMetadata.promptTokenCount || 0,
-            completionTokens: usageMetadata.candidatesTokenCount || 0,
-            totalTokens: usageMetadata.totalTokenCount || 0,
-            latencyMs,
-            costUSD: this.calculateCost(modelName, usageMetadata.promptTokenCount || 0, usageMetadata.candidatesTokenCount || 0)
-          }
-        };
+        if (lastVertexErr) throw lastVertexErr;
       } catch (vertexErr: any) {
         console.warn(`[GeminiProvider] Vertex AI attempt failed: ${vertexErr?.message || vertexErr}. Falling back to AI Studio API Key.`);
       }
@@ -210,85 +226,103 @@ export class GeminiProvider extends AIProvider {
     }
 
     const discovered = await discoverAvailableModels(apiKey);
-    const primaryModel = options?.model || discovered[0] || 'gemini-2.0-flash';
+    const candidateStudioModels = options?.model 
+      ? [options.model] 
+      : [...discovered, 'gemini-2.5-flash', 'gemini-1.5-flash', 'gemini-flash-latest'];
 
-    const requestBody: any = {
-      contents: [
-        {
-          role: 'user',
-          parts: [
-            { text: prompt },
-            ...(options?.image ? [{
-              inlineData: {
-                data: options.image.data,
-                mimeType: options.image.mimeType
-              }
-            }] : [])
-          ]
+    let lastStudioErr: any = null;
+
+    for (const primaryModel of candidateStudioModels) {
+      try {
+        const requestBody: any = {
+          contents: [
+            {
+              role: 'user',
+              parts: [
+                { text: prompt },
+                ...(options?.image ? [{
+                  inlineData: {
+                    data: options.image.data,
+                    mimeType: options.image.mimeType
+                  }
+                }] : [])
+              ]
+            }
+          ],
+          generationConfig: {
+            temperature: options?.temperature ?? 0.1,
+            maxOutputTokens: options?.maxTokens || 4096,
+            ...(options?.topP !== undefined ? { topP: options.topP } : {}),
+            responseMimeType: options?.responseFormat === 'json' ? 'application/json' : 'text/plain'
+          }
+        };
+
+        if (systemPrompt) {
+          requestBody.systemInstruction = {
+            parts: [{ text: systemPrompt }]
+          };
         }
-      ],
-      generationConfig: {
-        temperature: options?.temperature ?? 0.1,
-        maxOutputTokens: options?.maxTokens,
-        ...(options?.topP !== undefined ? { topP: options.topP } : {}),
-        responseMimeType: options?.responseFormat === 'json' ? 'application/json' : 'text/plain'
-      }
-    };
 
-    if (systemPrompt) {
-      requestBody.systemInstruction = {
-        parts: [{ text: systemPrompt }]
-      };
+        const response = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${primaryModel}:generateContent?key=${apiKey}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(requestBody),
+          }
+        );
+
+        // 401 / 403: Invalid API Key / Unauthorized Project
+        if (response.status === 401 || response.status === 403) {
+          const errText = await response.text();
+          throw new Error(`Gemini Authentication Error (${response.status}): ${errText}`);
+        }
+
+        // 429: Rate Limit / Quota Exceeded -> Fast Handoff
+        if (response.status === 429) {
+          const errText = await response.text();
+          console.warn(`[Gemini] Hit HTTP 429 Quota Limit on "${primaryModel}". Fast failing over.`);
+          throw new Error(`Gemini API failure: Status 429 - ${errText.slice(0, 200)}`);
+        }
+
+        // 404: Try next model candidate
+        if (response.status === 404) {
+          console.warn(`[Gemini] Model ${primaryModel} returned 404 in AI Studio. Trying next candidate...`);
+          continue;
+        }
+
+        if (!response.ok) {
+          const errText = await response.text();
+          throw new Error(`Gemini API failure (${primaryModel}): Status ${response.status} - ${errText}`);
+        }
+
+        const data = await response.json();
+        const latencyMs = Date.now() - startTime;
+
+        const content = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+        const usageMetadata = data.usageMetadata || { promptTokenCount: 0, candidatesTokenCount: 0, totalTokenCount: 0 };
+
+        const metadata: AIResponseMetadata = {
+          provider: this.name,
+          model: primaryModel,
+          promptTokens: usageMetadata.promptTokenCount,
+          completionTokens: usageMetadata.candidatesTokenCount,
+          totalTokens: usageMetadata.totalTokenCount,
+          latencyMs,
+          costUSD: this.calculateCost(primaryModel, usageMetadata.promptTokenCount, usageMetadata.candidatesTokenCount),
+        };
+
+        return { content, metadata };
+      } catch (e: any) {
+        lastStudioErr = e;
+        if (e.message && e.message.includes('Status 429')) throw e;
+        if (e.message && (e.message.includes('401') || e.message.includes('403'))) throw e;
+        continue;
+      }
     }
 
-    try {
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${primaryModel}:generateContent?key=${apiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(requestBody),
-        }
-      );
-
-      // 401 / 403: Invalid API Key / Unauthorized Project
-      if (response.status === 401 || response.status === 403) {
-        const errText = await response.text();
-        throw new Error(`Gemini Authentication Error (${response.status}): ${errText}`);
-      }
-
-      // 429: Rate Limit / Quota Exceeded -> Fast Handoff (DO NOT spend 10s retrying)
-      if (response.status === 429) {
-        const errText = await response.text();
-        console.warn(`[Gemini] Hit HTTP 429 Quota Limit on "${primaryModel}". Fast failing over to next healthy provider.`);
-        throw new Error(`Gemini API failure: Status 429 - ${errText.slice(0, 200)}`);
-      }
-
-      if (!response.ok) {
-        const errText = await response.text();
-        throw new Error(`Gemini API failure (${primaryModel}): Status ${response.status} - ${errText}`);
-      }
-
-      const data = await response.json();
-      const latencyMs = Date.now() - startTime;
-
-      const content = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-      const usageMetadata = data.usageMetadata || { promptTokenCount: 0, candidatesTokenCount: 0, totalTokenCount: 0 };
-
-      const metadata: AIResponseMetadata = {
-        provider: this.name,
-        model: primaryModel,
-        promptTokens: usageMetadata.promptTokenCount,
-        completionTokens: usageMetadata.candidatesTokenCount,
-        totalTokens: usageMetadata.totalTokenCount,
-        latencyMs,
-        costUSD: this.calculateCost(primaryModel, usageMetadata.promptTokenCount, usageMetadata.candidatesTokenCount),
-      };
-
-      return { content, metadata };
-    } catch (e: any) {
-      throw e;
-    }
+    if (lastStudioErr) throw lastStudioErr;
+    throw new Error('All Gemini candidate models failed.');
   }
 
   async generateJSON<T>(
