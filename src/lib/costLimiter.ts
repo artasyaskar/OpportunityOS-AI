@@ -63,13 +63,44 @@ export function recordAiRequest(tokensUsed: number = 2000, modelType: 'groq' | '
   };
 
   saveQuotaState(nextState);
+
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('ai_credits_updated', { 
+      detail: { credits: nextState.dailyCredits, isUnlimited: isPro } 
+    }));
+
+    // Update any user-keyed credit caches in localStorage
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('creditData_')) {
+          const item = localStorage.getItem(key);
+          if (item) {
+            const parsed = JSON.parse(item);
+            if (!parsed.isUnlimited) {
+              parsed.credits = nextState.dailyCredits;
+              localStorage.setItem(key, JSON.stringify(parsed));
+            }
+          }
+        }
+      }
+    } catch(e) {}
+  }
+
   return true;
 }
 
 export function resetDailyQuotas() {
   const state = getQuotaState();
-  saveQuotaState({
+  const resetState = {
     ...state,
     dailyCredits: 1000,
-  });
+  };
+  saveQuotaState(resetState);
+
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('ai_credits_updated', { 
+      detail: { credits: 1000, isUnlimited: false } 
+    }));
+  }
 }

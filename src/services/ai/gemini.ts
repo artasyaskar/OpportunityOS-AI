@@ -4,23 +4,51 @@ function cleanAndParseJSON(input: any): any {
   if (typeof input === 'object' && input !== null) return input;
   const text = typeof input === 'string' ? input : String(input || '');
   const trimmed = text.trim();
-  try { return JSON.parse(trimmed); } catch (e) {}
-  const jsonBlockRegex = /```json\s*([\s\S]*?)\s*```/;
+
+  const safeParse = (str: string) => {
+    try {
+      return JSON.parse(str);
+    } catch (e) {
+      try {
+        let inString = false;
+        let escaped = false;
+        let repaired = '';
+        for (let i = 0; i < str.length; i++) {
+          const char = str[i];
+          if (char === '"' && !escaped) inString = !inString;
+          if (char === '\\' && !escaped) escaped = true;
+          else escaped = false;
+          if (inString && char === '\n') repaired += '\\n';
+          else if (inString && char === '\r') repaired += '\\r';
+          else if (inString && char === '\t') repaired += '\\t';
+          else repaired += char;
+        }
+        return JSON.parse(repaired);
+      } catch (e2) {}
+      throw e;
+    }
+  };
+
+  try { return safeParse(trimmed); } catch (e) {}
+
+  const jsonBlockRegex = /```(?:json)?\s*([\s\S]*?)\s*```/;
   const match = trimmed.match(jsonBlockRegex);
-  if (match && match[1]) { try { return JSON.parse(match[1].trim()); } catch (e) {} }
-  const genericBlockRegex = /```\s*([\s\S]*?)\s*```/;
-  const genericMatch = trimmed.match(genericBlockRegex);
-  if (genericMatch && genericMatch[1]) { try { return JSON.parse(genericMatch[1].trim()); } catch (e) {} }
+  if (match && match[1]) {
+    try { return safeParse(match[1].trim()); } catch (e) {}
+  }
+
   const start = trimmed.indexOf('{');
   const end = trimmed.lastIndexOf('}');
   if (start !== -1 && end !== -1 && end > start) {
-    try { return JSON.parse(trimmed.slice(start, end + 1)); } catch (e) {}
+    try { return safeParse(trimmed.slice(start, end + 1)); } catch (e) {}
   }
+
   const startArr = trimmed.indexOf('[');
   const endArr = trimmed.lastIndexOf(']');
   if (startArr !== -1 && endArr !== -1 && endArr > startArr) {
-    try { return JSON.parse(trimmed.slice(startArr, endArr + 1)); } catch (e) {}
+    try { return safeParse(trimmed.slice(startArr, endArr + 1)); } catch (e) {}
   }
+
   throw new Error("No parseable JSON structure found");
 }
 
@@ -181,7 +209,7 @@ export class GeminiProvider extends AIProvider {
               contents: contents.length === 1 && typeof contents[0] === 'string' ? contents[0] : contents,
               config: {
                 temperature: options?.temperature ?? 0.1,
-                maxOutputTokens: options?.maxTokens || 4096,
+                maxOutputTokens: options?.maxTokens || 8192,
                 ...(options?.topP !== undefined ? { topP: options.topP } : {}),
                 ...(systemPrompt ? { systemInstruction: systemPrompt } : {}),
                 ...(options?.responseFormat === 'json' ? { responseMimeType: 'application/json' } : {})
@@ -251,7 +279,7 @@ export class GeminiProvider extends AIProvider {
           ],
           generationConfig: {
             temperature: options?.temperature ?? 0.1,
-            maxOutputTokens: options?.maxTokens || 4096,
+            maxOutputTokens: options?.maxTokens || 8192,
             ...(options?.topP !== undefined ? { topP: options.topP } : {}),
             responseMimeType: options?.responseFormat === 'json' ? 'application/json' : 'text/plain'
           }

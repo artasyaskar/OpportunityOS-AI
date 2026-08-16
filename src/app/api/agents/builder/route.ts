@@ -49,6 +49,13 @@ export async function POST(req: NextRequest) {
   } catch (error: any) {
     console.error('Builder agent error:', error);
     
+    if (error?.name === 'InsufficientCreditsError' || error?.message?.includes('daily free credits') || error?.message?.includes('exhausted')) {
+      return NextResponse.json(
+        { requireUpgrade: true, error: 'Insufficient AI Credits', message: error.message },
+        { status: 402 }
+      );
+    }
+
     if (error.name === 'HallucinationError') {
       return NextResponse.json(
         { 

@@ -11,11 +11,11 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <AuthProvider>
       <ProfileProvider>
         <SubscriptionProvider>
-            <PipelineProvider>
-              {children}
-              <GlobalUpgradeModal />
-            </PipelineProvider>
+          <PipelineProvider>
+            {children}
+          </PipelineProvider>
         </SubscriptionProvider>
+        <GlobalUpgradeModal />
       </ProfileProvider>
     </AuthProvider>
   );

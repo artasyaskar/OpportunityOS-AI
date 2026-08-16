@@ -169,13 +169,28 @@ export default function AgentsDashboard() {
       
       if (!res.ok) {
         if (res.status === 402 || data.requireUpgrade) {
-          openUpgradeModal();
-          throw new Error('Insufficient AI Credits');
+          setResultData({ error: "You've completed your 1,000 daily free AI credits. Redirecting to Plan & Billing dashboard..." });
+          setTimeout(() => {
+            window.location.href = '/dashboard/settings?tab=billing&plan=professional_monthly';
+          }, 1000);
+          return;
         }
         throw new Error(data.error || 'Failed to execute agent');
       }
       
-      import('@/lib/costLimiter').then(m => m.recordAiRequest(1000, 'groq', !!subscription?.planId && subscription.planId !== 'free'));
+      const isProActive = Boolean(subscription && ['ACTIVE', 'APPROVED', 'LIFETIME', 'ENTERPRISE'].includes((subscription.status || '').toUpperCase()));
+      import('@/lib/costLimiter').then(m => {
+        try {
+          m.recordAiRequest(1000, 'groq', isProActive);
+        } catch (err: any) {
+          if (err.name === 'OutOfCreditsError') {
+            setResultData({ error: "You've completed your 1,000 daily free AI credits. Redirecting to Plan & Billing dashboard..." });
+            setTimeout(() => {
+              window.location.href = '/dashboard/settings?tab=billing&plan=professional_monthly';
+            }, 1000);
+          }
+        }
+      }).catch(() => {});
       
       setResultData(data);
     } catch (err: any) {
@@ -207,8 +222,11 @@ export default function AgentsDashboard() {
 
       if (!res.ok) {
         if (res.status === 402) {
-          openUpgradeModal();
-          throw new Error('Insufficient AI Credits');
+          setFleetResults({ error: "You've completed your 1,000 daily free AI credits. Redirecting to Plan & Billing dashboard..." });
+          setTimeout(() => {
+            window.location.href = '/dashboard/settings?tab=billing&plan=professional_monthly';
+          }, 1000);
+          return;
         }
         const err = await res.json();
         throw new Error(err.error || 'Failed to synthesize fleet dossier');
@@ -217,7 +235,19 @@ export default function AgentsDashboard() {
       const dossierData = await res.json();
       setFleetResults(dossierData);
       
-      import('@/lib/costLimiter').then(m => m.recordAiRequest(1000, 'gemini', !!subscription?.planId && subscription.planId !== 'free'));
+      const isProActive = Boolean(subscription && ['ACTIVE', 'APPROVED', 'LIFETIME', 'ENTERPRISE'].includes((subscription.status || '').toUpperCase()));
+      import('@/lib/costLimiter').then(m => {
+        try {
+          m.recordAiRequest(1000, 'gemini', isProActive);
+        } catch (err: any) {
+          if (err.name === 'OutOfCreditsError') {
+            setFleetResults({ error: "You've completed your 1,000 daily free AI credits. Redirecting to Plan & Billing dashboard..." });
+            setTimeout(() => {
+              window.location.href = '/dashboard/settings?tab=billing&plan=professional_monthly';
+            }, 1000);
+          }
+        }
+      }).catch(() => {});
     } catch (err: any) {
       console.error('Fleet dossier execution error:', err);
       setFleetResults({ error: err instanceof Error ? err.message : 'Failed to execute master fleet dossier.' });

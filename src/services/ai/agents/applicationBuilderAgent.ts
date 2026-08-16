@@ -266,7 +266,7 @@ async function runContentStrategist(
         { temperature: 0.2 }
       );
     },
-    { format: 'json', taskType: 'complex_reasoning', userId, preferredProvider }
+    { format: 'json', taskType: 'complex_reasoning', preferredProvider }
   );
 
   return response.content;
@@ -362,7 +362,7 @@ async function runNaturalEditor(
         { temperature: 0.3 }
       );
     },
-    { format: 'json', taskType: 'document_generation', userId, preferredProvider }
+    { format: 'json', taskType: 'document_generation', preferredProvider }
   );
 
   try {

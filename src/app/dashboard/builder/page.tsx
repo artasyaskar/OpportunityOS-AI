@@ -206,17 +206,32 @@ export default function BuilderPage() {
       const data = await res.json();
       if (!res.ok) {
         if (res.status === 402 || data.requireUpgrade) {
-          openUpgradeModal();
-          throw new Error('Insufficient AI Credits');
+          toast("You've completed your 1,000 daily free AI credits. Redirecting to Plan & Billing dashboard...");
+          setTimeout(() => {
+            window.location.href = '/dashboard/settings?tab=billing&plan=professional_monthly';
+          }, 1000);
+          return;
         }
         if (data.error) {
           toast(`[AI Guardrail Alert]: ${data.error}\n\n${data.content}\n\nTechnical details: ${data.message}`);
-          throw new Error('Hallucination intercepted');
+          return;
         }
         throw new Error('API error');
       }
       
-      import('@/lib/costLimiter').then(m => m.recordAiRequest(2500, 'groq', !!subscription?.planId && subscription.planId !== 'free'));
+      const isProActive = Boolean(subscription && ['ACTIVE', 'APPROVED', 'LIFETIME', 'ENTERPRISE'].includes((subscription.status || '').toUpperCase()));
+      import('@/lib/costLimiter').then(m => {
+        try {
+          m.recordAiRequest(2500, 'gemini', isProActive);
+        } catch (err: any) {
+          if (err.name === 'OutOfCreditsError') {
+            toast("You've completed your 1,000 daily free AI credits. Redirecting to Plan & Billing dashboard...");
+            setTimeout(() => {
+              window.location.href = '/dashboard/settings?tab=billing&plan=professional_monthly';
+            }, 1000);
+          }
+        }
+      }).catch(() => {});
       
       const generatedContent = data.content || generateTemplate(docType, activeProfile, opportunity);
       setContents(prev => ({ ...prev, [docType]: generatedContent }));
@@ -482,6 +497,13 @@ export default function BuilderPage() {
                   const data = await res.json();
                   
                   if (!res.ok) {
+                    if (res.status === 402 || data.requireUpgrade) {
+                      toast("You've completed your 1,000 daily free AI credits. Redirecting to Plan & Billing dashboard...");
+                      setTimeout(() => {
+                        window.location.href = '/dashboard/settings?tab=billing&plan=professional_monthly';
+                      }, 1000);
+                      return;
+                    }
                     toast(data.error || 'Failed to analyze URL.');
                     return;
                   }

@@ -102,8 +102,6 @@ const spaceGrotesk = Space_Grotesk({
   variable: '--font-space-grotesk',
 });
 
-import { AuthProvider } from '@/components/auth/AuthProvider';
-import { ProfileProvider } from '@/components/auth/ProfileContext';
 import { DialogProvider } from '@/components/ui/DialogProvider';
 import Script from 'next/script';
 import { Analytics as VercelAnalytics } from '@vercel/analytics/react';
@@ -121,13 +119,9 @@ export default function RootLayout({
         <JsonLd data={[organizationJsonLd(), websiteJsonLd()]} />
         <Providers>
           <DialogProvider>
-            <AuthProvider>
-              <ProfileProvider>
-                <Analytics />
-                <CommandPalette />
-                {children}
-              </ProfileProvider>
-            </AuthProvider>
+            <Analytics />
+            <CommandPalette />
+            {children}
           </DialogProvider>
         </Providers>
         {process.env.NEXT_PUBLIC_GA_ID && (

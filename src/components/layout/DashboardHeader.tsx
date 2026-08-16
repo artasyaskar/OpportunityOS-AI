@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useDialog } from '@/components/ui/DialogProvider';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { isUserAdmin } from '@/lib/permissions';
@@ -12,6 +12,7 @@ import { usePipeline } from '@/components/auth/PipelineContext';
 import { SEED_OPPORTUNITIES } from '@/lib/opportunities';
 import { NotificationRepository, AppNotification } from '@/lib/repositories/NotificationRepository';
 import { EvidenceRepository } from '@/lib/repositories/EvidenceRepository';
+import { getQuotaState } from '@/lib/costLimiter';
 import { Menu, Search, Bell, Zap, WifiOff, X } from 'lucide-react';
 interface SearchResult {
   title: string;
@@ -34,6 +35,7 @@ const NAV_DESTINATIONS: SearchResult[] = [
 export default function DashboardHeader() {
   const { toast, confirm, prompt, showAILoading, hideAILoading } = useDialog();
   const router = useRouter();
+  const pathname = usePathname();
   const { user, logout, getIdToken } = useAuth();
   const { profile, openUpgradeModal, isOffline } = useProfile() as any;
   const { pipeline: applications } = usePipeline();
@@ -49,36 +51,77 @@ export default function DashboardHeader() {
   const [documents, setDocuments] = useState<any[]>([]);
   const [draggedNotifId, setDraggedNotifId] = useState<string | null>(null);
   const [dragOverNotifId, setDragOverNotifId] = useState<string | null>(null);
-  const [creditData, setCreditData] = useState<{ credits: number; isUnlimited: boolean; hoursUntilReset: number } | null>(null);
+  const [creditData, setCreditData] = useState<{ credits: number; isUnlimited: boolean; hoursUntilReset: number } | null>(() => {
+    if (typeof window !== 'undefined') {
+      const localQuota = getQuotaState();
+      return { credits: localQuota.dailyCredits, isUnlimited: false, hoursUntilReset: 24 };
+    }
+    return null;
+  });
 
-  useEffect(() => {
+  const syncCredits = () => {
+    const localQuota = getQuotaState();
     if (user?.uid) {
       const cached = localStorage.getItem(`creditData_${user.uid}`);
       if (cached) {
         try {
-          setCreditData(JSON.parse(cached));
+          const parsed = JSON.parse(cached);
+          if (parsed.isUnlimited) {
+            // Re-verify without forcing unlimited immediately
+            setCreditData({ credits: localQuota.dailyCredits, isUnlimited: false, hoursUntilReset: 24 });
+          } else {
+            const effectiveCredits = parsed.credits !== undefined ? parsed.credits : localQuota.dailyCredits;
+            setCreditData({ ...parsed, credits: effectiveCredits, isUnlimited: false });
+          }
         } catch(e) {}
+      } else {
+        setCreditData({ credits: localQuota.dailyCredits, isUnlimited: false, hoursUntilReset: 24 });
       }
+
+      fetch(`/api/user/credits?uid=${user.uid}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data?.credits !== undefined) {
+            const isUnlim = Boolean(data.isUnlimited);
+            const effective = isUnlim ? 999999 : data.credits;
+            const newData = {
+              credits: effective,
+              isUnlimited: isUnlim,
+              hoursUntilReset: data.hoursUntilReset || 24
+            };
+            setCreditData(newData);
+            localStorage.setItem(`creditData_${user.uid}`, JSON.stringify(newData));
+          }
+        })
+        .catch(console.error);
+    } else {
+      setCreditData({ credits: localQuota.dailyCredits, isUnlimited: false, hoursUntilReset: 24 });
     }
-  }, [user?.uid]);
+  };
 
   useEffect(() => {
-    if (!user?.uid) return;
-    fetch(`/api/user/credits?uid=${user.uid}`)
-      .then(res => res.json())
-      .then(data => {
-        if (data?.credits !== undefined) {
-          const newData = {
-            credits: data.credits,
-            isUnlimited: data.isUnlimited,
-            hoursUntilReset: data.hoursUntilReset || 24
-          };
-          setCreditData(newData);
-          localStorage.setItem(`creditData_${user.uid}`, JSON.stringify(newData));
-        }
-      })
-      .catch(console.error);
-  }, [user?.uid]);
+    syncCredits();
+
+    const handleCreditsUpdate = (event: any) => {
+      if (event?.detail?.credits !== undefined) {
+        setCreditData(prev => ({
+          credits: event.detail.credits,
+          isUnlimited: !!event.detail.isUnlimited,
+          hoursUntilReset: prev?.hoursUntilReset || 24
+        }));
+      } else {
+        syncCredits();
+      }
+    };
+
+    window.addEventListener('ai_credits_updated', handleCreditsUpdate);
+    window.addEventListener('storage', handleCreditsUpdate);
+
+    return () => {
+      window.removeEventListener('ai_credits_updated', handleCreditsUpdate);
+      window.removeEventListener('storage', handleCreditsUpdate);
+    };
+  }, [user?.uid, pathname]);
 
   const handleDragEnd = () => {
     if (draggedNotifId && dragOverNotifId && draggedNotifId !== dragOverNotifId) {

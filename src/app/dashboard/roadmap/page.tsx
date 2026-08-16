@@ -24,7 +24,7 @@ const PRIORITY_COLORS: Record<string, string> = {
 export default function RoadmapPage() {
   const router = useRouter();
   const { user, getIdToken } = useAuth();
-  const { profile: userProfile } = useProfile();
+  const { profile: userProfile, openUpgradeModal } = useProfile();
   const { pipeline: apps } = usePipeline() as any;
   const { subscription } = useSubscription();
   const [documents, setDocuments] = useState<EvidenceDocument[]>([]);
@@ -107,8 +107,30 @@ export default function RoadmapPage() {
         })
       });
       const data = await res.json();
+      if (!res.ok) {
+        if (res.status === 402 || data.requireUpgrade) {
+          setAnalysisStatus('error');
+          setTimeout(() => {
+            window.location.href = '/dashboard/settings?tab=billing&plan=professional_monthly';
+          }, 1000);
+          return;
+        }
+        throw new Error(data.error || 'Failed to run gap analysis');
+      }
+
       const content = data.content || data;
-      import('@/lib/costLimiter').then(m => m.recordAiRequest(1500, 'groq', !!subscription?.planId && subscription.planId !== 'free'));
+      const isProActive = Boolean(subscription && ['ACTIVE', 'APPROVED', 'LIFETIME', 'ENTERPRISE'].includes((subscription.status || '').toUpperCase()));
+      import('@/lib/costLimiter').then(m => {
+        try {
+          m.recordAiRequest(1500, 'groq', isProActive);
+        } catch (err: any) {
+          if (err.name === 'OutOfCreditsError') {
+            setTimeout(() => {
+              window.location.href = '/dashboard/settings?tab=billing&plan=professional_monthly';
+            }, 1000);
+          }
+        }
+      }).catch(() => {});
       setAiAnalysis(content);
       
       if (content?.gaps) {

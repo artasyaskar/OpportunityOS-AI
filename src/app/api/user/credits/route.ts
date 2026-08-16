@@ -32,14 +32,14 @@ export async function GET(req: NextRequest) {
 
     const status = (subscription.status || '').toUpperCase();
     const isMonthly = (subscription.planId || '').toLowerCase().includes('monthly');
-    const isLifetime = status === 'LIFETIME' || (subscription.planId || '').toLowerCase().includes('lifetime');
+    const isLifetime = status === 'LIFETIME' || (status === 'ACTIVE' && (subscription.planId || '').toLowerCase().includes('lifetime'));
 
     const isExpired = !isLifetime && (status === 'EXPIRED' || (status === 'ACTIVE' && now > expiresAt));
 
     return NextResponse.json({
       credits: creditInfo.credits,
       hoursUntilReset: creditInfo.hoursUntilReset,
-      isUnlimited: creditInfo.isUnlimited || isLifetime,
+      isUnlimited: Boolean(creditInfo.isUnlimited),
       subscription: {
         planId: subscription.planId || 'free',
         status: isExpired ? 'EXPIRED' : (subscription.status || 'FREE'),
@@ -60,5 +60,30 @@ export async function GET(req: NextRequest) {
   } catch (err: any) {
     console.error('[Credits API] Failed to fetch user credits:', err);
     return NextResponse.json({ error: err.message || 'Internal error' }, { status: 500 });
+  }
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    const body = await req.json();
+    const { uid } = body;
+
+    if (!uid) {
+      return NextResponse.json({ error: 'User ID required' }, { status: 400 });
+    }
+
+    await adminDb.collection('profiles').doc(uid).set({
+      aiCredits: CreditManager.FREE_TIER_DAILY_CREDITS,
+      lastCreditReset: Date.now()
+    }, { merge: true });
+
+    return NextResponse.json({ 
+      success: true, 
+      credits: CreditManager.FREE_TIER_DAILY_CREDITS,
+      hoursUntilReset: 24,
+      isUnlimited: false
+    });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message || 'Failed to reset credits' }, { status: 500 });
   }
 }

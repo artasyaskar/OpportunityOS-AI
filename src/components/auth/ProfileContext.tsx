@@ -65,6 +65,19 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
     loadProfile();
   }, [user, isAuthenticated, authLoading]);
 
+  useEffect(() => {
+    const handleOpen = () => setIsUpgradeModalOpen(true);
+    const handleClose = () => setIsUpgradeModalOpen(false);
+    if (typeof window !== 'undefined') {
+      window.addEventListener('open-upgrade-modal', handleOpen);
+      window.addEventListener('close-upgrade-modal', handleClose);
+      return () => {
+        window.removeEventListener('open-upgrade-modal', handleOpen);
+        window.removeEventListener('close-upgrade-modal', handleClose);
+      };
+    }
+  }, []);
+
   const updateProfile = async (updates: Partial<UserProfileData>) => {
     if (!user?.uid) return;
     const newProfile = { ...(profile as UserProfileData), ...updates };

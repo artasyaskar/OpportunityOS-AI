@@ -156,13 +156,14 @@ export default function ExecutiveAdvisorWidget() {
       // Deduct credits before sending request
       const { recordAiRequest, OutOfCreditsError } = await import('@/lib/costLimiter');
       try {
-        recordAiRequest(500, 'groq', !!subscription?.planId && subscription.planId !== 'free');
+        const isProActive = Boolean(subscription && ['ACTIVE', 'APPROVED', 'LIFETIME', 'ENTERPRISE'].includes((subscription.status || '').toUpperCase()));
+        recordAiRequest(500, 'groq', isProActive);
       } catch (err: any) {
         if (err.name === 'OutOfCreditsError') {
-          setToastMsg("The AI servers run in the backend and you've completed your 1000 credits for today. Buy a Pro plan to continue growing your professional journey.");
+          setToastMsg("You have completed your 1,000 daily free AI credits. Redirecting to Plan & Billing dashboard...");
           setTimeout(() => {
-            window.location.href = '/dashboard/settings?tab=billing';
-          }, 3500);
+            window.location.href = '/dashboard/settings?tab=billing&plan=professional_monthly';
+          }, 1200);
           return;
         }
         throw err;
@@ -185,7 +186,10 @@ export default function ExecutiveAdvisorWidget() {
       });
       const data = await res.json();
       if (res.status === 402) {
-        setMessages(prev => [...prev, { sender: 'ai', text: "You've used all your AI credits for now. Upgrade your plan to keep strategizing with me." }]);
+        setMessages(prev => [...prev, { sender: 'ai', text: "You have used all 1,000 daily AI credits. Redirecting to Plan & Billing dashboard..." }]);
+        setTimeout(() => {
+          window.location.href = '/dashboard/settings?tab=billing&plan=professional_monthly';
+        }, 1200);
         return;
       }
       if (!res.ok) throw new Error(data.error || 'Failed to fetch reply');

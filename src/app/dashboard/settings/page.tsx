@@ -12,7 +12,7 @@ import { SubscriptionRecord } from '@/lib/subscription';
 import { getMerchantConfigs, PaymentMerchantConfig } from '@/lib/paymentAdapter';
 import { fetchPaymentMerchants, uploadPaymentReceipt } from '@/lib/db';
 import { validatePromo, applyReferral } from '@/lib/growth';
-import { getQuotaState, QuotaState } from '@/lib/costLimiter';
+import { getQuotaState, saveQuotaState, resetDailyQuotas, QuotaState } from '@/lib/costLimiter';
 import { PaymentRequestRepository, PaymentRequest, PaymentProvider, PaymentStatus } from '@/lib/repositories/PaymentRequestRepository';
 import { NotificationRepository } from '@/lib/repositories/NotificationRepository';
 import { compressImage, validateReceiptUpload } from '@/lib/imageUtils';
@@ -33,6 +33,11 @@ export default function SettingsPage() {
   useEffect(() => {
     if (searchParams.get('tab') === 'billing') {
       setActiveTab('billing');
+    }
+    const planParam = searchParams.get('plan');
+    if (planParam) {
+      setSelectedPlan(planParam);
+      setCheckoutStep(1);
     }
   }, [searchParams]);
   
@@ -97,6 +102,8 @@ export default function SettingsPage() {
 
   // Billing state
   const [quota, setQuota] = useState<QuotaState | null>(null);
+  const [userCredits, setUserCredits] = useState<number | null>(null);
+  const [hoursUntilReset, setHoursUntilReset] = useState<number>(24);
   const [savedCount, setSavedCount] = useState(0);
   const [currency, setCurrency] = useState<'PKR' | 'USD'>('USD');
   
@@ -121,6 +128,64 @@ export default function SettingsPage() {
   
   const [merchants, setMerchants] = useState<PaymentMerchantConfig[]>([]);
   const [paymentRequests, setPaymentRequests] = useState<PaymentRequest[]>([]);
+
+  const syncUserCredits = () => {
+    if (user?.uid) {
+      fetch(`/api/user/credits?uid=${user.uid}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data?.credits !== undefined) {
+            setUserCredits(data.credits);
+            setHoursUntilReset(data.hoursUntilReset || 24);
+            const qs = getQuotaState();
+            saveQuotaState({ ...qs, dailyCredits: data.credits });
+          }
+        })
+        .catch(console.error);
+    }
+  };
+
+  const handleRenewCredits = async () => {
+    if (!user?.uid) return;
+    showAILoading('Renewing 1,000 daily free credits...');
+    try {
+      const res = await fetch('/api/user/credits', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ uid: user.uid })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setUserCredits(data.credits);
+        resetDailyQuotas();
+        toast('1,000 Free Credits successfully renewed!');
+      }
+    } catch (e: any) {
+      toast('Failed to renew credits: ' + (e?.message || 'Error'));
+    } finally {
+      hideAILoading();
+    }
+  };
+
+  useEffect(() => {
+    syncUserCredits();
+
+    const handleCreditsUpdate = (event: any) => {
+      if (event?.detail?.credits !== undefined) {
+        setUserCredits(event.detail.credits);
+      } else {
+        syncUserCredits();
+      }
+    };
+
+    window.addEventListener('ai_credits_updated', handleCreditsUpdate);
+    window.addEventListener('storage', handleCreditsUpdate);
+
+    return () => {
+      window.removeEventListener('ai_credits_updated', handleCreditsUpdate);
+      window.removeEventListener('storage', handleCreditsUpdate);
+    };
+  }, [user?.uid]);
 
   useEffect(() => {
     if (verificationStatus !== 'idle') {
@@ -851,9 +916,7 @@ export default function SettingsPage() {
             </div>
           )}
 
-          {/* ACTIVE STEP MODULES */}
-
-          {/* Step 1: Premium Pricing Page */}
+          {/* STEP 1: Current Plan & Upgrade Wizard */}
           {checkoutStep === 1 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
               
@@ -864,11 +927,20 @@ export default function SettingsPage() {
                 </h3>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
                   <div className="glass-sm" style={{ padding: '16px' }}>
-                    <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)', fontWeight: 700 }}>DAILY AI DISPATCHES</div>
-                    <div style={{ fontSize: '20px', fontWeight: 900, color: 'white', marginTop: '4px' }}>
-                      {(!sub || !['ACTIVE', 'LIFETIME', 'ENTERPRISE'].includes(sub.status)) ? `${quota?.dailyCredits || 0} Remaining` : 'Unlimited'}
+                    <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)', fontWeight: 700, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span>DAILY AI DISPATCHES</span>
+                      {userCredits === 0 && (
+                        <button onClick={handleRenewCredits} className="text-indigo-400 hover:text-indigo-300 font-bold underline" style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '9px' }}>
+                          Renew 1000 Credits
+                        </button>
+                      )}
                     </div>
-                    <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', marginTop: '4px' }}>Resets in 24 hours.</p>
+                    <div style={{ fontSize: '20px', fontWeight: 900, color: userCredits === 0 ? '#fb7185' : 'white', marginTop: '4px' }}>
+                      {(!sub || !['ACTIVE', 'LIFETIME', 'ENTERPRISE'].includes(sub.status)) ? `${userCredits !== null ? userCredits : (quota?.dailyCredits || 0)} Remaining` : 'Unlimited'}
+                    </div>
+                    <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', marginTop: '4px' }}>
+                      {userCredits === 0 ? `Quota exhausted. Resets in ~${hoursUntilReset}h.` : `Resets in ~${hoursUntilReset}h.`}
+                    </p>
                   </div>
                   <div className="glass-sm" style={{ padding: '16px' }}>
                     <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)', fontWeight: 700 }}>SAVED OPPORTUNITIES</div>

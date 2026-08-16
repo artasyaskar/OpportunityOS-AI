@@ -72,11 +72,13 @@ export default function OpportunityDetailPage() {
         },
         body: JSON.stringify({ opportunityId: opp.id })
       })
-      .then(res => res.json())
-      .then(data => {
-        if (data.requireUpgrade) {
-          openUpgradeModal();
-        } else if (data.success && data.intelligence) {
+      .then(async (res) => {
+        const data = await res.json();
+        if (res.status === 402 || data.requireUpgrade) {
+          window.location.href = '/dashboard/settings?tab=billing&plan=professional_monthly';
+          return;
+        }
+        if (data.success && data.intelligence) {
           setIntelligenceData(data.intelligence);
         }
       })

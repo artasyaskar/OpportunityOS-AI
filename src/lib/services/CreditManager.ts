@@ -36,7 +36,7 @@ export class CreditManager {
       const planId = (data.planId || '').toString().toLowerCase();
       
       // Lifetime / Enterprise plan is always active and unlimited
-      if (status === 'LIFETIME' || planId.includes('lifetime') || status === 'ENTERPRISE') {
+      if (status === 'LIFETIME' || (status === 'ACTIVE' && (planId.includes('lifetime') || status === 'ENTERPRISE'))) {
         return { isUnlimited: true, isExpiredMonthly: false };
       }
 
