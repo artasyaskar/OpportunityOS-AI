@@ -79,7 +79,14 @@ export default function DashboardHeader() {
       }
 
       fetch(`/api/user/credits?uid=${user.uid}`)
-        .then(res => res.json())
+        .then(async (res) => {
+          if (!res.ok) return null;
+          try {
+            return await res.json();
+          } catch {
+            return null;
+          }
+        })
         .then(data => {
           if (data?.credits !== undefined) {
             const isUnlim = Boolean(data.isUnlimited);
@@ -93,7 +100,7 @@ export default function DashboardHeader() {
             localStorage.setItem(`creditData_${user.uid}`, JSON.stringify(newData));
           }
         })
-        .catch(console.error);
+        .catch(() => {});
     } else {
       setCreditData({ credits: localQuota.dailyCredits, isUnlimited: false, hoursUntilReset: 24 });
     }
@@ -425,10 +432,12 @@ export default function DashboardHeader() {
             </div>
           )}
 
-          {/* AI Credits Pill */}
+          {/* AI Credits / Unlimited Pill */}
           <button
-            onClick={openUpgradeModal}
-            title={creditData?.isUnlimited ? "Pro Plan: Unlimited AI Generations" : creditData === null ? "Loading credits..." : `${creditData.credits} credits available. 1,000 credits renew every 24 hours (250 credits / AI generation).`}
+            onClick={() => {
+              window.location.href = '/dashboard/settings?tab=billing';
+            }}
+            title={creditData?.isUnlimited ? "Pro Plan: Unlimited AI Generations (Click to manage billing)" : creditData === null ? "Loading credits..." : `${creditData.credits} credits available. 1,000 credits renew every 24 hours. (Click to view plans)`}
             style={{
               background: creditData?.isUnlimited
                 ? 'linear-gradient(135deg, rgba(168,85,247,0.2), rgba(236,72,153,0.2))'
@@ -437,26 +446,26 @@ export default function DashboardHeader() {
                 ? '1px solid rgba(168,85,247,0.5)'
                 : '1px solid rgba(99,102,241,0.3)',
               borderRadius: '20px',
-              padding: '4px 12px',
+              padding: '4px 10px',
               display: 'flex',
               alignItems: 'center',
-              gap: '6px',
+              gap: '4px',
               cursor: 'pointer',
               transition: 'all 0.2s ease',
-              minWidth: creditData === null ? '120px' : 'auto',
-              justifyContent: 'center'
+              justifyContent: 'center',
+              flexShrink: 0
             }}
-            className="hover:border-indigo-400 hover:shadow-[0_0_10px_rgba(99,102,241,0.3)]"
+            className="hover:border-indigo-400 hover:shadow-[0_0_10px_rgba(99,102,241,0.3)] shrink-0"
           >
             <Zap size={13} color={creditData?.isUnlimited ? '#c084fc' : '#a5b4fc'} aria-hidden="true" />
-            <span style={{ fontSize: '13px', fontWeight: 700, color: '#e2e8f0', display: 'flex', alignItems: 'center' }}>
+            <span style={{ fontSize: '12px', fontWeight: 700, color: '#e2e8f0', display: 'flex', alignItems: 'center' }}>
               {creditData === null ? (
-                <div style={{ width: '32px', height: '14px', background: 'rgba(255,255,255,0.1)', borderRadius: '4px', animation: 'pulse 1.5s infinite' }} />
+                <div style={{ width: '28px', height: '12px', background: 'rgba(255,255,255,0.1)', borderRadius: '4px', animation: 'pulse 1.5s infinite' }} />
               ) : creditData.isUnlimited ? '∞ UNLIMITED' : creditData.credits}
             </span>
-            <span style={{ fontSize: '11px', color: creditData?.isUnlimited ? '#c084fc' : '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 600, display: 'flex', alignItems: 'center', marginLeft: '2px' }}>
+            <span className="hidden sm:inline" style={{ fontSize: '11px', color: creditData?.isUnlimited ? '#c084fc' : '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 600, marginLeft: '2px' }}>
               {creditData === null ? (
-                <div style={{ width: '48px', height: '10px', background: 'rgba(255,255,255,0.05)', borderRadius: '2px', animation: 'pulse 1.5s infinite' }} />
+                <div style={{ width: '36px', height: '10px', background: 'rgba(255,255,255,0.05)', borderRadius: '2px', animation: 'pulse 1.5s infinite' }} />
               ) : creditData.isUnlimited ? 'PRO' : 'Credits / 24h'}
             </span>
           </button>

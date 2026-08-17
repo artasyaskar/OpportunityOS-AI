@@ -22,13 +22,20 @@ export default function ExpiredPlanBanner() {
     }
 
     fetch(`/api/user/credits?uid=${user.uid}`)
-      .then(res => res.json())
+      .then(async (res) => {
+        if (!res.ok) return null;
+        try {
+          return await res.json();
+        } catch {
+          return null;
+        }
+      })
       .then(data => {
         if (data?.subscription) {
           setSubData(data.subscription);
         }
       })
-      .catch(console.error);
+      .catch(() => {});
   }, [user?.uid]);
 
   const handleDismiss = () => {
@@ -131,7 +138,9 @@ export default function ExpiredPlanBanner() {
 
       <div className="banner-actions" style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
         <button
-          onClick={openUpgradeModal}
+          onClick={() => {
+            window.location.href = '/dashboard/settings?tab=billing';
+          }}
           style={{
             background: 'linear-gradient(135deg, #a855f7, #6366f1)',
             border: 'none',

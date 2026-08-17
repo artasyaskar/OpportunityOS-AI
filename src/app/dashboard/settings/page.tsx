@@ -132,7 +132,14 @@ export default function SettingsPage() {
   const syncUserCredits = () => {
     if (user?.uid) {
       fetch(`/api/user/credits?uid=${user.uid}`)
-        .then(res => res.json())
+        .then(async (res) => {
+          if (!res.ok) return null;
+          try {
+            return await res.json();
+          } catch {
+            return null;
+          }
+        })
         .then(data => {
           if (data?.credits !== undefined) {
             setUserCredits(data.credits);
@@ -141,7 +148,7 @@ export default function SettingsPage() {
             saveQuotaState({ ...qs, dailyCredits: data.credits });
           }
         })
-        .catch(console.error);
+        .catch(() => {});
     }
   };
 
